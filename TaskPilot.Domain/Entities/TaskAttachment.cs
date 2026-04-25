@@ -4,7 +4,7 @@ using System.Text;
 
 namespace TaskPilot.Domain.Entities
 {
-    public class TaskaAttachment
+    public class TaskAttachment
     {
     }
 }
