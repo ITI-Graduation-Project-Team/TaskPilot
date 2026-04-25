@@ -3,7 +3,7 @@ using TaskPilot.Domain.Enums;
 
 namespace TaskPilot.Domain.Entities
 {
-    public class SprintEntity : AuditableEntity<Guid>
+    public class Sprint : AuditableEntity<Guid>
     {
         public Guid ProjectId { get; private set; }
 
@@ -16,9 +16,9 @@ namespace TaskPilot.Domain.Entities
         public SprintStatus Status { get; private set; }
 
         // EF
-        private SprintEntity() { }
+        private Sprint() { }
 
-        public SprintEntity(
+        public Sprint(
             Guid projectId,
             string title,
             DateTime startDate,
