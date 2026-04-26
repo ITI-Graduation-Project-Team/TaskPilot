@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using TaskPilot.Domain.Common;
 
 namespace TaskPilot.Domain.Entities
@@ -12,5 +12,6 @@ namespace TaskPilot.Domain.Entities
         public Guid ManagerId { get; set; }
         public User Manager { get; set; }
         public ICollection<Sprint> Sprints { get; set; } = new List<Sprint>();
+        public ICollection<ProjectPolicy> Policies { get; set; } = new List<ProjectPolicy>();
     }
 }

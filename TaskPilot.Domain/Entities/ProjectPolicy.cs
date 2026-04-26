@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Text;
@@ -10,9 +10,10 @@ namespace TaskPilot.Domain.Entities
     {
         public Guid ProjectId { get; set; } 
         public virtual Project Project { get; set; } = null!;
-        public string Title { get; set; } = string.Empty;
-        public string Content { get; set; } = string.Empty;
+        public string TitleEn { get; set; } = string.Empty;
+        public string TitleAr { get; set; } = string.Empty;
+        public string ContentEn { get; set; } = string.Empty;
+        public string ContentAr { get; set; } = string.Empty;
         public int VersionNumber { get; set; } = 1;
-        public bool IsActive { get; set; } = true;
     }
 }
