@@ -1,24 +1,24 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using TaskPilot.Domain.Common;
-using TaskPilot.Domain.Enums;
+﻿using TaskPilot.Domain.Enums;
 
 namespace TaskPilot.Domain.Entities
 {
-    public class Payment : AuditableEntity<Guid>
+    public class Payment
     {
-        public string? GatewayTransactionId { get; set; }
-        public Guid UserId { get; set; }
-        public int UserSubscriptionId { get; set; }
+        public int Id { get; set; }
+        public int PmId { get; set; }
+        public int SubscriptionId { get; set; }
+
         public decimal Amount { get; set; }
-        public string Currency { get; set; }
+        public string Currency { get; set; } = "USD";
         public PaymentStatus Status { get; set; }
-        public string PaymentGateway { get; set; }
-        public string PaymentMethod { get; set; }
+        public string PaymentProvider { get; set; } = "Stripe";
+        public string? TransactionId { get; set; }
+        public string? InvoiceUrl { get; set; }
+
         public DateTime? PaidAt { get; set; }
-        public DateTime CreatedAt { get; set; }
-        public User ProjectManager { get; set; } = null!;
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        public ProjectManager ProjectManager { get; set; } = null!;
         public UserSubscription Subscription { get; set; } = null!;
     }
 }
