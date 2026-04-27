@@ -1,11 +1,14 @@
-﻿using TaskPilot.Domain.Common;
+﻿using System.ComponentModel.DataAnnotations.Schema;
+using TaskPilot.Domain.Common;
 
 namespace TaskPilot.Domain.Entities
 {
 
     public class UserSkill : BaseEntity<Guid>
     {
+        [ForeignKey("User")]
         public Guid UserId { get; set; }
+        [ForeignKey("Skill")]
         public int SkillId { get; set; }
 
         public User User { get; set; } = null!;
