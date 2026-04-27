@@ -1,12 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using System.ComponentModel.DataAnnotations;
 using TaskPilot.Domain.Common;
 
 namespace TaskPilot.Domain.Entities
 {
     public class Skill : AuditableEntity<int>
     {
+        [Required]
         public string Name { get; set; } = string.Empty;
 
         public ICollection<UserSkill> UserSkills { get; set; } = new List<UserSkill>();
