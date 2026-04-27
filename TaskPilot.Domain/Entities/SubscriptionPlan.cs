@@ -1,5 +1,4 @@
 ﻿using TaskPilot.Domain.Common;
-
 namespace TaskPilot.Domain.Entities
 {
     public class SubscriptionPlan : AuditableEntity<int>
@@ -13,7 +12,7 @@ namespace TaskPilot.Domain.Entities
         public bool HasAi { get; set; }
         public bool HasAdvancedAnalytics { get; set; }
         public bool HasTrial { get; set; }
-        public int TrialDays { get; set; }
+        public int? TrialDays { get; set; }
 
         public ICollection<UserSubscription> Subscriptions { get; set; } = new List<UserSubscription>();
         //public string? StripeProductId { get; set; }

@@ -1,9 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Text;
 using TaskPilot.Domain.Entities;
-
 namespace TaskPilot.Infrastructure.Persistence.Configurations.Common
 {
     public class UserSubscriptionConfiguration : AuditableEntityConfiguration<UserSubscription, int>
@@ -12,10 +8,24 @@ namespace TaskPilot.Infrastructure.Persistence.Configurations.Common
         {
             base.Configure(builder);
             builder.ToTable("UserSubscriptions");
-            // 1  subscription plan m user subscription
+
+            builder.Property(s => s.Status)
+           .IsRequired();
+            builder.Property(s => s.StartDate)
+           .IsRequired();
+
+            builder.Property(s => s.EndDate)
+                .IsRequired();
+            // 1  subscription_plan m user_subscription
             builder.HasOne(s => s.Plan)
                 .WithMany(p => p.Subscriptions)
                 .HasForeignKey(s => s.SubscriptionPlanId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            //1 user m user_subscription
+            builder.HasOne(s => s.ProjectManager)
+                .WithMany(u => u.Subscriptions)
+                .HasForeignKey(s => s.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
 
 

@@ -1,10 +1,8 @@
-﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using TaskPilot.Domain.Entities;
 using TaskPilot.Infrastructure.Persistence.Configurations.Common;
+
+using Microsoft.EntityFrameworkCore;
 
 namespace TaskPilot.Infrastructure.Persistence.Configurations
 {
@@ -24,11 +22,7 @@ namespace TaskPilot.Infrastructure.Persistence.Configurations
 
             builder.Property(p => p.AnnualPrice)
                 .HasColumnType("decimal(18,2)");
-            //1 subscription plan m usersubscriptions
-            builder.HasMany(x => x.Subscriptions)
-                .WithOne(x => x.Plan)
-                .HasForeignKey(x => x.SubscriptionPlanId)
-                .OnDelete(DeleteBehavior.Restrict);
+
 
         }
     }
