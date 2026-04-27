@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using TaskPilot.Domain.Enums;
+﻿using TaskPilot.Domain.Enums;
 
 namespace TaskPilot.Domain.Entities
 {
@@ -21,7 +18,7 @@ namespace TaskPilot.Domain.Entities
         public DateTime? PaidAt { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        public User ProjectManager { get; set; } = null!;
+        public ProjectManager ProjectManager { get; set; } = null!;
         public UserSubscription Subscription { get; set; } = null!;
     }
 }

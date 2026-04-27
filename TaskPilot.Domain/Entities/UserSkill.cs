@@ -6,12 +6,12 @@ namespace TaskPilot.Domain.Entities
 
     public class UserSkill : BaseEntity<Guid>
     {
-        [ForeignKey("User")]
-        public Guid UserId { get; set; }
+        [ForeignKey("Developer")]
+        public Guid DeveloperId { get; set; }
         [ForeignKey("Skill")]
         public int SkillId { get; set; }
 
-        public User User { get; set; } = null!;
+        public Developer Developer { get; set; } = null!;
         public Skill Skill { get; set; } = null!;
 
         public int Level { get; set; }

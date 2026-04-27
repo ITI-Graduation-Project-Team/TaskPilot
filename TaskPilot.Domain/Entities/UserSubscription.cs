@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace TaskPilot.Domain.Entities
+﻿namespace TaskPilot.Domain.Entities
 {
     public class UserSubscription
     {
@@ -21,7 +17,7 @@ namespace TaskPilot.Domain.Entities
         public bool IsDeleted { get; set; } = false;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? ModifiedAt { get; set; }
-        public User ProjectManager { get; set; } = null!;
+        public ProjectManager ProjectManager { get; set; } = null!;
         public SubscriptionPlan Plan { get; set; } = null!;
         public ICollection<Payment> Payments { get; set; } = new List<Payment>();
     }

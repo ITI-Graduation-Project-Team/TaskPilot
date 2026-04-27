@@ -7,7 +7,7 @@ namespace TaskPilot.Domain.Entities
     {
         public Guid SprintId { get; set; }
         public Guid? UserStoryId { get; set; }
-        public Guid? AssigneeId { get; set; }
+        public Guid? DeveloperId { get; set; }
         public string TitleEn { get; set; } = string.Empty;
         public string TitleAr { get; set; } = string.Empty;
 
@@ -21,6 +21,7 @@ namespace TaskPilot.Domain.Entities
 
         public TaskPriority Priority { get; set; }
         public TaskItemStatus Status { get; set; } = TaskItemStatus.ToDo;
+        public Developer Developer { get; set; }
 
         public float EstimatedHours { get; set; }
         public float ActualHours { get; set; } = 0;
