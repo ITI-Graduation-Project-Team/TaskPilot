@@ -1,7 +1,7 @@
-﻿
-namespace TaskPilot.Application.Services
+﻿namespace TaskPilot.Application.Services
 {
     internal class IAuthService
     {
+
     }
 }

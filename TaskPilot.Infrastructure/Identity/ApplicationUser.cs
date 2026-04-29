@@ -4,6 +4,6 @@ namespace TaskPilot.Infrastructure.Identity
 {
     public class ApplicationUser : IdentityUser<Guid>
     {
-        public User? User { get; set; }
+        public User? User { get; set; }   
     }
 }
