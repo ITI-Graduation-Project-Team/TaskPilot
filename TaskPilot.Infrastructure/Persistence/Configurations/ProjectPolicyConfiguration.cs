@@ -31,6 +31,12 @@ namespace TaskPilot.Infrastructure.Persistence.Configurations
                    .WithMany(p => p.Policies)
                    .HasForeignKey(pp => pp.ProjectId)
                    .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasIndex(pp => new { pp.ProjectId, pp.VersionNumber })
+            .IsUnique();
+            builder.HasIndex(pp => pp.ProjectId);
+            builder.Property(pp => pp.VersionNumber)
+             .HasDefaultValue(1);
         }
     }
 }

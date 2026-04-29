@@ -9,7 +9,9 @@ namespace TaskPilot.Domain.Entities
     {
         public Guid TaskId { get; set; }
         public string FileUrl { get; set; } = string.Empty;
-        public string FileType { get; set; } = string.Empty;
-        public Task Task { get; set; } = null!;
+        public string FileName { get; set; } = string.Empty;     
+        public string ContentType { get; set; } = string.Empty;
+        public long FileSize { get; set; }
+        public TaskItem Task { get; set; } = null!;
     }
 }

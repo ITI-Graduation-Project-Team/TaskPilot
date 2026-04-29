@@ -1,18 +1,20 @@
 ﻿using System.ComponentModel.DataAnnotations.Schema;
+using TaskPilot.Domain.Common;
 using TaskPilot.Domain.Enums;
 
 namespace TaskPilot.Domain.Entities
 {
-    public class Notification
-    {
-        [ForeignKey("User")]
-        public Guid UserId { get; set; }
-        public User User { get; set; }
-        public NotificationType Type { get; set; }///
-        public string Message { get; set; }
-        public string Url { get; set; }
-        public bool IsRead { get; set; }
+        public class Notification : AuditableEntity<Guid>
+        {
+            public Guid UserId { get; set; }
+            public User User { get; set; } = null!;
 
+            public NotificationType Type { get; set; }
 
-    }
+           public string MessageEn { get; set; } = string.Empty;
+             public string MessageAr { get; set; } = string.Empty;
+        public string? Url { get; set; }
+        public bool IsRead { get; set; } = false;
+        }
+
 }

@@ -5,9 +5,9 @@ using TaskPilot.Infrastructure.Persistence.Configurations.Common;
 
 namespace TaskPilot.Infrastructure.Persistence.Configurations
 {
-    public class TaskConfiguration : AuditableEntityConfiguration<Domain.Entities.Task, Guid>
+    public class TaskConfiguration : AuditableEntityConfiguration<TaskItem, Guid>
     {
-        public override void Configure(EntityTypeBuilder<Domain.Entities.Task> builder)
+        public override void Configure(EntityTypeBuilder<TaskItem> builder)
         {
             base.Configure(builder);
 
@@ -40,15 +40,19 @@ namespace TaskPilot.Infrastructure.Persistence.Configurations
                 .HasMaxLength(2000);
 
             builder.Property(t => t.EstimatedHours)
-                .HasColumnType("decimal(10,2)");
+                .HasColumnType("decimal(10,2)")
+                .IsRequired();
 
             builder.Property(t => t.ActualHours)
-                .HasColumnType("decimal(10,2)");
+                .HasColumnType("decimal(10,2)")
+                .HasDefaultValue(0);
 
             builder.Property(t => t.Priority)
+                 .IsRequired()
                 .HasConversion<int>();
 
             builder.Property(t => t.Status)
+                 .IsRequired()
                 .HasConversion<int>();
 
 
@@ -62,10 +66,32 @@ namespace TaskPilot.Infrastructure.Persistence.Configurations
                 .HasForeignKey(t => t.UserStoryId)
                 .OnDelete(DeleteBehavior.SetNull);
 
-            builder.HasOne(t => t.Developer)
+            builder.HasOne(t => t.Employee)
                 .WithMany(d => d.AssignedTasks)
-                .HasForeignKey(t => t.DeveloperId)
+                .HasForeignKey(t => t.EmployeeId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            builder.HasMany(t => t.Comments)
+                .WithOne(c => c.Task)
+                .HasForeignKey(c => c.TaskId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasMany(t => t.Attachments)
+                .WithOne(a => a.Task)
+                .HasForeignKey(a => a.TaskId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasMany(t => t.RequiredSkills)
+                .WithOne(rs => rs.Task)
+                .HasForeignKey(rs => rs.TaskId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+
+            builder.HasIndex(t => t.SprintId);
+            builder.HasIndex(t => t.EmployeeId);
+            builder.HasIndex(t => t.UserStoryId);
+            builder.HasIndex(t => t.Status);
+            builder.HasIndex(t => t.Priority);
         }
     }
 }

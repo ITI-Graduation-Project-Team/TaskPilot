@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using TaskPilot.Domain.Entities;
+using TaskPilot.Domain.Enums;
 using TaskPilot.Infrastructure.Persistence.Configurations.Common;
 
 namespace TaskPilot.Infrastructure.Persistence.Configurations
@@ -33,15 +34,22 @@ namespace TaskPilot.Infrastructure.Persistence.Configurations
             builder.Property(us => us.AcceptanceCriteriaAr)
                    .HasMaxLength(2000);
 
-            builder.HasOne(us => us.Sprint)
-                   .WithMany(s => s.UserStories)
-                   .HasForeignKey(us => us.SprintId)
-                   .OnDelete(DeleteBehavior.Cascade);
+            builder.Property(us => us.Priority)
+                .IsRequired()
+                .HasConversion<int>();
 
-            builder.HasMany(us => us.Tasks)
-                   .WithOne()
-                   .HasForeignKey(t => t.UserStoryId)
-                   .OnDelete(DeleteBehavior.Restrict);
+            builder.Property(s => s.Status)
+                     .IsRequired()
+                    .HasConversion<int>()
+                     .HasDefaultValue(StoryStatus.ToDo);
+
+            builder.HasIndex(us => us.SprintId);
+            builder.HasIndex(us => new { us.SprintId, us.Status });
+            builder.HasIndex(us => new { us.SprintId, us.TitleEn })
+                 .IsUnique();
+
+           
+            builder.HasIndex(us => us.Priority);
         }
     }
 }

@@ -2,8 +2,8 @@
 {
     public enum SprintStatus
     {
-        Planned = 1,
-        Active = 2,
-        Completed = 3
+        Planned = 0,
+        Active = 1,
+        Completed = 2
     }
 }

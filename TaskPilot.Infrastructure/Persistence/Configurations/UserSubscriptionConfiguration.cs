@@ -1,35 +1,49 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using TaskPilot.Domain.Entities;
-namespace TaskPilot.Infrastructure.Persistence.Configurations.Common
+using TaskPilot.Infrastructure.Persistence.Configurations.Common;
+
+public class UserSubscriptionConfiguration
+    : AuditableEntityConfiguration<UserSubscription, Guid>
 {
-    public class UserSubscriptionConfiguration : AuditableEntityConfiguration<UserSubscription, int>
+    public override void Configure(EntityTypeBuilder<UserSubscription> builder)
     {
-        public override void Configure(Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder<UserSubscription> builder)
-        {
-            base.Configure(builder);
-            builder.ToTable("UserSubscriptions");
+        base.Configure(builder);
 
-            builder.Property(s => s.Status)
-           .IsRequired();
-            builder.Property(s => s.StartDate)
-           .IsRequired();
+        builder.ToTable("UserSubscriptions");
 
-            builder.Property(s => s.EndDate)
-                .IsRequired();
-            // 1  subscription_plan m user_subscription
-            builder.HasOne(s => s.Plan)
-                .WithMany(p => p.Subscriptions)
-                .HasForeignKey(s => s.SubscriptionPlanId)
-                .OnDelete(DeleteBehavior.Restrict);
+        builder.Property(s => s.StartDate)
+            .IsRequired();
 
-            //1 user m user_subscription
-            builder.HasOne(s => s.ProjectManager)
-                .WithMany(u => u.Subscriptions)
-                .HasForeignKey(s => s.UserId)
-                .OnDelete(DeleteBehavior.Restrict);
+        builder.Property(s => s.EndDate)
+            .IsRequired();
 
+        builder.Property(s => s.Status)
+            .IsRequired()
+            .HasConversion<int>();
 
+        builder.Property(s => s.BillingCycle)
+            .IsRequired()
+            .HasConversion<int>();
 
-        }
+        builder.Property(s => s.IsTrial)
+            .HasDefaultValue(false);
+
+        builder.Property(s => s.AutoRenew)
+            .HasDefaultValue(true);
+
+        builder.HasOne(s => s.Plan)
+            .WithMany(p => p.Subscriptions)
+            .HasForeignKey(s => s.SubscriptionPlanId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(s => s.ProjectManager)
+            .WithMany(pm => pm.Subscriptions)
+            .HasForeignKey(s => s.ProjectManagerId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(s => s.ProjectManagerId);
+        builder.HasIndex(s => s.SubscriptionPlanId);
+        builder.HasIndex(s => s.Status);
     }
 }
