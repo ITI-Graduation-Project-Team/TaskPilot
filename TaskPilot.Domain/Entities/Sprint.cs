@@ -5,48 +5,21 @@ namespace TaskPilot.Domain.Entities
 {
     public class Sprint : AuditableEntity<Guid>
     {
-        public Guid ProjectId { get; private set; }
-        public Project? Project { get; private set; }
+        public Guid ProjectId { get; set; }
+        public Project Project { get; set; } = null!;
 
-        public string TitleEn { get; private set; }
-        public string TitleAr { get; private set; }
-        public string? SprintGoalEn { get; private set; }
-        public string? SprintGoalAr { get; private set; }
+        public string TitleEn { get; set; } = string.Empty;
+        public string TitleAr { get; set; } = string.Empty;
+        public string? SprintGoalEn { get; set; }
+        public string? SprintGoalAr { get; set; }
 
-        public DateTime StartDate { get; private set; }
-        public DateTime EndDate { get; private set; }
+        public DateTime StartDate { get; set; }
+        public DateTime EndDate { get; set; }
 
-        public SprintStatus Status { get; private set; }
 
-        public ICollection<UserStory> UserStories { get; private set; } = new List<UserStory>();
-        public ICollection<Task> Tasks { get; private set; } = new List<Task>();
+        public SprintStatus Status { get; set; } = SprintStatus.Planned;
 
-        // EF
-        private Sprint() { }
-
-        public Sprint(
-            Guid projectId,
-            string titleEn,
-            string titleAr,
-            DateTime startDate,
-            DateTime endDate,
-            string? sprintGoalEn = null,
-            string? sprintGoalAr = null)
-        {
-            Id = Guid.NewGuid();
-
-            ProjectId = projectId;
-            TitleEn = titleEn;
-            TitleAr = titleAr;
-            SprintGoalEn = sprintGoalEn;
-            SprintGoalAr = sprintGoalAr;
-
-            StartDate = startDate;
-            EndDate = endDate;
-
-            Status = SprintStatus.Planned;
-
-            //SetCreated();
-        }
+        public ICollection<UserStory> UserStories { get; set; } = new List<UserStory>();
+        public ICollection<TaskItem> Tasks { get; set; } = new List<TaskItem>();
     }
 }

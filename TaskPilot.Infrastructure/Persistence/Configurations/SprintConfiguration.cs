@@ -36,11 +36,6 @@ namespace TaskPilot.Infrastructure.Persistence.Configurations
                    .WithOne(us => us.Sprint)
                    .HasForeignKey(us => us.SprintId)
                    .OnDelete(DeleteBehavior.Cascade);
-
-            builder.HasMany(s => s.Tasks)
-                   .WithOne()
-                   .HasForeignKey(t => t.SprintId)
-                   .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

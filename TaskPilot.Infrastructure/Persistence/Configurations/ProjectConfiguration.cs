@@ -32,15 +32,28 @@ namespace TaskPilot.Infrastructure.Persistence.Configurations
                    .HasForeignKey(p => p.ManagerId)
                    .OnDelete(DeleteBehavior.Restrict);
 
-            builder.HasMany(p => p.Sprints)
-                   .WithOne(s => s.Project)
-                   .HasForeignKey(s => s.ProjectId)
-                   .OnDelete(DeleteBehavior.Cascade);
-
             builder.HasMany(p => p.Policies)
                    .WithOne(pp => pp.Project)
                    .HasForeignKey(pp => pp.ProjectId)
                    .OnDelete(DeleteBehavior.Cascade);
+
+
+            builder.HasMany(p => p.ProjectEmployees)
+                  .WithOne(pe => pe.Project)
+                   .HasForeignKey(pe => pe.ProjectId)
+                   .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasOne(p => p.Manager)
+                .WithMany(pm => pm.ManagedProjects)
+                 .HasForeignKey(p => p.ManagerId)
+              .OnDelete(DeleteBehavior.Restrict);
+
+
+            builder.HasIndex(p => p.CompanyId);
+            builder.HasIndex(p => p.ManagerId);
+            builder.HasIndex(p => new { p.CompanyId, p.NameEn })
+                .IsUnique();
+            builder.HasIndex(p => new { p.CompanyId, p.ManagerId });
         }
     }
 }
