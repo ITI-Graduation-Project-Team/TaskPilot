@@ -1,5 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
-using TaskPilot.Domain.Common;
+﻿using TaskPilot.Domain.Common;
 
 namespace TaskPilot.Domain.Entities
 {
