@@ -1,8 +1,10 @@
 
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using TaskPilot.Application.Interfaces.Repositories;
 using TaskPilot.Infrastructure.Identity;
 using TaskPilot.Infrastructure.Persistence;
+using TaskPilot.Infrastructure.Repositories;
 
 namespace TaskPilot.Api
 {
@@ -21,6 +23,10 @@ namespace TaskPilot.Api
             builder.Services.AddIdentity<ApplicationUser, IdentityRole<Guid>>()
                 .AddEntityFrameworkStores<ApplicationDbContext>()
                 .AddDefaultTokenProviders();
+
+            // ── Repository & Unit of Work ──
+            builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
+            builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
             builder.Services.AddControllers();
 
