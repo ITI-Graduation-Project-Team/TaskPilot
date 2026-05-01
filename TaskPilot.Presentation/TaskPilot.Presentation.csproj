@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.7">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.1.7" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TaskPilot.Data\TaskPilot.Data.csproj" />
+    <ProjectReference Include="..\TaskPilot.DTOs\TaskPilot.DTOs.csproj" />
+    <ProjectReference Include="..\TaskPilot.Models\TaskPilot.Models.csproj" />
+    <ProjectReference Include="..\TaskPilot.Services\TaskPilot.Services.csproj" />
+  </ItemGroup>
+
+</Project>
