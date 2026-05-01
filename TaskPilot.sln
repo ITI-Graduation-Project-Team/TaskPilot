@@ -1,15 +1,17 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.14.37203.1 d17.14
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TaskPilot.Domain", "TaskPilot.Domain\TaskPilot.Domain.csproj", "{4454E68B-18A7-4D32-93D1-ABAC9B3F96C1}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TaskPilot.Models", "TaskPilot.Models\TaskPilot.Models.csproj", "{4454E68B-18A7-4D32-93D1-ABAC9B3F96C1}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TaskPilot.Application", "TaskPilot.Application\TaskPilot.Application.csproj", "{BF82E69A-5A28-458D-9CDF-4292AD3E725B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TaskPilot.Data", "TaskPilot.Data\TaskPilot.Data.csproj", "{1CEB2E4E-8DB0-4584-88F3-67669978898B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TaskPilot.Infrastructure", "TaskPilot.Infrastructure\TaskPilot.Infrastructure.csproj", "{1CEB2E4E-8DB0-4584-88F3-67669978898B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TaskPilot.Services", "TaskPilot.Services\TaskPilot.Services.csproj", "{BF82E69A-5A28-458D-9CDF-4292AD3E725B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TaskPilot.Api", "TaskPilot.Api\TaskPilot.Api.csproj", "{A1471FC7-2545-4A32-9EDA-B5C3D4F3FCF9}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TaskPilot.DTOs", "TaskPilot.DTOs\TaskPilot.DTOs.csproj", "{E3D72F1A-9B45-4C89-A123-456789ABCDEF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TaskPilot.Presentation", "TaskPilot.Presentation\TaskPilot.Presentation.csproj", "{A1471FC7-2545-4A32-9EDA-B5C3D4F3FCF9}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,14 +23,18 @@ Global
 		{4454E68B-18A7-4D32-93D1-ABAC9B3F96C1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4454E68B-18A7-4D32-93D1-ABAC9B3F96C1}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4454E68B-18A7-4D32-93D1-ABAC9B3F96C1}.Release|Any CPU.Build.0 = Release|Any CPU
-		{BF82E69A-5A28-458D-9CDF-4292AD3E725B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{BF82E69A-5A28-458D-9CDF-4292AD3E725B}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{BF82E69A-5A28-458D-9CDF-4292AD3E725B}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{BF82E69A-5A28-458D-9CDF-4292AD3E725B}.Release|Any CPU.Build.0 = Release|Any CPU
 		{1CEB2E4E-8DB0-4584-88F3-67669978898B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{1CEB2E4E-8DB0-4584-88F3-67669978898B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1CEB2E4E-8DB0-4584-88F3-67669978898B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1CEB2E4E-8DB0-4584-88F3-67669978898B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BF82E69A-5A28-458D-9CDF-4292AD3E725B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BF82E69A-5A28-458D-9CDF-4292AD3E725B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BF82E69A-5A28-458D-9CDF-4292AD3E725B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BF82E69A-5A28-458D-9CDF-4292AD3E725B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E3D72F1A-9B45-4C89-A123-456789ABCDEF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E3D72F1A-9B45-4C89-A123-456789ABCDEF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E3D72F1A-9B45-4C89-A123-456789ABCDEF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E3D72F1A-9B45-4C89-A123-456789ABCDEF}.Release|Any CPU.Build.0 = Release|Any CPU
 		{A1471FC7-2545-4A32-9EDA-B5C3D4F3FCF9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{A1471FC7-2545-4A32-9EDA-B5C3D4F3FCF9}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A1471FC7-2545-4A32-9EDA-B5C3D4F3FCF9}.Release|Any CPU.ActiveCfg = Release|Any CPU
