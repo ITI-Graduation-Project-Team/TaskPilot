@@ -24,7 +24,7 @@ namespace TaskPilot.Data
                     configuration.GetConnectionString("DefaultConnection")));
 
             // ── ASP.NET Identity ──
-            services.AddIdentity<ApplicationUser, IdentityRole<Guid>>()
+            services.AddIdentity<User, IdentityRole<Guid>>()
                 .AddEntityFrameworkStores<ApplicationDbContext>()
                 .AddDefaultTokenProviders();
 

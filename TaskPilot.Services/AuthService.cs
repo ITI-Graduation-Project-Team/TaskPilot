@@ -48,7 +48,6 @@ namespace TaskPilot.Services
                 }
                 var DomainUser = new User
                 {
-                    ApplicationUserId = CreatedUser.Value,
                     FirstNameAr = RegisterRequest.FirstNameAr,
                     LastNameAr = RegisterRequest.LastNameAr,
                     FirstNameEn = RegisterRequest.FirstNameEn,

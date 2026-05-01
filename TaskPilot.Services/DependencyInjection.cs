@@ -14,7 +14,7 @@ namespace TaskPilot.Services
             // ── Business Services ──
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IProjectService, ProjectService>();
-            services.AddScoped<IAuthService, AuthService>();
+            //services.AddScoped<IAuthService, AuthService>();
 
             return services;
         }

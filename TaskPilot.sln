@@ -1,7 +1,7 @@
-
+﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.14.37203.1 d17.14
+# Visual Studio Version 18
+VisualStudioVersion = 18.5.11723.231 stable
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TaskPilot.Models", "TaskPilot.Models\TaskPilot.Models.csproj", "{4454E68B-18A7-4D32-93D1-ABAC9B3F96C1}"
 EndProject

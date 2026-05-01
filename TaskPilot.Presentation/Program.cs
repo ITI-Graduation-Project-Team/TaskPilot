@@ -1,7 +1,7 @@
 using TaskPilot.Data;
-using TaskPilot.Data.Identity;
 using TaskPilot.Models.Common;
 using TaskPilot.Services;
+using TaskPilot.Services.Interfaces;
 
 namespace TaskPilot.Presentation
 {
@@ -16,16 +16,14 @@ namespace TaskPilot.Presentation
             builder.Services.AddServices();
 
             // ── Infrastructure services (implementations in Data, interfaces in Models) ──
-            builder.Services.AddScoped<IIdentityService, IdentityService>();
 
             builder.Services.AddControllers();
 
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
-
+           
             var app = builder.Build();
 
-            // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
             {
                 app.UseSwagger();

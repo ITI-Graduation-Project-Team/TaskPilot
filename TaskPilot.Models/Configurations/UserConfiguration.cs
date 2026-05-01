@@ -6,14 +6,12 @@ using TaskPilot.Models.Configurations.Common;
 
 namespace TaskPilot.Models.Configurations
 {
-    public class UserConfiguration : AuditableEntityConfiguration<User, Guid>
+    public class UserConfiguration : IEntityTypeConfiguration<User>
     {
-        public override void Configure(EntityTypeBuilder<User> builder)
+        public void Configure(EntityTypeBuilder<User> builder)
         {
-            base.Configure(builder);
 
             builder.ToTable("Users");
-
            
             builder.HasDiscriminator<string>("UserType")
                 .HasValue<Employee>("Employee")
@@ -22,17 +20,6 @@ namespace TaskPilot.Models.Configurations
             builder.Property("UserType")
                 .HasMaxLength(50);
 
-           
-            builder.HasOne<ApplicationUser>()
-                .WithOne(au => au.User)
-                .HasForeignKey<User>(u => u.ApplicationUserId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            builder.Property(u => u.ApplicationUserId)
-                .IsRequired();
-
-            builder.HasIndex(u => u.ApplicationUserId)
-                .IsUnique();
 
             
             builder.HasOne(u => u.Company)
@@ -59,7 +46,7 @@ namespace TaskPilot.Models.Configurations
                 .IsRequired()
                 .HasMaxLength(100);
 
-            builder.HasIndex(u => new { u.CompanyId, u.ApplicationUserId });
+            builder.HasIndex(u => new { u.CompanyId, u.Id });
         }
     }
 }

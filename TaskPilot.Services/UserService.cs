@@ -36,16 +36,16 @@ namespace TaskPilot.Services
             return Result.Success(users);
         }
 
-        public async Task<Result<User>> GetByApplicationUserIdAsync(Guid applicationUserId)
-        {
-            var user = await _unitOfWork.Users
-                .FindSingleAsync(u => u.ApplicationUserId == applicationUserId);
+        //public async Task<Result<User>> GetByApplicationUserIdAsync(Guid applicationUserId)
+        //{
+        //    var user = await _unitOfWork.Users
+        //        .FindSingleAsync(u => u.Id == applicationUserId);
 
-            if (user is null)
-                return Result.Failure<User>(CommonErrors.NotFound("User"));
+        //    if (user is null)
+        //        return Result.Failure<User>(CommonErrors.NotFound("User"));
 
-            return Result.Success(user);
-        }
+        //    return Result.Success(user);
+        //}
 
         public async Task<Result> DeleteAsync(Guid id)
         {

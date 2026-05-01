@@ -11,7 +11,7 @@ namespace TaskPilot.Services.Interfaces
     {
         Task<Result<User>> GetByIdAsync(Guid id);
         Task<Result<IEnumerable<User>>> GetAllAsync();
-        Task<Result<User>> GetByApplicationUserIdAsync(Guid applicationUserId);
+        //Task<Result<User>> GetByApplicationUserIdAsync(Guid applicationUserId);
         Task<Result> DeleteAsync(Guid id);
     }
 }
