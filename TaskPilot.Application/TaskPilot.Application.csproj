@@ -10,8 +10,4 @@
     <ProjectReference Include="..\TaskPilot.Domain\TaskPilot.Domain.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="DTOs\" />
-  </ItemGroup>
-
 </Project>

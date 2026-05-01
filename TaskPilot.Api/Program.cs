@@ -23,6 +23,10 @@ namespace TaskPilot.Api
             builder.Services.AddIdentity<ApplicationUser, IdentityRole<Guid>>()
                 .AddEntityFrameworkStores<ApplicationDbContext>()
                 .AddDefaultTokenProviders();
+            builder.Services.Configure<IdentityOptions>(options =>
+            {
+                options.Tokens.EmailConfirmationTokenProvider = TokenOptions.DefaultEmailProvider;
+            });
 
             // ── Repository & Unit of Work ──
             builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
