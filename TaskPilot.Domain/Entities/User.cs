@@ -8,7 +8,7 @@
         public string LastNameEn { get; set; } = string.Empty;
         public string FirstNameAr { get; set; } = string.Empty;
         public string LastNameAr { get; set; } = string.Empty;
-        public Guid CompanyId { get; set; }
+        public Guid? CompanyId { get; set; }
         public Company Company { get; set; } = null!;
         public Guid ApplicationUserId { get; set; }
         public ICollection<Notification> Notifications { get; set; } = new List<Notification>();
