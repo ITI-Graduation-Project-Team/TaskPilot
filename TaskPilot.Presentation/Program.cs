@@ -3,12 +3,9 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.Text.Json;
 using TaskPilot.Data;
-using TaskPilot.Data.Identity;
-using TaskPilot.Models.Common;
 using TaskPilot.Models.Common.Errors;
 using TaskPilot.Models.Common.Results;
 using TaskPilot.Services;
-using TaskPilot.Services.Interfaces;
 
 namespace TaskPilot.Presentation
 {
@@ -18,11 +15,9 @@ namespace TaskPilot.Presentation
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            // ── Layer registrations ──
             builder.Services.AddData(builder.Configuration);
             builder.Services.AddServices();
 
-            // ── Infrastructure services (implementations in Data, interfaces in Models) ──
 
             builder.Services.AddControllers();
 

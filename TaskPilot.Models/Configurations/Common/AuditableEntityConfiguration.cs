@@ -13,7 +13,7 @@ namespace TaskPilot.Models.Configurations.Common
             builder.HasKey(e => e.Id);
 
             builder.Property(e => e.CreatedAt)
-                   .IsRequired();
+                   .HasDefaultValueSql("GETUTCDATE()");
 
             builder.Property(e => e.CreatedBy)
                    .IsRequired(false);

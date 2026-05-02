@@ -1,20 +1,29 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using TaskPilot.Models.Configurations.Common;
 using TaskPilot.Models.Entities;
+using TaskPilot.Models.Enums;
 
-public class UserSkillConfiguration : IEntityTypeConfiguration<UserSkill>
+public class UserSkillConfiguration
+    : AuditableEntityConfiguration<UserSkill, Guid>
 {
-    public void Configure(EntityTypeBuilder<UserSkill> builder)
+    public override void Configure(EntityTypeBuilder<UserSkill> builder)
     {
+        base.Configure(builder);
+
         builder.ToTable("UserSkills");
 
-        builder.HasKey(us => new { us.EmployeeId, us.SkillId });
+        builder.HasIndex(us => new { us.UserId, us.SkillId })
+               .IsUnique();
+
+        builder.HasOne(us => us.User)
+            .WithMany(u => u.UserSkills)
+            .HasForeignKey(us => us.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
 
         builder.Property(us => us.Level)
-            .IsRequired();
-
-        builder.Property(us => us.YearsOfExperience)
-            .IsRequired();
+            .HasDefaultValue(SkillLevel.Intermediate);
 
         builder.HasIndex(us => us.SkillId);
     }

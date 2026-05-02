@@ -16,11 +16,6 @@ public class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
         builder.Property(e => e.AvailabilityStatus)
             .HasConversion<int>();
 
-        builder.HasMany(e => e.UserSkills)
-           .WithOne(us => us.Employee)
-           .HasForeignKey(us => us.EmployeeId)
-           .OnDelete(DeleteBehavior.Restrict);
-
         builder.HasIndex(e => e.AvailabilityStatus);
         builder.HasIndex(e => new { e.AvailabilityStatus, e.MaxSprintHours });
     }
