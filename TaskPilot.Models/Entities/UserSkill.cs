@@ -1,17 +1,18 @@
 using TaskPilot.Models.Common;
+using TaskPilot.Models.Enums;
 
 namespace TaskPilot.Models.Entities
 {
 
     public class UserSkill : AuditableEntity<Guid>
     {
-        public Guid EmployeeId { get; set; }
+        public Guid UserId { get; set; }
         public int SkillId { get; set; }
 
-        public Employee Employee { get; set; } = null!;
+        public User User { get; set; } = null!;
         public Skill Skill { get; set; } = null!;
 
-        public int Level { get; set; }
-        public int YearsOfExperience { get; set; }
+        public SkillLevel Level { get; set; } = SkillLevel.Intermediate;
+        public int? YearsOfExperience { get; set; }
     }
 }

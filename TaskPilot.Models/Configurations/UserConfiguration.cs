@@ -9,18 +9,33 @@ namespace TaskPilot.Models.Configurations
     {
         public void Configure(EntityTypeBuilder<User> builder)
         {
+            builder.Property(u => u.CreatedAt)
+                   .HasDefaultValueSql("GETUTCDATE()");
 
-            builder.ToTable("Users");
-           
+            builder.Property(u => u.CreatedBy)
+                .IsRequired(false);
+
+            builder.Property(u => u.ModifiedAt)
+                .IsRequired(false);
+
+            builder.Property(u => u.ModifiedBy)
+                .IsRequired(false);
+
+            builder.Property(u => u.IsDeleted)
+                .HasDefaultValue(false);
+
+            builder.HasIndex(u => u.IsDeleted);
+
+            builder.HasQueryFilter(u => !u.IsDeleted);
+
             builder.HasDiscriminator<string>("UserType")
                 .HasValue<Employee>("Employee")
                 .HasValue<ProjectManager>("ProjectManager");
 
-            builder.Property("UserType")
-                .HasMaxLength(50);
+            builder.Property<string>("UserType")
+                 .HasMaxLength(50)
+                 .IsRequired();
 
-
-            
             builder.HasOne(u => u.Company)
                 .WithMany(c => c.Users)
                 .HasForeignKey(u => u.CompanyId)
@@ -45,7 +60,13 @@ namespace TaskPilot.Models.Configurations
                 .IsRequired()
                 .HasMaxLength(100);
 
-            builder.HasIndex(u => new { u.CompanyId, u.Id });
+            builder.HasIndex(u => u.CompanyId);
+
+            builder.Property(u => u.UserName)
+                 .HasMaxLength(256);
+
+            builder.Property(u => u.Email)
+                .HasMaxLength(256);
         }
     }
 }
