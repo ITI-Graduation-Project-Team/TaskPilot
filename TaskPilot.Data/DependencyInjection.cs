@@ -31,12 +31,16 @@ namespace TaskPilot.Data
                 .AddDefaultTokenProviders();
             services.Configure<IdentityOptions>(options =>
             {
+                  options.Tokens.EmailConfirmationTokenProvider = TokenOptions.DefaultPhoneProvider;
+                options.Tokens.PasswordResetTokenProvider = TokenOptions.DefaultPhoneProvider;
+                options.Tokens.ChangeEmailTokenProvider = TokenOptions.DefaultPhoneProvider;
                 options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
                 options.Lockout.MaxFailedAccessAttempts = 5;
                 options.Lockout.AllowedForNewUsers = true;
               
             });
-
+            // ── ASP.NET Identity ──
+         
             // ── Repository & Unit of Work ──
             services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
             services.AddScoped<IUnitOfWork, UnitOfWork>();

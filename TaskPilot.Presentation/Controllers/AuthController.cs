@@ -22,7 +22,20 @@ namespace TaskPilot.Presentation.Controllers
              UserRole Role)
         {
             var result = await _authService.RegisterAsync(request, Role);
-            return HandleCreated(result, result.Value);
+
+            // ❌ الخطأ كان هنا: كنت تحاول عمل return Ok(result.Value) مباشرة
+
+            // ✅ الحل الصحيح: افحص النجاح أولاً
+            if (result.IsFailure)
+            {
+                // يمكنك استخدام Helper method لتحويل الـ Error إلى StatusCode مناسب (400, 404, 409...)
+                return BadRequest(result.Error);
+            }
+
+            // الآن الوصول لـ Value آمن 100%
+            return Ok(result.Value);
+            //var result = await _authService.RegisterAsync(request, Role);
+            //return HandleCreated(result, result.Value);
         }
         [HttpPost("login")]
         public async Task<ActionResult> Login(

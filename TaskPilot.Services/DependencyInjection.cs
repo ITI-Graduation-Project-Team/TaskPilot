@@ -1,15 +1,14 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Configuration; // ضروري جداً
+using TaskPilot.Services.Helpers;
 using TaskPilot.Services.Interfaces;
 
 namespace TaskPilot.Services
 {
-    /// <summary>
-    /// Registers all Services-layer into the DI container.
-    /// Called from Program.cs via <c>builder.Services.AddServices()</c>.
-    /// </summary>
     public static class DependencyInjection
     {
-        public static IServiceCollection AddServices(this IServiceCollection services)
+        // لاحظ إضافة IConfiguration configuration هنا
+        public static IServiceCollection AddServices(this IServiceCollection services, IConfiguration configuration)
         {
             // ── Business Services ──
             services.AddScoped<IUserService, UserService>();
@@ -17,7 +16,13 @@ namespace TaskPilot.Services
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IEmailService, EmailService>();
             services.AddScoped<IEmailBodyService, EmailBodyService>();
-            services.AddScoped<IEmailBodyService, EmailBodyService>();
+
+            // الآن التكوين (configuration) متاح للاستخدام
+            services.Configure<EmailSettings>(configuration.GetSection("EmailSettings"));
+            services.Configure<JWTSettings>(configuration.GetSection("JWTSettings"));
+            // ── External ──
+
+            services.AddScoped<ITokenService, JWTService>();
 
             return services;
         }
