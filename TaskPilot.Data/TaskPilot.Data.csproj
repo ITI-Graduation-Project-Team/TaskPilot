@@ -24,8 +24,4 @@
     <ProjectReference Include="..\TaskPilot.Models\TaskPilot.Models.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Identity\" />
-  </ItemGroup>
-
 </Project>

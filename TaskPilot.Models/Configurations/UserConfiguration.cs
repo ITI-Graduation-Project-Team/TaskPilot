@@ -1,8 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using TaskPilot.Models.Entities;
-using TaskPilot.Models.Entities;
-using TaskPilot.Models.Configurations.Common;
+
 
 namespace TaskPilot.Models.Configurations
 {
