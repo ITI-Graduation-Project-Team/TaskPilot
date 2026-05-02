@@ -13,10 +13,12 @@ namespace TaskPilot.Data.Identity
     public class IdentityService:IIdentityService
     {
         private readonly UserManager<User> _UserManager;
+        private readonly RoleManager<IdentityRole<Guid>> _roleManager; // 1. أضف الـ RoleManager
 
-        public IdentityService(UserManager<User> userManager)
+        public IdentityService(UserManager<User> userManager, RoleManager<IdentityRole<Guid>> roleManager)
         {
             _UserManager = userManager;
+            _roleManager = roleManager;
         }
 
 
@@ -40,17 +42,45 @@ namespace TaskPilot.Data.Identity
             }
             return user;
         }
+        //public async Task<Result> AddToRoleAsync(User user, string roleName)
+        //{
+        //    var addingResult = await _UserManager.AddToRoleAsync(user, roleName);
+        //    if (!addingResult.Succeeded)
+        //    {
+        //        var errors = string.Join(" | ", addingResult.Errors.Select(e => e.Description));
+        //        return Result.Failure(CommonErrors.InvalidInput(errors));
+        //        //return Result.Failure(CommonErrors.InvalidInput(addingResult.Errors.First().Description));
+        //    }
+        //    return Result.Success();
+        //}
         public async Task<Result> AddToRoleAsync(User user, string roleName)
         {
+            // 3. التحقق من وجود الـ Role في قاعدة البيانات
+            var roleExist = await _roleManager.RoleExistsAsync(roleName);
+
+            if (!roleExist)
+            {
+                // 4. إذا لم تكن موجودة، قم بإنشائها فوراً
+                var roleResult = await _roleManager.CreateAsync(new IdentityRole<Guid>(roleName));
+
+                if (!roleResult.Succeeded)
+                {
+                    return Result.Failure(CommonErrors.OperationFailed($"Failed to create role: {roleName}"));
+                }
+            }
+
+            // 5. إضافة المستخدم للدور (سواء كان موجوداً من قبل أو تم إنشاؤه الآن)
             var addingResult = await _UserManager.AddToRoleAsync(user, roleName);
+
             if (!addingResult.Succeeded)
             {
                 var errors = string.Join(" | ", addingResult.Errors.Select(e => e.Description));
                 return Result.Failure(CommonErrors.InvalidInput(errors));
-                //return Result.Failure(CommonErrors.InvalidInput(addingResult.Errors.First().Description));
             }
+
             return Result.Success();
         }
+
         public async Task<Result> DeleteUserAsync(User user)
         {
             var res = await _UserManager.DeleteAsync(user);

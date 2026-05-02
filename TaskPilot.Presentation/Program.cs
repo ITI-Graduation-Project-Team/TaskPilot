@@ -16,7 +16,7 @@ namespace TaskPilot.Presentation
             var builder = WebApplication.CreateBuilder(args);
 
             builder.Services.AddData(builder.Configuration);
-            builder.Services.AddServices();
+            builder.Services.AddServices(builder.Configuration);
 
 
             builder.Services.AddControllers();
@@ -29,23 +29,26 @@ namespace TaskPilot.Presentation
                 options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
                 options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
             })
-            .AddJwtBearer(o =>
-            {
-                o.RequireHttpsMetadata = false; 
-                o.SaveToken = false;
-                o.TokenValidationParameters = new TokenValidationParameters
-                {
-                    ValidateIssuer = true,
-                    ValidateAudience = true,
-                    ValidateIssuerSigningKey = true,
-                    ValidateLifetime = true,
-                    ValidIssuer = builder.Configuration["JWT:Issuer"],
-                    ValidAudience = builder.Configuration["JWT:Audience"],
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JWT:Key"]!)),
-                    ClockSkew = TimeSpan.Zero
-                };
+           .AddJwtBearer(o =>
+           {
+               o.RequireHttpsMetadata = false;
+               o.SaveToken = false;
+               o.TokenValidationParameters = new TokenValidationParameters
+               {
+                   ValidateIssuer = true,
+                   ValidateAudience = true,
+                   ValidateIssuerSigningKey = true,
+                   ValidateLifetime = true,
 
-                o.Events = new JwtBearerEvents
+                   // تعديل JWT إلى JWTSettings
+                   ValidIssuer = builder.Configuration["JWTSettings:Issuer"],
+                   ValidAudience = builder.Configuration["JWTSettings:Audience"],
+
+                   // تعديل JWT إلى JWTSettings
+                   IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JWTSettings:Key"]))
+               };
+        
+            o.Events = new JwtBearerEvents
                 {
                     OnChallenge = context =>
                     {
