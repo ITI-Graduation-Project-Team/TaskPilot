@@ -3,7 +3,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using TaskPilot.Data.Context;
+using TaskPilot.Data.Identity;
 using TaskPilot.Data.Repositories;
+using TaskPilot.Models.Common;
 using TaskPilot.Models.Entities;
 
 namespace TaskPilot.Data
@@ -38,6 +40,9 @@ namespace TaskPilot.Data
             // ── Repository & Unit of Work ──
             services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
             services.AddScoped<IUnitOfWork, UnitOfWork>();
+            services.AddScoped<IIdentityService, IdentityService>();
+
+
 
             return services;
         }
