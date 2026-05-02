@@ -1,9 +1,19 @@
+using TaskPilot.DTOs.Auth;
+using TaskPilot.Models.Common.Errors;
 using TaskPilot.Models.Common.Results;
+using TaskPilot.Models.Enums;
 
 namespace TaskPilot.Services.Interfaces
 {
     public interface IAuthService
     {
-        Task<Result<string>> RegisterAsync(DTOs.RegisterDTO RegisterRequest, Models.Enums.UserRole Role, CancellationToken cancellationToken);
+        Task<Result<string>> RegisterAsync(DTOs.RegisterDTO RegisterRequest, UserRole Role);
+        Task<Result<string>> ResendConfirmationEmailAsync(string email);
+        Task<Result<AuthResponseDTO>> ConfirmEmailAsync(ConfirmEmailDTO confirmEmailDTO);
+        Task<Result<AuthResponseDTO>> LoginAsync(LoginDTO loginDTO);
+       
+        
+
+
     }
 }

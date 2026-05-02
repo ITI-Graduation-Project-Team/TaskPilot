@@ -27,6 +27,13 @@ namespace TaskPilot.Data
             services.AddIdentity<User, IdentityRole<Guid>>()
                 .AddEntityFrameworkStores<ApplicationDbContext>()
                 .AddDefaultTokenProviders();
+            services.Configure<IdentityOptions>(options =>
+            {
+                options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+                options.Lockout.MaxFailedAccessAttempts = 5;
+                options.Lockout.AllowedForNewUsers = true;
+              
+            });
 
             // ── Repository & Unit of Work ──
             services.AddScoped(typeof(IRepository<>), typeof(Repository<>));

@@ -1,4 +1,6 @@
+using System.Security.Claims;
 using TaskPilot.Models.Common.Results;
+using TaskPilot.Models.Entities;
 
 namespace TaskPilot.Models.Common
 {
@@ -8,9 +10,14 @@ namespace TaskPilot.Models.Common
     /// </summary>
     public interface IIdentityService
     {
-        Task<Guid?> FindByEmailAsync(string email);
-        Task<Result<Guid>> CreateUserAsync(string email, string password);
-        Task<Result> AddToRoleAsync(Guid userId, string roleName);
-        Task<Result<string>> GenerateOTPAsync(string email);
+        Task<Result<User>> FindByEmailAsync(string email);
+        Task<Result<User>> CreateUserAsync(User user, string password);
+        Task<Result> AddToRoleAsync(User user, string roleName);
+        Task<Result<string>> GenerateOTPAsync(User user);
+        Task<Result<IEnumerable<Claim>>> GetClaimsAsync(User user);
+        Task<Result<IList<string>>>GetRolesAsync(User user);
+        Task<Result> DeleteUserAsync(User user);
+        Task<Result<string>>VerifyEmailAsync(User user, string otp);
+        Task<Result<bool>> CheckPasswordAsync(User user, string password);
     }
 }
