@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace TaskPilot.Data.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class UpdatePolicyRelations : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -23,31 +23,6 @@ namespace TaskPilot.Data.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_AspNetRoles", x => x.Id);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "AspNetUsers",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    UserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
-                    NormalizedUserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
-                    Email = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
-                    NormalizedEmail = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
-                    EmailConfirmed = table.Column<bool>(type: "bit", nullable: false),
-                    PasswordHash = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    SecurityStamp = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    ConcurrencyStamp = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    PhoneNumber = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    PhoneNumberConfirmed = table.Column<bool>(type: "bit", nullable: false),
-                    TwoFactorEnabled = table.Column<bool>(type: "bit", nullable: false),
-                    LockoutEnd = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true),
-                    LockoutEnabled = table.Column<bool>(type: "bit", nullable: false),
-                    AccessFailedCount = table.Column<int>(type: "int", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_AspNetUsers", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -84,7 +59,7 @@ namespace TaskPilot.Data.Migrations
                     HasAdvancedAnalytics = table.Column<bool>(type: "bit", nullable: false),
                     HasTrial = table.Column<bool>(type: "bit", nullable: false, defaultValue: false),
                     TrialDays = table.Column<int>(type: "int", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
                     CreatedBy = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
                     ModifiedBy = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
@@ -129,12 +104,6 @@ namespace TaskPilot.Data.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_AspNetUserClaims", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_AspNetUserClaims_AspNetUsers_UserId",
-                        column: x => x.UserId,
-                        principalTable: "AspNetUsers",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -149,12 +118,6 @@ namespace TaskPilot.Data.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_AspNetUserLogins", x => new { x.LoginProvider, x.ProviderKey });
-                    table.ForeignKey(
-                        name: "FK_AspNetUserLogins_AspNetUsers_UserId",
-                        column: x => x.UserId,
-                        principalTable: "AspNetUsers",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -173,12 +136,45 @@ namespace TaskPilot.Data.Migrations
                         principalTable: "AspNetRoles",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_AspNetUserRoles_AspNetUsers_UserId",
-                        column: x => x.UserId,
-                        principalTable: "AspNetUsers",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "AspNetUsers",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
+                    CreatedBy = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    ModifiedBy = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false, defaultValue: false),
+                    FirstNameEn = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    LastNameEn = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    FirstNameAr = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    LastNameAr = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    CompanyId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    UserType = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    HistoricalVelocity = table.Column<decimal>(type: "decimal(10,2)", nullable: true),
+                    MaxSprintHours = table.Column<decimal>(type: "decimal(10,2)", nullable: true),
+                    AvailabilityStatus = table.Column<int>(type: "int", nullable: true),
+                    UserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
+                    NormalizedUserName = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
+                    Email = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
+                    NormalizedEmail = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
+                    EmailConfirmed = table.Column<bool>(type: "bit", nullable: false),
+                    PasswordHash = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    SecurityStamp = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    ConcurrencyStamp = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    PhoneNumber = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    PhoneNumberConfirmed = table.Column<bool>(type: "bit", nullable: false),
+                    TwoFactorEnabled = table.Column<bool>(type: "bit", nullable: false),
+                    LockoutEnd = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: true),
+                    LockoutEnabled = table.Column<bool>(type: "bit", nullable: false),
+                    AccessFailedCount = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_AspNetUsers", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -208,7 +204,7 @@ namespace TaskPilot.Data.Migrations
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     Name = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
                     OwnerId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
                     CreatedBy = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
                     ModifiedBy = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
@@ -217,42 +213,10 @@ namespace TaskPilot.Data.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Companies", x => x.Id);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "Users",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    FirstNameEn = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    LastNameEn = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    FirstNameAr = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    LastNameAr = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    CompanyId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    ApplicationUserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    UserType = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
-                    HistoricalVelocity = table.Column<decimal>(type: "decimal(10,2)", nullable: true),
-                    MaxSprintHours = table.Column<decimal>(type: "decimal(10,2)", nullable: true),
-                    AvailabilityStatus = table.Column<int>(type: "int", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    CreatedBy = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
-                    ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    ModifiedBy = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
-                    IsDeleted = table.Column<bool>(type: "bit", nullable: false, defaultValue: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Users", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_Users_AspNetUsers_ApplicationUserId",
-                        column: x => x.ApplicationUserId,
+                        name: "FK_Companies_AspNetUsers_OwnerId",
+                        column: x => x.OwnerId,
                         principalTable: "AspNetUsers",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_Users_Companies_CompanyId",
-                        column: x => x.CompanyId,
-                        principalTable: "Companies",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                 });
@@ -268,7 +232,7 @@ namespace TaskPilot.Data.Migrations
                     MessageAr = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false),
                     Url = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
                     IsRead = table.Column<bool>(type: "bit", nullable: false, defaultValue: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
                     CreatedBy = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
                     ModifiedBy = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
@@ -278,25 +242,23 @@ namespace TaskPilot.Data.Migrations
                 {
                     table.PrimaryKey("PK_Notifications", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_Notifications_Users_UserId",
+                        name: "FK_Notifications_AspNetUsers_UserId",
                         column: x => x.UserId,
-                        principalTable: "Users",
+                        principalTable: "AspNetUsers",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
-                name: "Projects",
+                name: "UserSkills",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    NameEn = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
-                    NameAr = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
-                    DescriptionEn = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
-                    DescriptionAr = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
-                    ManagerId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    CompanyId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    SkillId = table.Column<int>(type: "int", nullable: false),
+                    Level = table.Column<int>(type: "int", nullable: false, defaultValue: 1),
+                    YearsOfExperience = table.Column<int>(type: "int", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
                     CreatedBy = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
                     ModifiedBy = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
@@ -304,51 +266,19 @@ namespace TaskPilot.Data.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Projects", x => x.Id);
+                    table.PrimaryKey("PK_UserSkills", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_Projects_Companies_CompanyId",
-                        column: x => x.CompanyId,
-                        principalTable: "Companies",
+                        name: "FK_UserSkills_AspNetUsers_UserId",
+                        column: x => x.UserId,
+                        principalTable: "AspNetUsers",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_Projects_Users_ManagerId",
-                        column: x => x.ManagerId,
-                        principalTable: "Users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "UserSkills",
-                columns: table => new
-                {
-                    EmployeeId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    SkillId = table.Column<int>(type: "int", nullable: false),
-                    Level = table.Column<int>(type: "int", nullable: false),
-                    YearsOfExperience = table.Column<int>(type: "int", nullable: false),
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    CreatedBy = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
-                    ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    ModifiedBy = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
-                    IsDeleted = table.Column<bool>(type: "bit", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_UserSkills", x => new { x.EmployeeId, x.SkillId });
                     table.ForeignKey(
                         name: "FK_UserSkills_Skills_SkillId",
                         column: x => x.SkillId,
                         principalTable: "Skills",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_UserSkills_Users_EmployeeId",
-                        column: x => x.EmployeeId,
-                        principalTable: "Users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -365,7 +295,7 @@ namespace TaskPilot.Data.Migrations
                     AutoRenew = table.Column<bool>(type: "bit", nullable: false, defaultValue: true),
                     IsTrial = table.Column<bool>(type: "bit", nullable: false, defaultValue: false),
                     TrialEndDate = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
                     CreatedBy = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
                     ModifiedBy = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
@@ -375,17 +305,128 @@ namespace TaskPilot.Data.Migrations
                 {
                     table.PrimaryKey("PK_UserSubscriptions", x => x.Id);
                     table.ForeignKey(
+                        name: "FK_UserSubscriptions_AspNetUsers_ProjectManagerId",
+                        column: x => x.ProjectManagerId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
                         name: "FK_UserSubscriptions_SubscriptionPlans_SubscriptionPlanId",
                         column: x => x.SubscriptionPlanId,
                         principalTable: "SubscriptionPlans",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Projects",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    NameEn = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    NameAr = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    DescriptionEn = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
+                    DescriptionAr = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
+                    ManagerId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    CompanyId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
+                    CreatedBy = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    ModifiedBy = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false, defaultValue: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Projects", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_UserSubscriptions_Users_ProjectManagerId",
-                        column: x => x.ProjectManagerId,
-                        principalTable: "Users",
+                        name: "FK_Projects_AspNetUsers_ManagerId",
+                        column: x => x.ManagerId,
+                        principalTable: "AspNetUsers",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_Projects_Companies_CompanyId",
+                        column: x => x.CompanyId,
+                        principalTable: "Companies",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Payments",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    GatewayTransactionId = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true),
+                    ProjectManagerId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    UserSubscriptionId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Amount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    Currency = table.Column<string>(type: "nvarchar(3)", maxLength: 3, nullable: false, defaultValue: "EGP"),
+                    Status = table.Column<int>(type: "int", nullable: false),
+                    PaymentGateway = table.Column<int>(type: "int", nullable: false),
+                    PaymentMethod = table.Column<int>(type: "int", nullable: false),
+                    PaidAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
+                    CreatedBy = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    ModifiedBy = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false, defaultValue: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Payments", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Payments_AspNetUsers_ProjectManagerId",
+                        column: x => x.ProjectManagerId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_Payments_UserSubscriptions_UserSubscriptionId",
+                        column: x => x.UserSubscriptionId,
+                        principalTable: "UserSubscriptions",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Policies",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Scope = table.Column<int>(type: "int", nullable: false),
+                    CompanyId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    ProjectId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    TitleEn = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    TitleAr = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    ContentEn = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    ContentAr = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    DocumentUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    AiStatus = table.Column<int>(type: "int", nullable: false),
+                    AiProcessingError = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    VersionNumber = table.Column<int>(type: "int", nullable: false, defaultValue: 1),
+                    IsActive = table.Column<bool>(type: "bit", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
+                    CreatedBy = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    ModifiedBy = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    IsDeleted = table.Column<bool>(type: "bit", nullable: false, defaultValue: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Policies", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Policies_Companies_CompanyId",
+                        column: x => x.CompanyId,
+                        principalTable: "Companies",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_Policies_Projects_ProjectId",
+                        column: x => x.ProjectId,
+                        principalTable: "Projects",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -400,41 +441,13 @@ namespace TaskPilot.Data.Migrations
                 {
                     table.PrimaryKey("PK_ProjectEmployees", x => new { x.ProjectId, x.EmployeeId });
                     table.ForeignKey(
-                        name: "FK_ProjectEmployees_Projects_ProjectId",
-                        column: x => x.ProjectId,
-                        principalTable: "Projects",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_ProjectEmployees_Users_EmployeeId",
+                        name: "FK_ProjectEmployees_AspNetUsers_EmployeeId",
                         column: x => x.EmployeeId,
-                        principalTable: "Users",
+                        principalTable: "AspNetUsers",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "ProjectPolicies",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    ProjectId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    TitleEn = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
-                    TitleAr = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
-                    ContentEn = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    ContentAr = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    VersionNumber = table.Column<int>(type: "int", nullable: false, defaultValue: 1),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    CreatedBy = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
-                    ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    ModifiedBy = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
-                    IsDeleted = table.Column<bool>(type: "bit", nullable: false, defaultValue: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_ProjectPolicies", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_ProjectPolicies_Projects_ProjectId",
+                        name: "FK_ProjectEmployees_Projects_ProjectId",
                         column: x => x.ProjectId,
                         principalTable: "Projects",
                         principalColumn: "Id",
@@ -454,7 +467,7 @@ namespace TaskPilot.Data.Migrations
                     StartDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     EndDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     Status = table.Column<int>(type: "int", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
                     CreatedBy = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
                     ModifiedBy = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
@@ -472,43 +485,6 @@ namespace TaskPilot.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Payments",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    GatewayTransactionId = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true),
-                    ProjectManagerId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    UserSubscriptionId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    Amount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    Currency = table.Column<string>(type: "nvarchar(3)", maxLength: 3, nullable: false, defaultValue: "EGP"),
-                    Status = table.Column<int>(type: "int", nullable: false),
-                    PaymentGateway = table.Column<int>(type: "int", nullable: false),
-                    PaymentMethod = table.Column<int>(type: "int", nullable: false),
-                    PaidAt = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    CreatedBy = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
-                    ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    ModifiedBy = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
-                    IsDeleted = table.Column<bool>(type: "bit", nullable: false, defaultValue: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Payments", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_Payments_UserSubscriptions_UserSubscriptionId",
-                        column: x => x.UserSubscriptionId,
-                        principalTable: "UserSubscriptions",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_Payments_Users_ProjectManagerId",
-                        column: x => x.ProjectManagerId,
-                        principalTable: "Users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "UserStories",
                 columns: table => new
                 {
@@ -522,7 +498,7 @@ namespace TaskPilot.Data.Migrations
                     AcceptanceCriteriaAr = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true),
                     Priority = table.Column<int>(type: "int", nullable: false),
                     Status = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
                     CreatedBy = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
                     ModifiedBy = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
@@ -559,7 +535,7 @@ namespace TaskPilot.Data.Migrations
                     Status = table.Column<int>(type: "int", nullable: false),
                     EstimatedHours = table.Column<decimal>(type: "decimal(10,2)", nullable: false),
                     ActualHours = table.Column<decimal>(type: "decimal(10,2)", nullable: false, defaultValue: 0m),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
                     CreatedBy = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
                     ModifiedBy = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
@@ -568,6 +544,12 @@ namespace TaskPilot.Data.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Tasks", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Tasks_AspNetUsers_EmployeeId",
+                        column: x => x.EmployeeId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
                     table.ForeignKey(
                         name: "FK_Tasks_Sprints_SprintId",
                         column: x => x.SprintId,
@@ -578,12 +560,6 @@ namespace TaskPilot.Data.Migrations
                         name: "FK_Tasks_UserStories_UserStoryId",
                         column: x => x.UserStoryId,
                         principalTable: "UserStories",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull);
-                    table.ForeignKey(
-                        name: "FK_Tasks_Users_EmployeeId",
-                        column: x => x.EmployeeId,
-                        principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.SetNull);
                 });
@@ -598,7 +574,7 @@ namespace TaskPilot.Data.Migrations
                     FileName = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: false),
                     ContentType = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     FileSize = table.Column<long>(type: "bigint", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
                     CreatedBy = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
                     ModifiedBy = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
@@ -624,7 +600,7 @@ namespace TaskPilot.Data.Migrations
                     ContentEn = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: false),
                     ContentAr = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: false),
                     UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
                     CreatedBy = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     ModifiedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
                     ModifiedBy = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
@@ -634,17 +610,17 @@ namespace TaskPilot.Data.Migrations
                 {
                     table.PrimaryKey("PK_TaskComments", x => x.Id);
                     table.ForeignKey(
+                        name: "FK_TaskComments_AspNetUsers_UserId",
+                        column: x => x.UserId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
                         name: "FK_TaskComments_Tasks_TaskId",
                         column: x => x.TaskId,
                         principalTable: "Tasks",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_TaskComments_Users_UserId",
-                        column: x => x.UserId,
-                        principalTable: "Users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull);
                 });
 
             migrationBuilder.CreateTable(
@@ -709,6 +685,26 @@ namespace TaskPilot.Data.Migrations
                 name: "EmailIndex",
                 table: "AspNetUsers",
                 column: "NormalizedEmail");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AspNetUsers_AvailabilityStatus",
+                table: "AspNetUsers",
+                column: "AvailabilityStatus");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AspNetUsers_AvailabilityStatus_MaxSprintHours",
+                table: "AspNetUsers",
+                columns: new[] { "AvailabilityStatus", "MaxSprintHours" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AspNetUsers_CompanyId",
+                table: "AspNetUsers",
+                column: "CompanyId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AspNetUsers_IsDeleted",
+                table: "AspNetUsers",
+                column: "IsDeleted");
 
             migrationBuilder.CreateIndex(
                 name: "UserNameIndex",
@@ -791,6 +787,35 @@ namespace TaskPilot.Data.Migrations
                 column: "UserSubscriptionId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Policies_CompanyId",
+                table: "Policies",
+                column: "CompanyId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Policies_CompanyId_VersionNumber",
+                table: "Policies",
+                columns: new[] { "CompanyId", "VersionNumber" },
+                unique: true,
+                filter: "[CompanyId] IS NOT NULL");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Policies_IsDeleted",
+                table: "Policies",
+                column: "IsDeleted");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Policies_ProjectId",
+                table: "Policies",
+                column: "ProjectId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Policies_ProjectId_VersionNumber",
+                table: "Policies",
+                columns: new[] { "ProjectId", "VersionNumber" },
+                unique: true,
+                filter: "[ProjectId] IS NOT NULL");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_ProjectEmployees_EmployeeId",
                 table: "ProjectEmployees",
                 column: "EmployeeId");
@@ -804,22 +829,6 @@ namespace TaskPilot.Data.Migrations
                 name: "IX_ProjectEmployees_ProjectId_EmployeeId",
                 table: "ProjectEmployees",
                 columns: new[] { "ProjectId", "EmployeeId" },
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_ProjectPolicies_IsDeleted",
-                table: "ProjectPolicies",
-                column: "IsDeleted");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_ProjectPolicies_ProjectId",
-                table: "ProjectPolicies",
-                column: "ProjectId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_ProjectPolicies_ProjectId_VersionNumber",
-                table: "ProjectPolicies",
-                columns: new[] { "ProjectId", "VersionNumber" },
                 unique: true);
 
             migrationBuilder.CreateIndex(
@@ -952,40 +961,20 @@ namespace TaskPilot.Data.Migrations
                 column: "UserStoryId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Users_ApplicationUserId",
-                table: "Users",
-                column: "ApplicationUserId",
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Users_AvailabilityStatus",
-                table: "Users",
-                column: "AvailabilityStatus");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Users_AvailabilityStatus_MaxSprintHours",
-                table: "Users",
-                columns: new[] { "AvailabilityStatus", "MaxSprintHours" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Users_CompanyId",
-                table: "Users",
-                column: "CompanyId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Users_CompanyId_ApplicationUserId",
-                table: "Users",
-                columns: new[] { "CompanyId", "ApplicationUserId" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Users_IsDeleted",
-                table: "Users",
+                name: "IX_UserSkills_IsDeleted",
+                table: "UserSkills",
                 column: "IsDeleted");
 
             migrationBuilder.CreateIndex(
                 name: "IX_UserSkills_SkillId",
                 table: "UserSkills",
                 column: "SkillId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_UserSkills_UserId_SkillId",
+                table: "UserSkills",
+                columns: new[] { "UserId", "SkillId" },
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_UserStories_IsDeleted",
@@ -1034,10 +1023,34 @@ namespace TaskPilot.Data.Migrations
                 column: "SubscriptionPlanId");
 
             migrationBuilder.AddForeignKey(
-                name: "FK_Companies_Users_OwnerId",
-                table: "Companies",
-                column: "OwnerId",
-                principalTable: "Users",
+                name: "FK_AspNetUserClaims_AspNetUsers_UserId",
+                table: "AspNetUserClaims",
+                column: "UserId",
+                principalTable: "AspNetUsers",
+                principalColumn: "Id",
+                onDelete: ReferentialAction.Cascade);
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_AspNetUserLogins_AspNetUsers_UserId",
+                table: "AspNetUserLogins",
+                column: "UserId",
+                principalTable: "AspNetUsers",
+                principalColumn: "Id",
+                onDelete: ReferentialAction.Cascade);
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_AspNetUserRoles_AspNetUsers_UserId",
+                table: "AspNetUserRoles",
+                column: "UserId",
+                principalTable: "AspNetUsers",
+                principalColumn: "Id",
+                onDelete: ReferentialAction.Cascade);
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_AspNetUsers_Companies_CompanyId",
+                table: "AspNetUsers",
+                column: "CompanyId",
+                principalTable: "Companies",
                 principalColumn: "Id",
                 onDelete: ReferentialAction.Restrict);
         }
@@ -1046,11 +1059,7 @@ namespace TaskPilot.Data.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropForeignKey(
-                name: "FK_Users_AspNetUsers_ApplicationUserId",
-                table: "Users");
-
-            migrationBuilder.DropForeignKey(
-                name: "FK_Companies_Users_OwnerId",
+                name: "FK_Companies_AspNetUsers_OwnerId",
                 table: "Companies");
 
             migrationBuilder.DropTable(
@@ -1075,10 +1084,10 @@ namespace TaskPilot.Data.Migrations
                 name: "Payments");
 
             migrationBuilder.DropTable(
-                name: "ProjectEmployees");
+                name: "Policies");
 
             migrationBuilder.DropTable(
-                name: "ProjectPolicies");
+                name: "ProjectEmployees");
 
             migrationBuilder.DropTable(
                 name: "TaskAttachments");
@@ -1118,9 +1127,6 @@ namespace TaskPilot.Data.Migrations
 
             migrationBuilder.DropTable(
                 name: "AspNetUsers");
-
-            migrationBuilder.DropTable(
-                name: "Users");
 
             migrationBuilder.DropTable(
                 name: "Companies");

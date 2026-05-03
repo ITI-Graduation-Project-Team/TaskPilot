@@ -339,6 +339,92 @@ namespace TaskPilot.Data.Migrations
                     b.ToTable("Payments", (string)null);
                 });
 
+            modelBuilder.Entity("TaskPilot.Models.Entities.Policy", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("AiProcessingError")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("AiStatus")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("CompanyId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ContentAr")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ContentEn")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("DocumentUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ModifiedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("ProjectId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Scope")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TitleAr")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("TitleEn")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("VersionNumber")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1);
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyId");
+
+                    b.HasIndex("IsDeleted");
+
+                    b.HasIndex("ProjectId");
+
+                    b.HasIndex("CompanyId", "VersionNumber")
+                        .IsUnique()
+                        .HasFilter("[CompanyId] IS NOT NULL");
+
+                    b.HasIndex("ProjectId", "VersionNumber")
+                        .IsUnique()
+                        .HasFilter("[ProjectId] IS NOT NULL");
+
+                    b.ToTable("Policies", (string)null);
+                });
+
             modelBuilder.Entity("TaskPilot.Models.Entities.Project", b =>
                 {
                     b.Property<Guid>("Id")
@@ -425,69 +511,6 @@ namespace TaskPilot.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("ProjectEmployees", (string)null);
-                });
-
-            modelBuilder.Entity("TaskPilot.Models.Entities.ProjectPolicy", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("ContentAr")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ContentEn")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
-
-                    b.Property<DateTime?>("ModifiedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("ModifiedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("ProjectId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("TitleAr")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("TitleEn")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<int>("VersionNumber")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(1);
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("IsDeleted");
-
-                    b.HasIndex("ProjectId");
-
-                    b.HasIndex("ProjectId", "VersionNumber")
-                        .IsUnique();
-
-                    b.ToTable("ProjectPolicies", (string)null);
                 });
 
             modelBuilder.Entity("TaskPilot.Models.Entities.Skill", b =>
@@ -1353,6 +1376,23 @@ namespace TaskPilot.Data.Migrations
                     b.Navigation("Subscription");
                 });
 
+            modelBuilder.Entity("TaskPilot.Models.Entities.Policy", b =>
+                {
+                    b.HasOne("TaskPilot.Models.Entities.Company", "Company")
+                        .WithMany("Policies")
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("TaskPilot.Models.Entities.Project", "Project")
+                        .WithMany("Policies")
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("Company");
+
+                    b.Navigation("Project");
+                });
+
             modelBuilder.Entity("TaskPilot.Models.Entities.Project", b =>
                 {
                     b.HasOne("TaskPilot.Models.Entities.Company", "Company")
@@ -1386,17 +1426,6 @@ namespace TaskPilot.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Employee");
-
-                    b.Navigation("Project");
-                });
-
-            modelBuilder.Entity("TaskPilot.Models.Entities.ProjectPolicy", b =>
-                {
-                    b.HasOne("TaskPilot.Models.Entities.Project", "Project")
-                        .WithMany("Policies")
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
 
                     b.Navigation("Project");
                 });
@@ -1545,6 +1574,8 @@ namespace TaskPilot.Data.Migrations
 
             modelBuilder.Entity("TaskPilot.Models.Entities.Company", b =>
                 {
+                    b.Navigation("Policies");
+
                     b.Navigation("Projects");
 
                     b.Navigation("Users");

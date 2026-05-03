@@ -5,10 +5,6 @@ using TaskPilot.Models.Entities;
 
 namespace TaskPilot.Presentation.Controllers
 {
-    /// <summary>
-    /// Handles Project endpoints.
-    /// Injects IProjectService for business logic and IUnitOfWork for SaveChanges.
-    /// </summary>
     public class ProjectsController : ApiControllerBase
     {
         private readonly IProjectService _projectService;

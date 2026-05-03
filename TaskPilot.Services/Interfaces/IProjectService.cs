@@ -9,7 +9,7 @@ namespace TaskPilot.Services.Interfaces
     public interface IProjectService
     {
         Task<Result<Project>> GetByIdAsync(Guid id);
-        Task<Result<IEnumerable<Project>>> GetAllAsync();
+        Task<Result<List<Project>>> GetAllAsync();
         Task<Result<IEnumerable<Project>>> GetByCompanyIdAsync(Guid companyId);
         Task<Result<Project>> CreateAsync(Project project);
         Task<Result> UpdateAsync(Project project);

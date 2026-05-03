@@ -20,12 +20,10 @@ namespace TaskPilot.Data
             this IServiceCollection services,
             IConfiguration configuration)
         {
-            // ── Persistence ──
             services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseSqlServer(
                     configuration.GetConnectionString("DefaultConnection")));
 
-            // ── ASP.NET Identity ──
             services.AddIdentity<User, IdentityRole<Guid>>()
                 .AddEntityFrameworkStores<ApplicationDbContext>()
                 .AddDefaultTokenProviders();
@@ -39,14 +37,11 @@ namespace TaskPilot.Data
                 options.Lockout.AllowedForNewUsers = true;
               
             });
-            // ── ASP.NET Identity ──
          
-            // ── Repository & Unit of Work ──
             services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
-            services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IIdentityService, IdentityService>();
-
-
+            services.AddScoped<IUnitOfWork>(sp =>
+                        sp.GetRequiredService<ApplicationDbContext>());
 
             return services;
         }

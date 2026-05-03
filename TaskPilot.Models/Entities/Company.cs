@@ -9,5 +9,7 @@ namespace TaskPilot.Models.Entities
         public ProjectManager Owner { get; set; } = null!;
         public ICollection<User> Users { get; set; } = new List<User>();
         public ICollection<Project> Projects { get; set; } = new List<Project>();
+        public ICollection<Policy> Policies { get; set; } = new List<Policy>();
+
     }
 }
