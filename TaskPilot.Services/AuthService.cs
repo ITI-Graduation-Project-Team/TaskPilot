@@ -16,13 +16,15 @@ namespace TaskPilot.Services
         private readonly IEmailService _emailService;
         private readonly IEmailBodyService _emailBodyService;
         private readonly ITokenService _tokenService;
+        private readonly IGoogleAuthService _googleAuthService;
 
-        public AuthService(IIdentityService identityService, IEmailService emailService, IEmailBodyService emailBodyService, ITokenService tokenService)
+        public AuthService(IIdentityService identityService, IEmailService emailService, IEmailBodyService emailBodyService, ITokenService tokenService, IGoogleAuthService googleAuthService)
         {
             _identityService = identityService;
             _emailService = emailService;
             _emailBodyService = emailBodyService;
             _tokenService = tokenService;
+            _googleAuthService = googleAuthService;
         }
 
         public async Task<Result<string>> RegisterAsync(RegisterDTO RegisterRequest, UserRole Role)
@@ -76,7 +78,7 @@ namespace TaskPilot.Services
 
             return await SendConfirmationEmailAsync(user);
         }
-        public async Task<Result<AuthResponseDTO>> ConfirmEmailAsync(ConfirmEmailDTO confirmEmailDTO )
+        public async Task<Result<AuthResponseDTO>> ConfirmEmailAsync(ConfirmEmailDTO confirmEmailDTO)
         {
             //1
             var userResult = await _identityService.FindByEmailAsync(confirmEmailDTO.Email);
@@ -105,7 +107,7 @@ namespace TaskPilot.Services
             return response;
         }
 
-        public async Task<Result<AuthResponseDTO>>LoginAsync(LoginDTO loginDTO)
+        public async Task<Result<AuthResponseDTO>> LoginAsync(LoginDTO loginDTO)
         {
             var userResult = await _identityService.FindByEmailAsync(loginDTO.Email);
             if (userResult.IsFailure)
@@ -165,9 +167,77 @@ namespace TaskPilot.Services
             return Result.Success("OTP sent successfully.");
         }
 
+        public async Task<Result<AuthResponseDTO>> GoogleLoginAsync(string idToken)
+        {
+            //1- check valid google token and get user info
+            var googleResult = await _googleAuthService.ValidateTokenAsync(idToken);
+            if (googleResult.IsFailure)
+            {
+                return googleResult.Error;
+            }
+            var googleUser = googleResult.Value;
+            //2-create or get user in our system
+            var userResult = await _identityService.GetOrCreateExternalUser(googleUser.FirstName, googleUser.LastName, googleUser.Email, "Google", googleUser.GoogleId);
+            if (userResult.IsFailure)
+            {
+                return userResult.Error;
+            }
+            var user = userResult.Value;
+            //3-generate our token
+            var token = await _tokenService.GenerateAccessToken(user);
+            var response = new AuthResponseDTO
+            {
+                Email = user.Email,
+                Token = token,
+                UserId = user.Id,
+                Message = "Login successful."
+            };
+            return response;
 
+        }
 
+        public async Task<Result<string>> ForgotPasswordAsync(string email)
+        {
+            var userResult = await _identityService.FindByEmailAsync(email);
+            if (userResult.IsFailure)
+            {
+                return Result.Success("If the email is registered, a password reset link will be sent.");
+            }
+            var user = userResult.Value;
+            var resetTokenResult = await _identityService.GeneratePasswordResetTokenAsync(user);
+            if (resetTokenResult.IsFailure)
+            {
+                return CommonErrors.OperationFailed("Failed to generate password reset token.");
+            }
+            var resetToken = resetTokenResult.Value;
+            var name = $"{user.FirstNameEn}  {user.LastNameEn}";
+            var EmailBody =
+             _emailBodyService.GeneratePasswordResetEmailBody(name, user.Email, resetToken);
+            var emailRequest = new EmailRequest
+            {
+                To = user.Email,
+                Subject = "Password Reset",
+                Body = EmailBody
+            };
+            var EmailResult = await _emailService.SendEmailAsync(emailRequest);
+            return Result.Success("If the email is registered, a password reset link will be sent.");
 
-
+        }
+        public async Task<Result<string>> ResetPasswordAsync(ResetPasswordDTO resetPasswordDTO)
+        {
+          
+            var userResult = await _identityService.FindByEmailAsync(resetPasswordDTO.Email);
+            if (userResult.IsFailure)
+            {
+                return CommonErrors.NotFound("user");
+            }
+            var user = userResult.Value;
+            var resetResult = await _identityService.ResetPasswordAsync(user, resetPasswordDTO.OTP, resetPasswordDTO.Password);
+            if (resetResult.IsFailure)
+            {
+                return resetResult.Error;
+            }
+            return Result.Success("Password has been reset successfully.");
+        }
     }
 }

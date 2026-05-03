@@ -16,10 +16,13 @@ namespace TaskPilot.Services
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IEmailService, EmailService>();
             services.AddScoped<IEmailBodyService, EmailBodyService>();
+            services.AddScoped<IGoogleAuthService, GoogleAuthService>();
+            
 
             // الآن التكوين (configuration) متاح للاستخدام
             services.Configure<EmailSettings>(configuration.GetSection("EmailSettings"));
             services.Configure<JWTSettings>(configuration.GetSection("JWTSettings"));
+            services.Configure<GoogleSettings>(configuration.GetSection("GoogleSettings"));
             // ── External ──
 
             services.AddScoped<ITokenService, JWTService>();

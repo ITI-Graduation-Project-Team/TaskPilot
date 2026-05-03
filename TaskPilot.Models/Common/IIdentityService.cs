@@ -4,10 +4,6 @@ using TaskPilot.Models.Entities;
 
 namespace TaskPilot.Models.Common
 {
-    /// <summary>
-    /// Abstraction over ASP.NET Identity operations.
-    /// Lives in Models so both Data (implementation) and Services (consumer) can reference it.
-    /// </summary>
     public interface IIdentityService
     {
         Task<Result<User>> FindByEmailAsync(string email);
@@ -19,5 +15,8 @@ namespace TaskPilot.Models.Common
         Task<Result> DeleteUserAsync(User user);
         Task<Result<string>>VerifyEmailAsync(User user, string otp);
         Task<Result<bool>> CheckPasswordAsync(User user, string password);
+        Task<Result<User>> GetOrCreateExternalUser(string firstName, string lastName, string email, string provider, string providerKey);
+        Task<Result<string>>GeneratePasswordResetTokenAsync(User user);
+        Task<Result>ResetPasswordAsync(User user, string token, string newPassword);
     }
 }

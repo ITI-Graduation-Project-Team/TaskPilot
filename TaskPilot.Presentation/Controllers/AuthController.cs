@@ -21,21 +21,9 @@ namespace TaskPilot.Presentation.Controllers
             CancellationToken cancellationToken,
              UserRole Role)
         {
+         
             var result = await _authService.RegisterAsync(request, Role);
-
-            // ❌ الخطأ كان هنا: كنت تحاول عمل return Ok(result.Value) مباشرة
-
-            // ✅ الحل الصحيح: افحص النجاح أولاً
-            if (result.IsFailure)
-            {
-                // يمكنك استخدام Helper method لتحويل الـ Error إلى StatusCode مناسب (400, 404, 409...)
-                return BadRequest(result.Error);
-            }
-
-            // الآن الوصول لـ Value آمن 100%
-            return Ok(result.Value);
-            //var result = await _authService.RegisterAsync(request, Role);
-            //return HandleCreated(result, result.Value);
+            return HandleCreated(result, result.Value);
         }
         [HttpPost("login")]
         public async Task<ActionResult> Login(
@@ -61,5 +49,28 @@ namespace TaskPilot.Presentation.Controllers
             var result = await _authService.ResendConfirmationEmailAsync(request.Email);
             return HandleResult(result);
         }
+        [HttpPost("google")]
+        public async Task<ActionResult> Google(
+    [FromBody] GoogleAuthDTO request
+     )
+        {
+            var result = await _authService
+                .GoogleLoginAsync(request.IdToken);
+
+            return HandleResult(result);
+        }
+        [HttpPost("forgot-password")]
+        public async Task<ActionResult> ForgotPassword([FromBody]string email)
+        {
+            var result=await _authService.ForgotPasswordAsync(email);
+            return HandleResult(result);
+        }
+        [HttpPost("reset-password")]
+        public async Task<ActionResult>ResetPassword([FromBody]ResetPasswordDTO request)
+        {
+            var result=await _authService.ResetPasswordAsync(request);
+            return HandleResult(result);
+        }
     }
+
 }
