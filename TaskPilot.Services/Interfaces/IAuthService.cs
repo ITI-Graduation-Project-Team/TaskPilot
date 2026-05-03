@@ -1,3 +1,4 @@
+using TaskPilot.DTOs;
 using TaskPilot.DTOs.Auth;
 using TaskPilot.Models.Common.Errors;
 using TaskPilot.Models.Common.Results;
@@ -11,8 +12,12 @@ namespace TaskPilot.Services.Interfaces
         Task<Result<string>> ResendConfirmationEmailAsync(string email);
         Task<Result<AuthResponseDTO>> ConfirmEmailAsync(ConfirmEmailDTO confirmEmailDTO);
         Task<Result<AuthResponseDTO>> LoginAsync(LoginDTO loginDTO);
-       
-        
+        Task<Result<AuthResponseDTO>>GoogleLoginAsync(string idToken);
+        Task<Result<string>> ForgotPasswordAsync(string email);
+        Task<Result<string>> ResetPasswordAsync(ResetPasswordDTO resetPasswordDTO);
+
+
+
 
 
     }

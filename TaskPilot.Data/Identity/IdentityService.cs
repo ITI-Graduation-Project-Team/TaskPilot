@@ -7,13 +7,14 @@ using TaskPilot.Models.Common;
 using TaskPilot.Models.Common.Errors;
 using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Entities;
+using TaskPilot.Models.Enums;
 
 namespace TaskPilot.Data.Identity
 {
     public class IdentityService:IIdentityService
     {
         private readonly UserManager<User> _UserManager;
-        private readonly RoleManager<IdentityRole<Guid>> _roleManager; // 1. أضف الـ RoleManager
+        private readonly RoleManager<IdentityRole<Guid>> _roleManager;
 
         public IdentityService(UserManager<User> userManager, RoleManager<IdentityRole<Guid>> roleManager)
         {
@@ -42,25 +43,13 @@ namespace TaskPilot.Data.Identity
             }
             return user;
         }
-        //public async Task<Result> AddToRoleAsync(User user, string roleName)
-        //{
-        //    var addingResult = await _UserManager.AddToRoleAsync(user, roleName);
-        //    if (!addingResult.Succeeded)
-        //    {
-        //        var errors = string.Join(" | ", addingResult.Errors.Select(e => e.Description));
-        //        return Result.Failure(CommonErrors.InvalidInput(errors));
-        //        //return Result.Failure(CommonErrors.InvalidInput(addingResult.Errors.First().Description));
-        //    }
-        //    return Result.Success();
-        //}
+        
         public async Task<Result> AddToRoleAsync(User user, string roleName)
         {
-            // 3. التحقق من وجود الـ Role في قاعدة البيانات
             var roleExist = await _roleManager.RoleExistsAsync(roleName);
 
             if (!roleExist)
             {
-                // 4. إذا لم تكن موجودة، قم بإنشائها فوراً
                 var roleResult = await _roleManager.CreateAsync(new IdentityRole<Guid>(roleName));
 
                 if (!roleResult.Succeeded)
@@ -69,7 +58,6 @@ namespace TaskPilot.Data.Identity
                 }
             }
 
-            // 5. إضافة المستخدم للدور (سواء كان موجوداً من قبل أو تم إنشاؤه الآن)
             var addingResult = await _UserManager.AddToRoleAsync(user, roleName);
 
             if (!addingResult.Succeeded)
@@ -127,6 +115,74 @@ namespace TaskPilot.Data.Identity
                 return false;
             }
             return true;
+        }
+        public async Task<Result<User>>GetOrCreateExternalUser(string firstName, string lastName, string email,string provider,string providerKey)
+        {
+            // 1- has signed with google before
+            var existingUser = await _UserManager.FindByLoginAsync(provider,providerKey);
+            if (existingUser != null)
+            {
+                return existingUser;
+            }
+           var user= await _UserManager.FindByEmailAsync(email);
+            // if  has account but  not signed with google before  link his account to google and return the user
+            // if not we  create a new user and link it to google and return the user
+            //A- new user
+            if (user==null)
+            {
+                user = new User
+                {
+                    Email = email,
+                    UserName = email,
+                    FirstNameEn = firstName,
+                    LastNameEn = lastName,
+                    FirstNameAr = firstName,
+                    LastNameAr = lastName,
+                    EmailConfirmed = true
+                };
+                var creationResult = await _UserManager.CreateAsync(user);
+                if (!creationResult.Succeeded)
+                {
+                    var errors = string.Join(" | ", creationResult.Errors.Select(e => e.Description));
+                    return CommonErrors.OperationFailed(errors);
+                }
+                var RoleResult = await _UserManager.AddToRoleAsync(user,UserRole.ProjectManager.ToString());
+                if (!RoleResult.Succeeded)
+                {
+                    var errors = string.Join(" | ", RoleResult.Errors.Select(e => e.Description));
+                    return CommonErrors.OperationFailed(errors);
+                }
+            }
+            // B- has account has not signed with google yet or new we'll create a new userlogininfo             
+            var loginInfo = new UserLoginInfo(
+               provider,       
+               providerKey,    
+               provider);
+
+            var linkResult = await _UserManager.AddLoginAsync(user, new UserLoginInfo(provider, providerKey, provider));
+            if (!linkResult.Succeeded)
+            {
+                var errors = string.Join(" | ", linkResult.Errors.Select(e => e.Description));
+                return CommonErrors.OperationFailed(errors);
+            }
+            return Result.Success(user);
+        }
+        public async Task<Result<string>> GeneratePasswordResetTokenAsync(User user)
+        {
+            var token = await _UserManager.GeneratePasswordResetTokenAsync(user);
+            return Result.Success(token);
+        }
+
+ 
+        public async Task<Result>ResetPasswordAsync(User user, string otpCode,string newPassword)
+        {
+            var result=await _UserManager.ResetPasswordAsync(user, otpCode, newPassword);
+            if(!result.Succeeded)
+            {
+                var errors = string.Join(" | ", result.Errors.Select(e => e.Description));
+                return Result.Failure(CommonErrors.OperationFailed(errors));
+            }
+            return Result.Success();
         }
     }
 }

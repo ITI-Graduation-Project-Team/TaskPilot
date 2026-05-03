@@ -18,7 +18,15 @@ namespace TaskPilot.Presentation
             builder.Services.AddData(builder.Configuration);
             builder.Services.AddServices(builder.Configuration);
 
-
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowAll", policy =>
+                {
+                    policy.AllowAnyOrigin()
+                          .AllowAnyMethod()
+                          .AllowAnyHeader();
+                });
+            });
             builder.Services.AddControllers();
 
 
@@ -72,7 +80,7 @@ namespace TaskPilot.Presentation
                 app.UseSwagger();
                 app.UseSwaggerUI();
             }
-
+            app.UseCors("AllowAll");
             app.UseHttpsRedirection();
 
             app.UseAuthentication();
