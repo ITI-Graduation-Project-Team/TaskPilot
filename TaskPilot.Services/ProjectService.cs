@@ -1,8 +1,9 @@
 using TaskPilot.Models.Common.Errors;
 using TaskPilot.Models.Common.Results;
-using TaskPilot.Data.Repositories;
 using TaskPilot.Services.Interfaces;
 using TaskPilot.Models.Entities;
+using TaskPilot.Data.Context;
+using Microsoft.EntityFrameworkCore;
 
 namespace TaskPilot.Services
 {
@@ -13,19 +14,20 @@ namespace TaskPilot.Services
     /// </summary>
     public class ProjectService : IProjectService
     {
-        private readonly IUnitOfWork _unitOfWork;
+        private readonly ApplicationDbContext _context;
 
-        public ProjectService(IUnitOfWork unitOfWork)
+        public ProjectService(ApplicationDbContext context)
         {
-            _unitOfWork = unitOfWork;
+            _context = context;
         }
 
         public async Task<Result<Project>> GetByIdAsync(Guid id)
         {
-            var project = await _unitOfWork.Projects.GetByIdAsync(id,
-                p => p.Manager,
-                p => p.Company,
-                p => p.Sprints);
+            var project = await _context.Projects
+                .Include(p => p.Manager)
+                .Include(p => p.Company)
+                .Include(p => p.Sprints)
+                .FirstOrDefaultAsync(p => p.Id == id);
 
             if (project is null)
                 return Result.Failure<Project>(CommonErrors.NotFound("Project"));
@@ -33,50 +35,54 @@ namespace TaskPilot.Services
             return Result.Success(project);
         }
 
-        public async Task<Result<IEnumerable<Project>>> GetAllAsync()
+        public async Task<Result<List<Project>>> GetAllAsync()
         {
-            var projects = await _unitOfWork.Projects.GetAllAsync(
-                p => p.Manager,
-                p => p.Company);
+            var projects = await _context.Projects
+                .Include(p => p.Manager)
+                .Include(p => p.Company)
+                .ToListAsync();
 
             return Result.Success(projects);
         }
 
         public async Task<Result<IEnumerable<Project>>> GetByCompanyIdAsync(Guid companyId)
         {
-            var companyExists = await _unitOfWork.Companies
+            var companyExists = await _context  .Companies
                 .AnyAsync(c => c.Id == companyId);
 
             if (!companyExists)
                 return Result.Failure<IEnumerable<Project>>(CommonErrors.NotFound("Company"));
 
-            var projects = await _unitOfWork.Projects
-                .FindAsync(p => p.CompanyId == companyId, p => p.Manager);
+            var projects = await _context.Projects
+                .Where(p => p.CompanyId == companyId)
+                .Include(p => p.Manager)
+                .ToListAsync();
 
-            return Result.Success(projects);
+            return Result.Success(projects.AsEnumerable());
         }
 
         public async Task<Result<Project>> CreateAsync(Project project)
         {
-            var managerExists = await _unitOfWork.ProjectManagers
+            var managerExists = await _context.Users
+                .OfType<ProjectManager>()
                 .AnyAsync(pm => pm.Id == project.ManagerId);
 
             if (!managerExists)
                 return Result.Failure<Project>(CommonErrors.NotFound("Project Manager"));
 
-            var companyExists = await _unitOfWork.Companies
+            var companyExists = await _context.Companies
                 .AnyAsync(c => c.Id == project.CompanyId);
 
             if (!companyExists)
                 return Result.Failure<Project>(CommonErrors.NotFound("Company"));
 
-            await _unitOfWork.Projects.AddAsync(project);
+            await _context.Projects.AddAsync(project);
             return Result.Success(project);
         }
 
         public async Task<Result> UpdateAsync(Project project)
         {
-            var existing = await _unitOfWork.Projects.GetByIdAsync(project.Id);
+            var existing = await _context.Projects.FindAsync(project.Id);
 
             if (existing is null)
                 return Result.Failure(CommonErrors.NotFound("Project"));
@@ -87,18 +93,19 @@ namespace TaskPilot.Services
             existing.DescriptionAr = project.DescriptionAr;
             existing.ModifiedAt = DateTime.UtcNow;
 
-            _unitOfWork.Projects.Update(existing);
+            _context.Projects.Update(existing);
             return Result.Success();
         }
 
         public async Task<Result> DeleteAsync(Guid id)
         {
-            var project = await _unitOfWork.Projects.GetByIdAsync(id);
+            var project = await _context.Projects.FindAsync(id);
 
             if (project is null)
                 return Result.Failure(CommonErrors.NotFound("Project"));
 
-            _unitOfWork.Projects.Delete(project);
+            project.IsDeleted = true;
+
             return Result.Success();
         }
     }

@@ -12,7 +12,6 @@ namespace TaskPilot.Models.Entities
         public Guid? ModifiedBy { get; set; }
         public bool IsDeleted { get; set; } = false;
         public bool IsActive => !IsDeleted;
-
         public string FirstNameEn { get; set; } = string.Empty;
         public string LastNameEn { get; set; } = string.Empty;
         public string FirstNameAr { get; set; } = string.Empty;
@@ -21,6 +20,6 @@ namespace TaskPilot.Models.Entities
         public Company Company { get; set; } = null!;
         public ICollection<Notification> Notifications { get; set; } = new List<Notification>();
         public ICollection<TaskComment> Comments { get; set; } = new List<TaskComment>();
-        public ICollection<UserSkill> UserSkills { get; set; } = new List<UserSkill>();
+        public ICollection<UserSkill> UserSkills { get; set; } = new List<UserSkill>();// in employee
     }
 }

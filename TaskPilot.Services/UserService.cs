@@ -1,8 +1,9 @@
+using TaskPilot.Data.Context;
 using TaskPilot.Models.Common.Errors;
 using TaskPilot.Models.Common.Results;
-using TaskPilot.Data.Repositories;
-using TaskPilot.Services.Interfaces;
 using TaskPilot.Models.Entities;
+using TaskPilot.Services.Interfaces;
+using Microsoft.EntityFrameworkCore;
 
 namespace TaskPilot.Services
 {
@@ -13,16 +14,16 @@ namespace TaskPilot.Services
     /// </summary>
     public class UserService : IUserService
     {
-        private readonly IUnitOfWork _unitOfWork;
+        private readonly ApplicationDbContext _context;
 
-        public UserService(IUnitOfWork unitOfWork)
+        public UserService(ApplicationDbContext applicationDbContext)
         {
-            _unitOfWork = unitOfWork;
+            _context = applicationDbContext;
         }
 
         public async Task<Result<User>> GetByIdAsync(Guid id)
         {
-            var user = await _unitOfWork.Users.GetByIdAsync(id);
+            var user = await _context.Users.FindAsync(id);
 
             if (user is null)
                 return Result.Failure<User>(CommonErrors.NotFound("User"));
@@ -30,31 +31,21 @@ namespace TaskPilot.Services
             return Result.Success(user);
         }
 
-        public async Task<Result<IEnumerable<User>>> GetAllAsync()
+        public async Task<Result<List<User>>> GetAllAsync()
         {
-            var users = await _unitOfWork.Users.GetAllAsync();
+            var users = await _context.Users
+                .Where(u => !u.IsDeleted)
+                .ToListAsync();
             return Result.Success(users);
         }
-
-        //public async Task<Result<User>> GetByApplicationUserIdAsync(Guid applicationUserId)
-        //{
-        //    var user = await _unitOfWork.Users
-        //        .FindSingleAsync(u => u.Id == applicationUserId);
-
-        //    if (user is null)
-        //        return Result.Failure<User>(CommonErrors.NotFound("User"));
-
-        //    return Result.Success(user);
-        //}
-
         public async Task<Result> DeleteAsync(Guid id)
         {
-            var user = await _unitOfWork.Users.GetByIdAsync(id);
+            var user = await _context.Users.FindAsync(id);
 
             if (user is null)
                 return Result.Failure(CommonErrors.NotFound("User"));
 
-            _unitOfWork.Users.Delete(user);
+            _context.Users.Remove(user);
             return Result.Success();
         }
     }

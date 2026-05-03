@@ -13,7 +13,7 @@ namespace TaskPilot.Models.Entities
         public ProjectManager Manager { get; set; } = null!;
         public Company Company { get; set; } = null!;
         public ICollection<Sprint> Sprints { get; set; } = new List<Sprint>();
-        public ICollection<ProjectPolicy> Policies { get; set; } = new List<ProjectPolicy>();
+        public ICollection<Policy> Policies { get; set; } = new List<Policy>();
         public ICollection<ProjectEmployee> ProjectEmployees { get; set; } = new List<ProjectEmployee>();
     }
 }
