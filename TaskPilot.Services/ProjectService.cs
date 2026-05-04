@@ -8,7 +8,6 @@ namespace TaskPilot.Services
 {
     /// <summary>
     /// Contains all business logic for Project operations.
-    /// Accesses data exclusively through IUnitOfWork — never touches DbContext directly.
     /// Does NOT call SaveChangesAsync — that is the controller's responsibility via IUnitOfWork.
     /// </summary>
     public class ProjectService : IProjectService
