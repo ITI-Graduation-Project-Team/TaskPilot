@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration; // ضروري جداً
 using TaskPilot.Services.Helpers;
 using TaskPilot.Services.Interfaces;
+using TaskPilot.Services.Interfaces.CVExtractorInterfaces;
 
 namespace TaskPilot.Services
 {
@@ -26,7 +27,15 @@ namespace TaskPilot.Services
             // ── External ──
 
             services.AddScoped<ITokenService, JWTService>();
+            //for ---CV
+            services.AddScoped<ICvService, CvService>();
+            services.AddScoped<ICvParserService, OpenAiCvParserService>();
+            services.AddScoped<IFileTextExtractor, FileTextExtractor>();
 
+            services.AddScoped<ISkillService, SkillService>();
+
+            //Current User Service
+            services.AddHttpContextAccessor();
             return services;
         }
     }

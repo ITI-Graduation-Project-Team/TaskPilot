@@ -20,7 +20,11 @@ namespace TaskPilot.Data.Context
 
             optionsBuilder.UseSqlServer(connectionString);
 
-            return new ApplicationDbContext(optionsBuilder.Options);
+            // 🔥 الحل هنا
+            return new ApplicationDbContext(
+                optionsBuilder.Options,
+                new FakeCurrentUserService()
+            );
         }
     }
 }

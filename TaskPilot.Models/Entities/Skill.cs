@@ -1,4 +1,3 @@
-using System.ComponentModel.DataAnnotations;
 using TaskPilot.Models.Common;
 
 namespace TaskPilot.Models.Entities

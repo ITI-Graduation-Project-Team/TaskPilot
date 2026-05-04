@@ -2,15 +2,22 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using TaskPilot.Data.Repositories;
+using TaskPilot.Models.Common;
 using TaskPilot.Models.Entities;
+using TaskPilot.Services.Interfaces;
 
 namespace TaskPilot.Data.Context
 {
     public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, Guid>, IUnitOfWork
     {
-        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
+        private readonly ICurrentUserService _currentUserService;
+
+        public ApplicationDbContext(
+            DbContextOptions<ApplicationDbContext> options,
+            ICurrentUserService currentUserService)
             : base(options)
         {
+            _currentUserService = currentUserService;
         }
 
         //public DbSet<User> Users => Set<User>();
@@ -34,6 +41,27 @@ namespace TaskPilot.Data.Context
 
             // Scan the Models assembly for IEntityTypeConfiguration implementations
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(User).Assembly);//ApplicationDbContext is in TaskPilot.Data, but the entities are in TaskPilot.Models, so we need to specify the assembly of the entities
+        }
+        public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            var currentUserId = _currentUserService.UserId;
+
+            foreach (var entry in ChangeTracker.Entries<AuditableEntity<Guid>>())
+            {
+                if (entry.State == EntityState.Added)
+                {
+                    entry.Entity.CreatedAt = DateTime.UtcNow;
+                    entry.Entity.CreatedBy = currentUserId;
+                }
+
+                if (entry.State == EntityState.Modified)
+                {
+                    entry.Entity.ModifiedAt = DateTime.UtcNow;
+                    entry.Entity.ModifiedBy = currentUserId;
+                }
+            }
+
+            return await base.SaveChangesAsync(cancellationToken);
         }
     }
 }
