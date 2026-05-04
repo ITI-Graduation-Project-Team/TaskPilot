@@ -1,7 +1,9 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using TaskPilot.Data.Repositories;
 using TaskPilot.Models.Entities;
+using TaskPilot.Services.Interfaces;
 using TaskPilot.Services.Interfaces.CVExtractorInterfaces;
 
 namespace TaskPilot.Presentation.Controllers
@@ -12,28 +14,48 @@ namespace TaskPilot.Presentation.Controllers
     {
         private readonly ICvService _cvService;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly ICurrentUserService _currentUser;
 
-        public EmployeeController(ICvService cvService, IUnitOfWork unitOfWork)
+
+        public EmployeeController(ICvService cvService, IUnitOfWork unitOfWork, ICurrentUserService currentUser)
         {
             _cvService = cvService;
             _unitOfWork = unitOfWork;
+            _currentUser = currentUser;
         }
+
+        [HttpPost("upload-cv")]
         [HttpPost("{userId:guid}/upload-cv")]
-        public async Task<IActionResult> UploadCv(Guid userId, IFormFile file)
+        public async Task<IActionResult> UploadCv(Guid? userId, IFormFile file)
         {
-            // 🟢 1. Validate file
             if (file == null || file.Length == 0)
                 return BadRequest("Invalid file");
 
-            // 🟢 2. Call service
-            var result = await _cvService.ProcessCvAsync(userId, file);
+            Guid finalUserId;
 
-            // 🟢 3. Save changes (UnitOfWork)
+            if (userId.HasValue)
+            {
+                if (!User.IsInRole("Admin") && !User.IsInRole("ProjectManager"))
+                    return Forbid();
+
+                finalUserId = userId.Value;
+            }
+            else
+            {
+                if (_currentUser.UserId == null)
+                    return Unauthorized();
+
+                finalUserId = _currentUser.UserId.Value;
+            }
+
+            var result = await _cvService.ProcessCvAsync(finalUserId, file);
+
             if (result.IsSuccess)
                 await _unitOfWork.SaveChangesAsync();
 
-            // 🟢 4. Return standardized response
             return HandleResult(result, "CV processed successfully.");
         }
+    
     }
+
 }
