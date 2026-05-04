@@ -7,6 +7,7 @@ using TaskPilot.Data.Identity;
 using TaskPilot.Data.Repositories;
 using TaskPilot.Models.Common;
 using TaskPilot.Models.Entities;
+using TaskPilot.Services.Interfaces;
 
 namespace TaskPilot.Data
 {
@@ -42,6 +43,7 @@ namespace TaskPilot.Data
             services.AddScoped<IIdentityService, IdentityService>();
             services.AddScoped<IUnitOfWork>(sp =>
                         sp.GetRequiredService<ApplicationDbContext>());
+            services.AddScoped<ICurrentUserService, CurrentUserService>();
 
             return services;
         }
