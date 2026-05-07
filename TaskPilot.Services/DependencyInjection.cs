@@ -18,6 +18,7 @@ namespace TaskPilot.Services
             services.AddScoped<IEmailService, EmailService>();
             services.AddScoped<IEmailBodyService, EmailBodyService>();
             services.AddScoped<IGoogleAuthService, GoogleAuthService>();
+            services.AddScoped<IRoleService, RoleService>();
             
 
             // الآن التكوين (configuration) متاح للاستخدام
