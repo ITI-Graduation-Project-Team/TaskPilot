@@ -19,8 +19,9 @@ namespace TaskPilot.Services
             services.AddScoped<IEmailBodyService, EmailBodyService>();
             services.AddScoped<IGoogleAuthService, GoogleAuthService>();
             services.AddScoped<IRoleService, RoleService>();
+            services.AddScoped<ISubscriptionPlanService, SubscriptionPlanService>();
+            services.AddScoped<IUserSubscriptionService, UserSubscriptionService>();
             
-
             // الآن التكوين (configuration) متاح للاستخدام
             services.Configure<EmailSettings>(configuration.GetSection("EmailSettings"));
             services.Configure<JWTSettings>(configuration.GetSection("JWTSettings"));
