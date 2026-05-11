@@ -48,6 +48,17 @@ namespace TaskPilot.Presentation.Models
                 Errors = [new ErrorDetail { Code = code, Description = description }]
             };
 
+        public static ApiResponse Fail(IEnumerable<ErrorDetail> errors)
+        {
+            var list = errors.ToList();
+            return new()
+            {
+                Succeeded = false,
+                Message = list.Count > 0 ? list[0].Description : "One or more errors occurred.",
+                Errors = list
+            };
+        }
+
         public static ApiResponse<T> Fail<T>(string code, string description)
             => new()
             {
@@ -55,7 +66,19 @@ namespace TaskPilot.Presentation.Models
                 Message = description,
                 Errors = [new ErrorDetail { Code = code, Description = description }]
             };
-    }
+
+        public static ApiResponse<T> Fail<T>(IEnumerable<ErrorDetail> errors)
+        {
+            var list = errors.ToList();
+            return new()
+            {
+                Succeeded = false,
+                Message = list.Count > 0 ? list[0].Description : "One or more errors occurred.",
+                Errors = list
+            };
+        }
+
+    }   // end ApiResponse
 
     /// <summary>
     /// Typed envelope that carries a data payload.
