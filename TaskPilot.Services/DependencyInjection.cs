@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration; // ضروري جداً
+using TaskPilot.Services.AiProjectGenerator;
 using TaskPilot.Services.Helpers;
 using TaskPilot.Services.Interfaces;
 using TaskPilot.Services.Interfaces.CVExtractorInterfaces;
@@ -34,6 +35,10 @@ namespace TaskPilot.Services
             services.AddScoped<IFileTextExtractor, FileTextExtractor>();
 
             services.AddScoped<ISkillService, SkillService>();
+
+            // ── AI Project Generator ──
+            services.AddScoped<IAiProjectGeneratorService, AiProjectGeneratorService>();
+            services.AddScoped<IAudioTranscriptionService, AudioTranscriptionService>();
 
             //Current User Service
             services.AddHttpContextAccessor();
