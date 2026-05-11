@@ -92,11 +92,12 @@ namespace TaskPilot.Presentation.Controllers
                         CommonErrors.InvalidInput(
                             "Please provide at least one of: text requirements, audio file, or document file.")));
 
-            // 4. Ask AI to generate the project draft
+            // 4. Ask AI — continues the OpenAI thread if chatId is provided, else starts a new one
             var result = await _generatorService.GenerateProjectAsync(
                 combinedRequirements,
                 request.CompanyId,
-                request.ManagerId);
+                request.ManagerId,
+                request.ChatId);   // string? — null on first call, "thread_xxx" on subsequent calls
 
             return HandleResult(result);
         }

@@ -11,14 +11,20 @@ namespace TaskPilot.Services.Interfaces
     {
         /// <summary>
         /// Calls OpenAI to produce a structured project draft from free-text requirements.
+        /// On first call, pass <paramref name="chatId"/> as null to start a new session.
+        /// On follow-up calls, pass the <c>ChatId</c> returned by the previous response to
+        /// continue the conversation — only send the new answer, not the full history.
         /// </summary>
-        /// <param name="requirements">Combined requirements text (may originate from text, audio, or document).</param>
+        /// <param name="newMessage">The user's new message (requirements or answers to clarification questions).</param>
         /// <param name="companyId">Company the project will belong to.</param>
         /// <param name="managerId">Project Manager who will own the project.</param>
+        /// <param name="chatId">Existing session ID, or null to start fresh.</param>
         Task<Result<GeneratedProjectDTO>> GenerateProjectAsync(
-            string requirements,
+            string newMessage,
             Guid companyId,
-            Guid managerId);
+            Guid managerId,
+            string? chatId = null);
+
 
         /// <summary>
         /// Validates the PM-approved draft and persists it as a new <see cref="TaskPilot.Models.Entities.Project"/>.
