@@ -1,4 +1,7 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
+using TaskPilot.Data.Repositories;
 using TaskPilot.DTOs;
 using TaskPilot.DTOs.Auth;
 using TaskPilot.Models.Enums;
@@ -9,10 +12,11 @@ namespace TaskPilot.Presentation.Controllers
     public class AuthController : ApiControllerBase
     {
         private readonly IAuthService _authService;
-
-        public AuthController(IAuthService authService)
+        private readonly IUnitOfWork _unitOfWork;
+        public AuthController(IAuthService authService, IUnitOfWork unitOfWork)
         {
             _authService = authService;
+            _unitOfWork = unitOfWork;
         }
 
         [HttpPost("register")]
@@ -69,6 +73,49 @@ namespace TaskPilot.Presentation.Controllers
         public async Task<ActionResult>ResetPassword([FromBody]ResetPasswordDTO request)
         {
             var result=await _authService.ResetPasswordAsync(request);
+            return HandleResult(result);
+        }
+
+        [HttpGet("invitation/{token}")]
+        public async Task<ActionResult>
+    GetInvitationInfo(
+        string token)
+        {
+            var result =
+                await _authService
+                    .GetInvitationInfoAsync(token);
+
+            return HandleResult(result);
+        }
+        [Authorize]
+        [HttpPost("complete-invitation")]
+        public async Task<ActionResult>
+    CompleteInvitation(
+        CompleteInvitationDTO request)
+        {
+            var userId =
+                User.FindFirstValue(
+                    ClaimTypes.NameIdentifier);
+
+            if (!Guid.TryParse(
+                    userId,
+                    out Guid currentUserId))
+            {
+                return Unauthorized();
+            }
+
+            var result =
+                await _authService
+                    .CompleteInvitationAsync(
+                        request.Token,
+                        currentUserId);
+
+            if (result.IsSuccess)
+            {
+                await _unitOfWork
+                    .SaveChangesAsync();
+            }
+
             return HandleResult(result);
         }
     }

@@ -7,6 +7,7 @@ namespace TaskPilot.Models.Common
     public interface IIdentityService
     {
         Task<Result<User>> FindByEmailAsync(string email);
+        Task<Result<User>> FindByIdAsync(Guid id);
         Task<Result<User>> CreateUserAsync(User user, string password);
         Task<Result> AddToRoleAsync(User user, string roleName);
         Task<Result<string>> GenerateOTPAsync(User user);

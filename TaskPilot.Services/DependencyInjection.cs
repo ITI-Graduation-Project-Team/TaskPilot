@@ -37,6 +37,8 @@ namespace TaskPilot.Services
 
             services.AddScoped<ISkillService, SkillService>();
 
+
+            services.AddScoped<ICompanyService,CompanyService>();
             services.AddScoped(typeof(IRepository<>),
                    typeof(Repository<>));
 

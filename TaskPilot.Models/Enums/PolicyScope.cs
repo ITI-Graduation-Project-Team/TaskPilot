@@ -1,12 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace TaskPilot.Models.Enums
+﻿namespace TaskPilot.Models.Enums
 {
     public enum PolicyScope
     {
-        company = 0,
-        project = 1
+        Company = 0,
+        Project = 1
     }
 }

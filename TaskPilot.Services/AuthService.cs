@@ -18,14 +18,15 @@ namespace TaskPilot.Services
         private readonly ITokenService _tokenService;
         private readonly IGoogleAuthService _googleAuthService;
         private readonly IRepository<SubscriptionPlan> _planRepo;
-
+        private readonly IRepository<EmployeeInvitation> _invitationRepository;
         public AuthService(
             IIdentityService identityService, 
             IEmailService emailService, 
             IEmailBodyService emailBodyService, 
             ITokenService tokenService, 
             IGoogleAuthService googleAuthService,
-            IRepository<SubscriptionPlan> planRepo)
+            IRepository<SubscriptionPlan> planRepo,
+            IRepository<EmployeeInvitation> invitationRepository)
         {
             _identityService = identityService;
             _emailService = emailService;
@@ -33,6 +34,7 @@ namespace TaskPilot.Services
             _tokenService = tokenService;
             _googleAuthService = googleAuthService;
             _planRepo = planRepo;
+            _invitationRepository = invitationRepository;
         }
 
         public async Task<Result> RegisterAsync(RegisterDTO RegisterRequest, UserRole Role)
@@ -280,6 +282,134 @@ namespace TaskPilot.Services
                 return resetResult.Error;
             }
             return Result.Success("Password has been reset successfully.");
+        }
+        public async Task<
+    Result<InvitationInfoResponse>>
+    GetInvitationInfoAsync(
+        string token)
+        {
+           
+
+            var invitation =
+            await _invitationRepository
+            .FindSingleAsync(
+                     x => x.Token == token,
+                     includes: x => x.Company);
+
+            if (invitation is null)
+            {
+                return CommonErrors.NotFound(
+                    "Invitation");
+            }
+
+            // Expired
+
+            if (invitation.ExpiresAt
+                < DateTime.UtcNow)
+            {
+                return CompanyErrors
+                    .InvitationExpired;
+            }
+
+            // Already Accepted
+
+            if (invitation.IsAccepted)
+            {
+                return CompanyErrors
+                    .InvitationAlreadyAccepted;
+            }
+
+            // Existing User
+
+            var existingUser =
+                await _identityService
+                    .FindByEmailAsync(
+                        invitation.Email);
+
+            return new InvitationInfoResponse
+            {
+                Email = invitation.Email,
+
+                CompanyName =
+                    invitation.Company.Name,
+
+                UserExists =
+                    existingUser.IsSuccess,
+
+                Token = token
+            };
+        }
+
+        public async Task<Result>
+    CompleteInvitationAsync(
+        string token,
+        Guid userId)
+        {
+            // Invitation
+
+            var invitation =
+                await _invitationRepository
+                    .FindSingleAsync(x =>
+                        x.Token == token);
+
+            if (invitation is null)
+            {
+                return Result.Failure(
+                    CommonErrors.NotFound(
+                        "Invitation"));
+            }
+
+            // Expired
+
+            if (invitation.ExpiresAt
+                < DateTime.UtcNow)
+            {
+                return Result.Failure(
+                    CompanyErrors.InvitationExpired);
+            }
+
+            // Already Accepted
+
+            if (invitation.IsAccepted)
+            {
+                return Result.Failure(
+                    CompanyErrors.InvitationAlreadyAccepted);
+            }
+
+            // Current User
+
+            var userResult =
+                await _identityService
+                    .FindByIdAsync(userId);
+
+            if (userResult.IsFailure)
+            {
+                return Result.Failure(
+                    CommonErrors.NotFound(
+                        "User"));
+            }
+
+            var user = userResult.Value;
+
+            // Security Check
+
+            if (user.Email!.ToLower()
+                != invitation.Email.ToLower())
+            {
+                return Result.Failure(
+                    CommonErrors.Forbidden(
+                        "This invitation does not belong to you."));
+            }
+            // Assign Company
+
+            user.CompanyId =
+                invitation.CompanyId;
+
+            // Accept Invitation
+
+            invitation.IsAccepted = true;
+
+            return Result.Success();
         }
     }
 }
