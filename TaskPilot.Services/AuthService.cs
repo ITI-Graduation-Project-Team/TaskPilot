@@ -27,40 +27,55 @@ namespace TaskPilot.Services
             _googleAuthService = googleAuthService;
         }
 
-        public async Task<Result<string>> RegisterAsync(RegisterDTO RegisterRequest, UserRole Role)
+        public async Task<Result> RegisterAsync(RegisterDTO RegisterRequest, UserRole Role)
         {
 
             //1 check 
             var existingUser = await _identityService.FindByEmailAsync(RegisterRequest.Email);
             if (existingUser.IsSuccess)
             {
-                return CommonErrors.Conflict("This email address is already registered.");
+                return Result.Failure(CommonErrors.Conflict("This email address is already registered."));
             }
             //2 create
-            var user = new User
-            {
+            User user;
 
-                Email = RegisterRequest.Email,
-                FirstNameAr = RegisterRequest.FirstNameAr,
-                LastNameAr = RegisterRequest.LastNameAr,
-                FirstNameEn = RegisterRequest.FirstNameEn,
-                LastNameEn = RegisterRequest.LastNameEn,
-                UserName = RegisterRequest.Email,
-            };
-            var CreatedUser = await _identityService.CreateUserAsync(user, RegisterRequest.Password);
-            if (CreatedUser.IsFailure)
+            switch (Role)
             {
-                return CreatedUser.Error;
+                case UserRole.ProjectManager:
+                    user = new ProjectManager();
+                    break;
+                case UserRole.Employee:
+                    user = new Employee();
+                    break;
+                case UserRole.Admin:
+                    user = new User();
+                    break;
+                default:
+                    return Result.Failure(CommonErrors.InvalidInput("Invalid user role."));
+            }
+
+            user.Email = RegisterRequest.Email;
+            user.FirstNameAr = RegisterRequest.FirstNameAr;
+            user.LastNameAr = RegisterRequest.LastNameAr;
+            user.FirstNameEn = RegisterRequest.FirstNameEn;
+            user.LastNameEn = RegisterRequest.LastNameEn;
+            user.UserName = RegisterRequest.Email;
+
+            var createdUser = await _identityService.CreateUserAsync(user, RegisterRequest.Password);
+            if (createdUser.IsFailure)
+            {
+                return Result.Failure(createdUser.Error);
             }
             //3 add to role
-            var AddToRoleResult = await _identityService.AddToRoleAsync(CreatedUser.Value, Role.ToString());
-            if (AddToRoleResult.IsFailure)
+            var addToRoleResult = await _identityService.AddToRoleAsync(createdUser.Value, Role.ToString());
+            if (addToRoleResult.IsFailure)
             {
-                await _identityService.DeleteUserAsync(CreatedUser.Value);
-                return AddToRoleResult.Error;
+                await _identityService.DeleteUserAsync(createdUser.Value);
+                return Result.Failure(addToRoleResult.Error);
             }
             // send confirmation email
-            return await SendConfirmationEmailAsync(CreatedUser.Value);
+            await SendConfirmationEmailAsync(createdUser.Value);
+            return Result.Success();
         }
         public async Task<Result<string>> ResendConfirmationEmailAsync(string email)
         {

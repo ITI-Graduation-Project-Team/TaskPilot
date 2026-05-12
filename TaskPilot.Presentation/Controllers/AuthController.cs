@@ -23,7 +23,7 @@ namespace TaskPilot.Presentation.Controllers
         {
          
             var result = await _authService.RegisterAsync(request, Role);
-            return HandleCreated(result, result.Value);
+            return HandleResult(result, "Registered successfully.");
         }
         [HttpPost("login")]
         public async Task<ActionResult> Login(

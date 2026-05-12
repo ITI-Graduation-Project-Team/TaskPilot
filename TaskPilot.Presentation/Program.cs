@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -7,7 +8,6 @@ using TaskPilot.Data;
 using TaskPilot.Models.Common.Errors;
 using TaskPilot.Models.Common.Results;
 using TaskPilot.Services;
-
 namespace TaskPilot.Presentation
 {
     public class Program
@@ -27,17 +27,29 @@ namespace TaskPilot.Presentation
                           .AllowAnyHeader();
                 });
             });
-            builder.Services.AddControllers();
             builder.Services.AddControllers()
-    .AddJsonOptions(options =>
-    {
-        options.JsonSerializerOptions.Converters
-            .Add(new JsonStringEnumConverter());
-    });
+                .AddJsonOptions(options =>
+                {
+                    options.JsonSerializerOptions.Converters
+                        .Add(new JsonStringEnumConverter());
+                });
 
             builder.Services.AddEndpointsApiExplorer();
-            builder.Services.AddSwaggerGen();
-            builder.Services.AddAuthentication(options =>
+            builder.Services.AddSwaggerGen(options =>
+            {
+                options.AddSecurityDefinition("bearer", new OpenApiSecurityScheme
+                {
+                    Type = SecuritySchemeType.Http,
+                    Scheme = "bearer",
+                    BearerFormat = "JWT",
+                    Description = "JWT Authorization header using the Bearer scheme."
+                });
+
+                options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+                {
+                    [new OpenApiSecuritySchemeReference("bearer", document)] = []
+                });
+            }); builder.Services.AddAuthentication(options =>
             {
                 options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
                 options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
