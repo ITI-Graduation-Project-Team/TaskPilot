@@ -1,126 +1,195 @@
-﻿using Microsoft.EntityFrameworkCore;
-using TaskPilot.Data.Context;
+﻿using TaskPilot.Data.Repositories;
 using TaskPilot.Models.Common.Errors;
 using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Entities;
+using TaskPilot.Services.Helpers;
 using TaskPilot.Services.Interfaces;
 
 namespace TaskPilot.Services
 {
     public class SkillService : ISkillService
     {
-        private readonly ApplicationDbContext _context;
+        private readonly IRepository<Skill> _skillRepository;
 
-        public SkillService(ApplicationDbContext context)
+        public SkillService(IRepository<Skill> skillRepository)
         {
-            _context = context;
+            _skillRepository = skillRepository;
         }
+
         public async Task<Result<List<Skill>>> GetAllAsync()
         {
-            var skills = await _context.Skills
-                .AsNoTracking()
-                .ToListAsync();
+            var skills = await _skillRepository.GetAllAsync();
 
-            return Result.Success(skills);
+            return Result.Success(skills.ToList());
         }
+
         public async Task<Result<Skill>> CreateAsync(string name)
         {
-            var normalized = Normalize(name);
-
-            var exists = await _context.Skills
-                .IgnoreQueryFilters() 
-                .FirstOrDefaultAsync(s => s.Name.ToLower() == normalized);
-
-            if (exists != null && !exists.IsDeleted)
-                return Result.Failure<Skill>(CommonErrors.Conflict("Skill already exists"));
-
-            if (exists != null && exists.IsDeleted)
+            if (string.IsNullOrWhiteSpace(name))
             {
-                exists.IsDeleted = false;
-                exists.ModifiedAt = DateTime.UtcNow;
+                return Result.Failure<Skill>(
+                    CommonErrors.InvalidInput(
+                        "Skill name is required"));
+            }
 
-                return Result.Success(exists);
+            var normalizedName =
+                SkillNormalizer.Normalize(name);
+
+            var existingSkills =
+                await _skillRepository.GetAllAsync();
+
+            var existingSkill = existingSkills
+                .FirstOrDefault(s =>
+                    s.NormalizedName == normalizedName);
+
+            // Skill already exists
+            if (existingSkill != null &&
+                !existingSkill.IsDeleted)
+            {
+                return Result.Failure<Skill>(
+                    CommonErrors.Conflict(
+                        "Skill already exists"));
+            }
+
+            // Restore soft deleted skill
+            if (existingSkill != null &&
+                existingSkill.IsDeleted)
+            {
+                existingSkill.IsDeleted = false;
+
+                existingSkill.ModifiedAt =
+                    DateTime.UtcNow;
+
+                _skillRepository.Update(existingSkill);
+
+                return Result.Success(existingSkill);
             }
 
             var skill = new Skill
             {
-                Name = name.Trim()
+                Name = name.Trim(),
+
+                NormalizedName = normalizedName
             };
 
-            await _context.Skills.AddAsync(skill);
+            await _skillRepository.AddAsync(skill);
 
             return Result.Success(skill);
         }
 
         public async Task<Result> DeleteAsync(int id)
         {
-            var skill = await _context.Skills.FindAsync(id);
+            var skills = await _skillRepository
+                .GetAllAsync();
+
+            var skill = skills
+                .FirstOrDefault(s => s.Id == id);
 
             if (skill == null)
-                return Result.Failure(CommonErrors.NotFound("Skill"));
+            {
+                return Result.Failure(
+                    CommonErrors.NotFound("Skill"));
+            }
 
             if (skill.IsDeleted)
-                return Result.Failure(CommonErrors.Conflict("Skill already deleted"));
+            {
+                return Result.Failure(
+                    CommonErrors.Conflict(
+                        "Skill already deleted"));
+            }
 
             skill.IsDeleted = true;
+
             skill.ModifiedAt = DateTime.UtcNow;
+
+            _skillRepository.Update(skill);
 
             return Result.Success();
         }
-        public async Task<Result<List<Skill>>> CreateBulkAsync(List<string> names)
+
+        public async Task<Result<List<Skill>>> CreateBulkAsync(
+            List<string> names)
         {
             if (names == null || names.Count == 0)
-                return Result.Failure<List<Skill>>(CommonErrors.InvalidInput("Skills list is empty"));
+            {
+                return Result.Failure<List<Skill>>(
+                    CommonErrors.InvalidInput(
+                        "Skills list is empty"));
+            }
 
             var normalizedInput = names
-                .Select(n => Normalize(n))
-                .Where(n => !string.IsNullOrWhiteSpace(n))
-                .Distinct()
+                .Where(n =>
+                    !string.IsNullOrWhiteSpace(n))
+                .Select(n => new
+                {
+                    OriginalName = n.Trim(),
+
+                    NormalizedName =
+                        SkillNormalizer.Normalize(n)
+                })
+                .DistinctBy(x => x.NormalizedName)
                 .ToList();
 
-            var existingSkills = await _context.Skills
-                .IgnoreQueryFilters()
-                .Where(s => normalizedInput.Contains(s.Name.ToLower()))
-                .ToListAsync();
+            var normalizedNames = normalizedInput
+                .Select(x => x.NormalizedName)
+                .ToList();
+
+            var existingSkills =
+                await _skillRepository.FindAsync(
+                    s => normalizedNames.Contains(
+                        s.NormalizedName));
 
             var resultSkills = new List<Skill>();
 
-            foreach (var name in normalizedInput)
+            foreach (var item in normalizedInput)
             {
-                var existing = existingSkills
-                    .FirstOrDefault(s => s.Name.ToLower() == name);
+                var existingSkill = existingSkills
+                    .FirstOrDefault(s =>
+                        s.NormalizedName ==
+                        item.NormalizedName);
 
-                if (existing != null)
+                // Existing active skill
+                if (existingSkill != null &&
+                    !existingSkill.IsDeleted)
                 {
-                    if (existing.IsDeleted)
-                    {
-                        existing.IsDeleted = false;
-                        existing.ModifiedAt = DateTime.UtcNow;
-                    }
+                    resultSkills.Add(existingSkill);
 
-                    resultSkills.Add(existing);
+                    continue;
                 }
-                else
+
+                // Restore deleted skill
+                if (existingSkill != null &&
+                    existingSkill.IsDeleted)
                 {
-                    var newSkill = new Skill
-                    {
-                        Name = name
-                    };
+                    existingSkill.IsDeleted = false;
 
-                    resultSkills.Add(newSkill);
+                    existingSkill.ModifiedAt =
+                        DateTime.UtcNow;
+
+                    _skillRepository.Update(
+                        existingSkill);
+
+                    resultSkills.Add(existingSkill);
+
+                    continue;
                 }
+
+                // Create new skill
+                var newSkill = new Skill
+                {
+                    Name = item.OriginalName,
+
+                    NormalizedName =
+                        item.NormalizedName
+                };
+
+                await _skillRepository
+                    .AddAsync(newSkill);
+
+                resultSkills.Add(newSkill);
             }
 
-            var newOnes = resultSkills.Where(s => s.Id == 0).ToList();
-
-            if (newOnes.Any())
-                await _context.Skills.AddRangeAsync(newOnes);
-
             return Result.Success(resultSkills);
-        }
-        private string Normalize(string input)
-        {
-            return input.Trim().ToLower();
         }
     }
 }
