@@ -1,5 +1,7 @@
-﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using System;
+using TaskPilot.Data.Context;
 using System.Collections.Generic;
 using System.Security.Claims;
 using System.Text;
@@ -15,11 +17,13 @@ namespace TaskPilot.Data.Identity
     {
         private readonly UserManager<User> _UserManager;
         private readonly RoleManager<IdentityRole<Guid>> _roleManager;
+        private readonly ApplicationDbContext _context;
 
-        public IdentityService(UserManager<User> userManager, RoleManager<IdentityRole<Guid>> roleManager)
+        public IdentityService(UserManager<User> userManager, RoleManager<IdentityRole<Guid>> roleManager, ApplicationDbContext context)
         {
             _UserManager = userManager;
             _roleManager = roleManager;
+            _context = context;
         }
 
 
@@ -130,7 +134,9 @@ namespace TaskPilot.Data.Identity
             //A- new user
             if (user==null)
             {
-                user = new User
+                var freePlan = await _context.SubscriptionPlans.IgnoreQueryFilters().FirstOrDefaultAsync(p => p.Name == "Free");
+                
+                var pm = new ProjectManager
                 {
                     Email = email,
                     UserName = email,
@@ -140,6 +146,21 @@ namespace TaskPilot.Data.Identity
                     LastNameAr = lastName,
                     EmailConfirmed = true
                 };
+
+                if (freePlan != null && !freePlan.IsDeleted)
+                {
+                    pm.Subscriptions.Add(new UserSubscription
+                    {
+                        SubscriptionPlanId = freePlan.Id,
+                        StartDate = DateTime.UtcNow,
+                        EndDate = DateTime.UtcNow.AddYears(10),
+                        BillingCycle = BillingCycle.Monthly,
+                        Status = SubscriptionStatus.Active,
+                        AutoRenew = true,
+                        IsTrial = false
+                    });
+                }
+                user = pm;
                 var creationResult = await _UserManager.CreateAsync(user);
                 if (!creationResult.Succeeded)
                 {

@@ -17,14 +17,22 @@ namespace TaskPilot.Services
         private readonly IEmailBodyService _emailBodyService;
         private readonly ITokenService _tokenService;
         private readonly IGoogleAuthService _googleAuthService;
+        private readonly IRepository<SubscriptionPlan> _planRepo;
 
-        public AuthService(IIdentityService identityService, IEmailService emailService, IEmailBodyService emailBodyService, ITokenService tokenService, IGoogleAuthService googleAuthService)
+        public AuthService(
+            IIdentityService identityService, 
+            IEmailService emailService, 
+            IEmailBodyService emailBodyService, 
+            ITokenService tokenService, 
+            IGoogleAuthService googleAuthService,
+            IRepository<SubscriptionPlan> planRepo)
         {
             _identityService = identityService;
             _emailService = emailService;
             _emailBodyService = emailBodyService;
             _tokenService = tokenService;
             _googleAuthService = googleAuthService;
+            _planRepo = planRepo;
         }
 
         public async Task<Result> RegisterAsync(RegisterDTO RegisterRequest, UserRole Role)
@@ -39,30 +47,49 @@ namespace TaskPilot.Services
             //2 create
             User user;
 
-            switch (Role)
+            if (Role == UserRole.ProjectManager)
             {
-                case UserRole.ProjectManager:
-                    user = new ProjectManager();
-                    break;
-                case UserRole.Employee:
-                    user = new Employee();
-                    break;
-                case UserRole.Admin:
-                    user = new User();
-                    break;
-                default:
-                    return Result.Failure(CommonErrors.InvalidInput("Invalid user role."));
+                var pm = new ProjectManager
+                {
+                    Email = RegisterRequest.Email,
+                    FirstNameAr = RegisterRequest.FirstNameAr,
+                    LastNameAr = RegisterRequest.LastNameAr,
+                    FirstNameEn = RegisterRequest.FirstNameEn,
+                    LastNameEn = RegisterRequest.LastNameEn,
+                    UserName = RegisterRequest.Email,
+                };
+
+                var freePlan = await _planRepo.FindSingleAsync(p => p.Name == "Free");
+                if (freePlan != null)
+                {
+                    pm.Subscriptions.Add(new UserSubscription
+                    {
+                        SubscriptionPlanId = freePlan.Id,
+                        StartDate = DateTime.UtcNow,
+                        EndDate = DateTime.UtcNow.AddYears(10), // Treat Free as practically infinite
+                        BillingCycle = BillingCycle.Monthly,
+                        Status = SubscriptionStatus.Active,
+                        AutoRenew = true,
+                        IsTrial = false
+                    });
+                }
+                
+                user = pm;
             }
-
-            user.Email = RegisterRequest.Email;
-            user.FirstNameAr = RegisterRequest.FirstNameAr;
-            user.LastNameAr = RegisterRequest.LastNameAr;
-            user.FirstNameEn = RegisterRequest.FirstNameEn;
-            user.LastNameEn = RegisterRequest.LastNameEn;
-            user.UserName = RegisterRequest.Email;
-
-            var createdUser = await _identityService.CreateUserAsync(user, RegisterRequest.Password);
-            if (createdUser.IsFailure)
+            else
+            {
+                user = new Employee
+                {
+                    Email = RegisterRequest.Email,
+                    FirstNameAr = RegisterRequest.FirstNameAr,
+                    LastNameAr = RegisterRequest.LastNameAr,
+                    FirstNameEn = RegisterRequest.FirstNameEn,
+                    LastNameEn = RegisterRequest.LastNameEn,
+                    UserName = RegisterRequest.Email,
+                };
+            }
+            var CreatedUser = await _identityService.CreateUserAsync(user, RegisterRequest.Password);
+            if (CreatedUser.IsFailure)
             {
                 return Result.Failure(createdUser.Error);
             }
