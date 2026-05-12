@@ -1,57 +1,124 @@
 ﻿using Microsoft.Extensions.Configuration;
 using OpenAI.Chat;
 using System.Text.Json;
-using System.Linq;
+using System.Text.Json.Serialization;
+using TaskPilot.DTOs.CV;
 using TaskPilot.Services.Interfaces;
 
-public class OpenAiCvParserService : ICvParserService
+namespace TaskPilot.Services
 {
-    private readonly ChatClient _client;
-
-    public OpenAiCvParserService(IConfiguration config)
+    public class OpenAiCvParserService : ICvParserService
     {
-        var apiKey = config["OpenAI:ApiKey"];
-        _client = new ChatClient(model: "gpt-4o-mini", apiKey: apiKey);
-    }
+        private readonly ChatClient _client;
 
-    public async Task<List<string>> ExtractSkillsAsync(string text)
-    {
-        var prompt = $"""
-        Extract technical skills from this CV.
-        Return ONLY a JSON array.
+        public OpenAiCvParserService(IConfiguration config)
+        {
+            var apiKey = config["OpenAI:ApiKey"];
 
-        Example:
-        ["C#", "SQL", "React"]
+            _client = new ChatClient(
+                model: "gpt-4o-mini",
+                apiKey: apiKey);
+        }
 
-        CV:
-        {text}
-        """;
+        private static JsonSerializerOptions SerializerOptions =>
+            new()
+            {
+                PropertyNameCaseInsensitive = true,
+                Converters =
+                {
+                    new JsonStringEnumConverter()
+                }
+            };
 
-        var response = await _client.CompleteChatAsync(
-             new ChatMessage[]
-             {
+        public async Task<ParsedCvDto> ParseCvAsync(string text)
+        {
+                var prompt = $$"""
+                Analyze this CV and return ONLY valid JSON.
+
+                Extract:
+                - Job Title
+                - Seniority Level
+                - Total Years Of Experience
+                - Technical Skills
+                - Skill Level
+                - Years of experience per skill
+                - Confidence score for each skill from 0 to 1
+
+                Rules:
+                - Return ONLY technical skills.
+                - Do NOT include soft skills.
+                - Do NOT include explanations.
+                - Do NOT wrap JSON in markdown.
+                - Return ONLY JSON.
+
+                SeniorityLevel must be one of:
+                - Junior
+                - MidLevel
+                - Senior
+                - Lead
+
+                Skill level must be one of:
+                - Beginner
+                - Intermediate
+                - Advanced
+                - Expert
+
+                JSON format:
+
+                {
+                  "jobTitle": "",
+                  "seniorityLevel": "",
+                  "totalYearsOfExperience": 0,
+                  "skills": [
+                    {
+                      "name": "",
+                      "level": "",
+                      "yearsOfExperience": 0,
+                      "confidenceScore": 0.0
+                    }
+                  ]
+                }
+
+                CV:
+                {{text}}
+                """;
+
+            var response = await _client.CompleteChatAsync(
+                new ChatMessage[]
+                 {
         new UserChatMessage(prompt)
-              }
-        );
-        var completion = response.Value;
-        var content = completion.Content[0].Text;
-        content = CleanJson(content);
+                  },
+            new ChatCompletionOptions
+            {
+                MaxOutputTokenCount = 2000,
+                Temperature = 0.2f
+            });
 
-        try
-        {
-            var skills = JsonSerializer.Deserialize<List<string>>(content);
-            return skills ?? new List<string>();
-        }
-        catch
-        {
-            return new List<string>();
-        }
-    }
+            var completion = response.Value;
 
-    private string CleanJson(string input)
-    {
-        return input.Replace("```json", "")
-                    .Replace("```", "")
-                    .Trim();
+            var content = completion.Content[0].Text;
+
+            content = CleanJson(content);
+
+            try
+            {
+                var result = JsonSerializer.Deserialize<ParsedCvDto>(
+                    content,
+                    SerializerOptions);
+
+                return result ?? new ParsedCvDto();
+            }
+            catch
+            {
+                return new ParsedCvDto();
+            }
+        }
+
+        private string CleanJson(string input)
+        {
+            return input.Replace("```json", "")
+                        .Replace("```", "")
+                        .Trim();
+        }
     }
 }

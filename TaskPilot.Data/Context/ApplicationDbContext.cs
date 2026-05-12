@@ -34,7 +34,8 @@ namespace TaskPilot.Data.Context
         public DbSet<UserSubscription> UserSubscriptions => Set<UserSubscription>();
         public DbSet<Payment> Payments => Set<Payment>();
         public DbSet<Policy> Policies => Set<Policy>();
-
+        public DbSet<TaskRequiredSkill> TaskRequiredSkills => Set<TaskRequiredSkill>();
+        public DbSet<SkillAlias> SkillAliases => Set<SkillAlias>();
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

@@ -12,15 +12,18 @@ public class SkillConfiguration : IEntityTypeConfiguration<Skill>
             .IsRequired()
             .HasMaxLength(100);
 
-        builder.HasIndex(s => s.Name)
+        builder.Property(s => s.NormalizedName)
+            .IsRequired()
+            .HasMaxLength(100);
+
+        builder.HasIndex(s => s.NormalizedName)
             .IsUnique();
 
+        builder.HasIndex(s => s.Name);
 
         builder.HasMany(s => s.UserSkills)
             .WithOne(us => us.Skill)
             .HasForeignKey(us => us.SkillId)
-            .OnDelete(DeleteBehavior.Cascade);
-
-        builder.HasIndex(s => s.Name);
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

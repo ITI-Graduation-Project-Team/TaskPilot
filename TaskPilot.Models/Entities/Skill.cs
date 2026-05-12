@@ -5,6 +5,9 @@ namespace TaskPilot.Models.Entities
     public class Skill : AuditableEntity<int>
     {
         public string Name { get; set; } = string.Empty;
+        public string NormalizedName { get; set; } = string.Empty;
+        public ICollection<SkillAlias> Aliases { get; set; } = [];
+
         public ICollection<UserSkill> UserSkills { get; set; } = new List<UserSkill>();
         public ICollection<TaskRequiredSkill> TaskRequiredSkills { get; set; } = new List<TaskRequiredSkill>();
     }

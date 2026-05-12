@@ -4,7 +4,7 @@ namespace TaskPilot.Models.Enums
     {
         Admin,
         ProjectManager,
-        Developer,
+        Employee,
         //Tester,
         //BusinessAnalyst,
         

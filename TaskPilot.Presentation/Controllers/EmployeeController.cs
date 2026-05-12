@@ -1,61 +1,85 @@
 ﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using TaskPilot.Data.Repositories;
-using TaskPilot.Models.Entities;
+using TaskPilot.Presentation.Contracts;
+using TaskPilot.Presentation.Controllers;
 using TaskPilot.Services.Interfaces;
 using TaskPilot.Services.Interfaces.CVExtractorInterfaces;
 
-namespace TaskPilot.Presentation.Controllers
+[Authorize]
+[Route("api/employees")]
+[ApiController]
+public class EmployeeController : ApiControllerBase
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class EmployeeController : ApiControllerBase
+    private readonly ICvService _cvService;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly ICurrentUserService _currentUser;
+
+    public EmployeeController(
+        ICvService cvService,
+        IUnitOfWork unitOfWork,
+        ICurrentUserService currentUser)
     {
-        private readonly ICvService _cvService;
-        private readonly IUnitOfWork _unitOfWork;
-        private readonly ICurrentUserService _currentUser;
-
-
-        public EmployeeController(ICvService cvService, IUnitOfWork unitOfWork, ICurrentUserService currentUser)
-        {
-            _cvService = cvService;
-            _unitOfWork = unitOfWork;
-            _currentUser = currentUser;
-        }
-
-        [HttpPost("upload-cv")]
-        [HttpPost("{userId:guid}/upload-cv")]
-        public async Task<IActionResult> UploadCv(Guid? userId, IFormFile file)
-        {
-            if (file == null || file.Length == 0)
-                return BadRequest("Invalid file");
-
-            Guid finalUserId;
-
-            if (userId.HasValue)
-            {
-                if (!User.IsInRole("Admin") && !User.IsInRole("ProjectManager"))
-                    return Forbid();
-
-                finalUserId = userId.Value;
-            }
-            else
-            {
-                if (_currentUser.UserId == null)
-                    return Unauthorized();
-
-                finalUserId = _currentUser.UserId.Value;
-            }
-
-            var result = await _cvService.ProcessCvAsync(finalUserId, file);
-
-            if (result.IsSuccess)
-                await _unitOfWork.SaveChangesAsync();
-
-            return HandleResult(result, "CV processed successfully.");
-        }
-    
+        _cvService = cvService;
+        _unitOfWork = unitOfWork;
+        _currentUser = currentUser;
     }
 
+    // Current logged-in employee uploads CV
+    [HttpPost("cv")]
+    [HttpPost("{userId:guid}/cv")]
+    public async Task<IActionResult> UploadCv(
+        Guid? userId,
+        [FromForm] UploadCvRequest request)
+    {
+        if (request.File == null || request.File.Length == 0)
+        {
+            return BadRequest("Invalid file.");
+        }
+
+        var allowedExtensions = new[] { ".pdf", ".docx" };
+
+        var extension = Path
+            .GetExtension(request.File.FileName)
+            .ToLowerInvariant();
+
+        if (!allowedExtensions.Contains(extension))
+        {
+            return BadRequest(
+                "Only PDF and DOCX files are allowed.");
+        }
+
+        Guid finalUserId;
+
+        // Admin / PM uploads for another employee
+        if (userId.HasValue)
+        {
+            if (!User.IsInRole("Admin") &&
+                !User.IsInRole("ProjectManager"))
+            {
+                return Forbid();
+            }
+
+            finalUserId = userId.Value;
+        }
+        else
+        {
+            if (_currentUser.UserId == null)
+                return Unauthorized();
+
+            finalUserId = _currentUser.UserId.Value;
+        }
+
+        var result = await _cvService
+    .ProcessCvAsync(finalUserId, request.File);
+
+        if (result.IsSuccess)
+        {
+            await _unitOfWork.SaveChangesAsync();
+        }
+
+        return HandleResult(
+            result,
+            "CV processed successfully.");
+    }
 }
