@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using TaskPilot.Data;
 using TaskPilot.Models.Common.Errors;
 using TaskPilot.Models.Common.Results;
@@ -14,7 +15,6 @@ namespace TaskPilot.Presentation
         public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
-
             builder.Services.AddData(builder.Configuration);
             builder.Services.AddServices(builder.Configuration);
 
@@ -28,7 +28,12 @@ namespace TaskPilot.Presentation
                 });
             });
             builder.Services.AddControllers();
-
+            builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters
+            .Add(new JsonStringEnumConverter());
+    });
 
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
@@ -48,11 +53,9 @@ namespace TaskPilot.Presentation
                    ValidateIssuerSigningKey = true,
                    ValidateLifetime = true,
 
-                   // تعديل JWT إلى JWTSettings
                    ValidIssuer = builder.Configuration["JWTSettings:Issuer"],
                    ValidAudience = builder.Configuration["JWTSettings:Audience"],
 
-                   // تعديل JWT إلى JWTSettings
                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JWTSettings:Key"]))
                };
         

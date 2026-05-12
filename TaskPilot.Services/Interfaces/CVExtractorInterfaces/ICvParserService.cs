@@ -1,7 +1,9 @@
-﻿namespace TaskPilot.Services.Interfaces
+﻿using TaskPilot.DTOs.CV;
+
+namespace TaskPilot.Services.Interfaces
 {
     public interface ICvParserService
     {
-        Task<List<string>> ExtractSkillsAsync(string text);
+        Task<ParsedCvDto> ParseCvAsync(string text);
     }
 }

@@ -1,5 +1,6 @@
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration; // ضروري جداً
+using Microsoft.Extensions.DependencyInjection;
+using TaskPilot.Data.Repositories;
 using TaskPilot.Services.Helpers;
 using TaskPilot.Services.Interfaces;
 using TaskPilot.Services.Interfaces.CVExtractorInterfaces;
@@ -34,6 +35,9 @@ namespace TaskPilot.Services
             services.AddScoped<IFileTextExtractor, FileTextExtractor>();
 
             services.AddScoped<ISkillService, SkillService>();
+
+            services.AddScoped(typeof(IRepository<>),
+                   typeof(Repository<>));
 
             //Current User Service
             services.AddHttpContextAccessor();

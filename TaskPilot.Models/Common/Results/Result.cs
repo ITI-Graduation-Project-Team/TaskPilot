@@ -37,6 +37,7 @@ namespace TaskPilot.Models.Common.Results
 
         /// <summary>Creates a failed result for a typed result.</summary>
         public static Result<T> Failure<T>(Error error) => Result<T>.Failure(error);
+
     }
 
     /// <summary>

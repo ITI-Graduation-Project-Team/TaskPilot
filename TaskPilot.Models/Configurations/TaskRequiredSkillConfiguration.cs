@@ -14,12 +14,21 @@ namespace TaskPilot.Models.Configurations
             builder.HasKey(trs => trs.Id);
 
             builder.Property(trs => trs.RequiredLevel)
+                .HasConversion<string>()
                 .IsRequired();
 
-            builder.HasIndex(trs => new { trs.TaskId, trs.SkillId })
-                .IsUnique();
+            builder.HasIndex(trs => new
+            {
+                trs.TaskId,
+                trs.SkillId
+            }).IsUnique();
 
             builder.HasIndex(trs => trs.SkillId);
+
+            builder.HasOne(trs => trs.Skill)
+                .WithMany(s => s.TaskRequiredSkills)
+                .HasForeignKey(trs => trs.SkillId)
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

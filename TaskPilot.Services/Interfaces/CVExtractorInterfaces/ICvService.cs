@@ -1,9 +1,12 @@
 ﻿using Microsoft.AspNetCore.Http;
+using TaskPilot.DTOs.CV;
 using TaskPilot.Models.Common.Results;
 namespace TaskPilot.Services.Interfaces.CVExtractorInterfaces
 {
     public interface ICvService
     {
-        Task<Result<List<string>>> ProcessCvAsync(Guid userId, IFormFile file);
+        Task<Result<ParsedCvDto>> ProcessCvAsync(
+                   Guid userId,
+                   IFormFile file);
     }
 }
