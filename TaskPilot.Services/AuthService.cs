@@ -17,14 +17,22 @@ namespace TaskPilot.Services
         private readonly IEmailBodyService _emailBodyService;
         private readonly ITokenService _tokenService;
         private readonly IGoogleAuthService _googleAuthService;
+        private readonly IRepository<SubscriptionPlan> _planRepo;
 
-        public AuthService(IIdentityService identityService, IEmailService emailService, IEmailBodyService emailBodyService, ITokenService tokenService, IGoogleAuthService googleAuthService)
+        public AuthService(
+            IIdentityService identityService, 
+            IEmailService emailService, 
+            IEmailBodyService emailBodyService, 
+            ITokenService tokenService, 
+            IGoogleAuthService googleAuthService,
+            IRepository<SubscriptionPlan> planRepo)
         {
             _identityService = identityService;
             _emailService = emailService;
             _emailBodyService = emailBodyService;
             _tokenService = tokenService;
             _googleAuthService = googleAuthService;
+            _planRepo = planRepo;
         }
 
         public async Task<Result<string>> RegisterAsync(RegisterDTO RegisterRequest, UserRole Role)
@@ -37,16 +45,49 @@ namespace TaskPilot.Services
                 return CommonErrors.Conflict("This email address is already registered.");
             }
             //2 create
-            var user = new User
-            {
+            User user;
 
-                Email = RegisterRequest.Email,
-                FirstNameAr = RegisterRequest.FirstNameAr,
-                LastNameAr = RegisterRequest.LastNameAr,
-                FirstNameEn = RegisterRequest.FirstNameEn,
-                LastNameEn = RegisterRequest.LastNameEn,
-                UserName = RegisterRequest.Email,
-            };
+            if (Role == UserRole.ProjectManager)
+            {
+                var pm = new ProjectManager
+                {
+                    Email = RegisterRequest.Email,
+                    FirstNameAr = RegisterRequest.FirstNameAr,
+                    LastNameAr = RegisterRequest.LastNameAr,
+                    FirstNameEn = RegisterRequest.FirstNameEn,
+                    LastNameEn = RegisterRequest.LastNameEn,
+                    UserName = RegisterRequest.Email,
+                };
+
+                var freePlan = await _planRepo.FindSingleAsync(p => p.Name == "Free");
+                if (freePlan != null)
+                {
+                    pm.Subscriptions.Add(new UserSubscription
+                    {
+                        SubscriptionPlanId = freePlan.Id,
+                        StartDate = DateTime.UtcNow,
+                        EndDate = DateTime.UtcNow.AddYears(10), // Treat Free as practically infinite
+                        BillingCycle = BillingCycle.Monthly,
+                        Status = SubscriptionStatus.Active,
+                        AutoRenew = true,
+                        IsTrial = false
+                    });
+                }
+                
+                user = pm;
+            }
+            else
+            {
+                user = new Employee
+                {
+                    Email = RegisterRequest.Email,
+                    FirstNameAr = RegisterRequest.FirstNameAr,
+                    LastNameAr = RegisterRequest.LastNameAr,
+                    FirstNameEn = RegisterRequest.FirstNameEn,
+                    LastNameEn = RegisterRequest.LastNameEn,
+                    UserName = RegisterRequest.Email,
+                };
+            }
             var CreatedUser = await _identityService.CreateUserAsync(user, RegisterRequest.Password);
             if (CreatedUser.IsFailure)
             {

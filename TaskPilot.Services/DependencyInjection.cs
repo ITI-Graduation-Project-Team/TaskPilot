@@ -1,6 +1,6 @@
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Configuration; // ضروري جداً
-using TaskPilot.Services.AiProjectGenerator;
+using TaskPilot.Data.Repositories;
 using TaskPilot.Services.Helpers;
 using TaskPilot.Services.Interfaces;
 using TaskPilot.Services.Interfaces.CVExtractorInterfaces;
@@ -20,8 +20,9 @@ namespace TaskPilot.Services
             services.AddScoped<IEmailBodyService, EmailBodyService>();
             services.AddScoped<IGoogleAuthService, GoogleAuthService>();
             services.AddScoped<IRoleService, RoleService>();
+            services.AddScoped<ISubscriptionPlanService, SubscriptionPlanService>();
+            services.AddScoped<IUserSubscriptionService, UserSubscriptionService>();
             
-
             // الآن التكوين (configuration) متاح للاستخدام
             services.Configure<EmailSettings>(configuration.GetSection("EmailSettings"));
             services.Configure<JWTSettings>(configuration.GetSection("JWTSettings"));
@@ -36,9 +37,8 @@ namespace TaskPilot.Services
 
             services.AddScoped<ISkillService, SkillService>();
 
-            // ── AI Project Generator ──
-            services.AddScoped<IAiProjectGeneratorService, AiProjectGeneratorService>();
-            services.AddScoped<IAudioTranscriptionService, AudioTranscriptionService>();
+            services.AddScoped(typeof(IRepository<>),
+                   typeof(Repository<>));
 
             //Current User Service
             services.AddHttpContextAccessor();

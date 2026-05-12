@@ -6,4 +6,8 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\TaskPilot.Models\TaskPilot.Models.csproj" />
+  </ItemGroup>
+
 </Project>

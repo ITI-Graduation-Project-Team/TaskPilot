@@ -1,44 +1,58 @@
-﻿using DocumentFormat.OpenXml.Packaging;
+﻿using System.Text;
+using DocumentFormat.OpenXml.Packaging;
 using Microsoft.AspNetCore.Http;
 using TaskPilot.Services.Interfaces.CVExtractorInterfaces;
 using UglyToad.PdfPig;
 
-public class FileTextExtractor : IFileTextExtractor
+namespace TaskPilot.Services
 {
-    public async Task<string> ExtractTextAsync(IFormFile file)
+    public class FileTextExtractor : IFileTextExtractor
     {
-        if (file.Length == 0)
-            throw new Exception("Empty file");
-
-        var extension = Path.GetExtension(file.FileName).ToLower();
-
-        using var stream = file.OpenReadStream();
-
-        return extension switch
+        public async Task<string> ExtractTextAsync(IFormFile file)
         {
-            ".pdf" => ExtractFromPdf(stream),
-            ".docx" => ExtractFromWord(stream),
-            _ => throw new Exception("Unsupported file type")
-        };
-    }
+            if (file == null || file.Length == 0)
+                return string.Empty;
 
-    private string ExtractFromPdf(Stream stream)
-    {
-        using var document = PdfDocument.Open(stream);
+            var extension = Path
+                .GetExtension(file.FileName)
+                .ToLowerInvariant();
 
-        var text = "";
+            using var stream = file.OpenReadStream();
 
-        foreach (var page in document.GetPages())
-        {
-            text += page.Text + " ";
+            return extension switch
+            {
+                ".pdf" => ExtractFromPdf(stream),
+
+                ".docx" => ExtractFromWord(stream),
+
+                _ => string.Empty
+            };
         }
 
-        return text;
-    }
+        private string ExtractFromPdf(Stream stream)
+        {
+            using var document = PdfDocument.Open(stream);
 
-    private string ExtractFromWord(Stream stream)
-    {
-        using var doc = WordprocessingDocument.Open(stream, false);
-        return doc.MainDocumentPart?.Document?.Body?.InnerText ?? "";
+            var builder = new StringBuilder();
+
+            foreach (var page in document.GetPages())
+            {
+                builder.AppendLine(page.Text);
+            }
+
+            return builder.ToString();
+        }
+
+        private string ExtractFromWord(Stream stream)
+        {
+            using var document =
+                WordprocessingDocument.Open(stream, false);
+
+            return document.MainDocumentPart?
+                       .Document?
+                       .Body?
+                       .InnerText
+                   ?? string.Empty;
+        }
     }
 }

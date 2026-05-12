@@ -13,18 +13,33 @@ public class UserSkillConfiguration
 
         builder.ToTable("UserSkills");
 
-        builder.HasIndex(us => new { us.UserId, us.SkillId })
-               .IsUnique();
+        builder.HasIndex(us => new
+        {
+            us.UserId,
+            us.SkillId
+        }).IsUnique();
+
+        builder.HasIndex(us => us.SkillId);
+
+        builder.HasIndex(us => new
+        {
+            us.SkillId,
+            us.Level
+        });
 
         builder.HasOne(us => us.User)
             .WithMany(u => u.UserSkills)
             .HasForeignKey(us => us.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
-
         builder.Property(us => us.Level)
+            .HasConversion<string>()
             .HasDefaultValue(SkillLevel.Intermediate);
 
-        builder.HasIndex(us => us.SkillId);
+        builder.Property(us => us.IsPrimary)
+            .HasDefaultValue(false);
+
+        builder.Property(us => us.ConfidenceScore)
+            .HasPrecision(5, 2);
     }
 }
