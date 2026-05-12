@@ -91,17 +91,17 @@ namespace TaskPilot.Services
             var CreatedUser = await _identityService.CreateUserAsync(user, RegisterRequest.Password);
             if (CreatedUser.IsFailure)
             {
-                return Result.Failure(createdUser.Error);
+                return Result.Failure(CreatedUser.Error);
             }
             //3 add to role
-            var addToRoleResult = await _identityService.AddToRoleAsync(createdUser.Value, Role.ToString());
+            var addToRoleResult = await _identityService.AddToRoleAsync(CreatedUser.Value, Role.ToString());
             if (addToRoleResult.IsFailure)
             {
-                await _identityService.DeleteUserAsync(createdUser.Value);
+                await _identityService.DeleteUserAsync(CreatedUser.Value);
                 return Result.Failure(addToRoleResult.Error);
             }
             // send confirmation email
-            await SendConfirmationEmailAsync(createdUser.Value);
+            await SendConfirmationEmailAsync(CreatedUser.Value);
             return Result.Success();
         }
         public async Task<Result<string>> ResendConfirmationEmailAsync(string email)
