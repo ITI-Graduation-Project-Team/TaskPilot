@@ -8,7 +8,7 @@ namespace TaskPilot.Services.Interfaces
 {
     public interface IAuthService
     {
-        Task<Result<string>> RegisterAsync(DTOs.RegisterDTO RegisterRequest, UserRole Role);
+        Task<Result> RegisterAsync(DTOs.RegisterDTO RegisterRequest, UserRole Role);
         Task<Result<string>> ResendConfirmationEmailAsync(string email);
         Task<Result<AuthResponseDTO>> ConfirmEmailAsync(ConfirmEmailDTO confirmEmailDTO);
         Task<Result<AuthResponseDTO>> LoginAsync(LoginDTO loginDTO);
