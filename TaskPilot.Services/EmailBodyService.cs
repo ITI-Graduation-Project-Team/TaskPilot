@@ -20,4 +20,38 @@ public class EmailBodyService : IEmailBodyService
             <p>This code will expire soon.</p>
         ";
     }
+    public string GenerateEmployeeInvitationBody(
+    string employeeName,
+    string companyName,
+    string invitationLink)
+    {
+        return $@"
+        <h2>Welcome to {companyName}</h2>
+
+        <p>Hello {employeeName},</p>
+
+        <p>
+            You have been invited to join
+            <strong>{companyName}</strong>
+            on TaskPilot.
+        </p>
+
+        <p>
+            Click the button below to
+            complete your registration:
+        </p>
+
+        <a href='{invitationLink}'
+           style='padding:12px 20px;
+                  background:#2563eb;
+                  color:white;
+                  text-decoration:none;
+                  border-radius:6px;'>
+            Accept Invitation
+        </a>
+
+        <p>
+            This invitation expires in 7 days.
+        </p>";
+    }
 }

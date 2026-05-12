@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using TaskPilot.Data.Context;
 using TaskPilot.Data.Repositories;
 using TaskPilot.Presentation.Contracts;
 using TaskPilot.Presentation.Controllers;
@@ -18,7 +19,8 @@ public class EmployeeController : ApiControllerBase
     public EmployeeController(
         ICvService cvService,
         IUnitOfWork unitOfWork,
-        ICurrentUserService currentUser)
+        ICurrentUserService currentUser
+         )
     {
         _cvService = cvService;
         _unitOfWork = unitOfWork;
@@ -36,7 +38,6 @@ public class EmployeeController : ApiControllerBase
         {
             return BadRequest("Invalid file.");
         }
-
         var allowedExtensions = new[] { ".pdf", ".docx" };
 
         var extension = Path
@@ -76,6 +77,7 @@ public class EmployeeController : ApiControllerBase
         if (result.IsSuccess)
         {
             await _unitOfWork.SaveChangesAsync();
+
         }
 
         return HandleResult(

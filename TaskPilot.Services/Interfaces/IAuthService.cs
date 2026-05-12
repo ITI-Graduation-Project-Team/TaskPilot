@@ -15,7 +15,14 @@ namespace TaskPilot.Services.Interfaces
         Task<Result<AuthResponseDTO>>GoogleLoginAsync(string idToken);
         Task<Result<string>> ForgotPasswordAsync(string email);
         Task<Result<string>> ResetPasswordAsync(ResetPasswordDTO resetPasswordDTO);
+        Task<Result<InvitationInfoResponse>>
+      GetInvitationInfoAsync(
+          string token);
 
+        Task<Result>
+            CompleteInvitationAsync(
+                string token,
+                Guid userId);
 
 
 

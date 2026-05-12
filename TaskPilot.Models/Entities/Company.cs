@@ -10,6 +10,8 @@ namespace TaskPilot.Models.Entities
         public ICollection<User> Users { get; set; } = new List<User>();
         public ICollection<Project> Projects { get; set; } = new List<Project>();
         public ICollection<Policy> Policies { get; set; } = new List<Policy>();
-
+        public ICollection<EmployeeInvitation> Invitations
+        { get; set; }
+                   = new List<EmployeeInvitation>();
     }
 }

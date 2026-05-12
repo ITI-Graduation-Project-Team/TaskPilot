@@ -1,15 +1,16 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System;
-using TaskPilot.Data.Context;
 using System.Collections.Generic;
 using System.Security.Claims;
 using System.Text;
+using TaskPilot.Data.Context;
 using TaskPilot.Models.Common;
 using TaskPilot.Models.Common.Errors;
 using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Entities;
 using TaskPilot.Models.Enums;
+using static TaskPilot.Models.Constants.Permissions;
 
 namespace TaskPilot.Data.Identity
 {
@@ -204,6 +205,20 @@ namespace TaskPilot.Data.Identity
                 return Result.Failure(CommonErrors.OperationFailed(errors));
             }
             return Result.Success();
+        }
+
+        public async Task<Result<User>> FindByIdAsync(Guid id)
+        {
+            var User = await _UserManager
+            .FindByIdAsync(id.ToString());
+            if (User == null)
+            {
+                return Result.Failure<User>(CommonErrors.NotFound("User"));
+            }
+            return Result.Success(User);
+
+
+
         }
     }
 }

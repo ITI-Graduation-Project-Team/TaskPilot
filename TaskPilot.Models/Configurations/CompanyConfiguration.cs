@@ -33,6 +33,11 @@ namespace TaskPilot.Models.Configurations
                 .HasForeignKey(p => p.CompanyId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            builder.HasMany(x => x.Invitations)
+               .WithOne(x => x.Company)
+               .HasForeignKey(x => x.CompanyId)
+               .OnDelete(DeleteBehavior.Cascade);
+
             builder.HasIndex(c => c.Name);
             builder.HasIndex(c => c.OwnerId);
             builder.HasIndex(c => c.Name)

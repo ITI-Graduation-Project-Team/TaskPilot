@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace TaskPilot.DTOs.Auth
+﻿namespace TaskPilot.DTOs.Auth
 {
     public class ConfirmEmailDTO
     {
