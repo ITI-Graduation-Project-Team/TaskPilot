@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.Http;
-using System.Text.Json;
 using TaskPilot.Data.Repositories;
 using TaskPilot.DTOs.CV;
 using TaskPilot.Models.Common.Errors;
@@ -14,13 +13,23 @@ namespace TaskPilot.Services
 {
     public class CvService : ICvService
     {
-        private readonly IRepository<User> _userRepository;
-        private readonly IRepository<Employee> _employeeRepository;
-        private readonly IRepository<Skill> _skillRepository;
-        private readonly IRepository<UserSkill> _userSkillRepository;
+        private readonly IRepository<User>
+            _userRepository;
 
-        private readonly IFileTextExtractor _fileExtractor;
-        private readonly ICvParserService _cvParser;
+        private readonly IRepository<Employee>
+            _employeeRepository;
+
+        private readonly IRepository<Skill>
+            _skillRepository;
+
+        private readonly IRepository<UserSkill>
+            _userSkillRepository;
+
+        private readonly IFileTextExtractor
+            _fileExtractor;
+
+        private readonly ICvParserService
+            _cvParser;
 
         public CvService(
             IRepository<User> userRepository,
@@ -31,139 +40,239 @@ namespace TaskPilot.Services
             ICvParserService cvParser)
         {
             _userRepository = userRepository;
-            _employeeRepository = employeeRepository;
-            _skillRepository = skillRepository;
-            _userSkillRepository = userSkillRepository;
 
-            _fileExtractor = fileExtractor;
-            _cvParser = cvParser;
+            _employeeRepository =
+                employeeRepository;
+
+            _skillRepository =
+                skillRepository;
+
+            _userSkillRepository =
+                userSkillRepository;
+
+            _fileExtractor =
+                fileExtractor;
+
+            _cvParser =
+                cvParser;
         }
 
-        public async Task<Result<ParsedCvDto>> ProcessCvAsync(
-            Guid userId,
-            IFormFile file)
+        public async Task<Result<ParsedCvDto>>
+            ProcessCvAsync(
+                Guid userId,
+                IFormFile file)
         {
-            // Validate user
-            var userExists = await _userRepository
-                .AnyAsync(u => u.Id == userId);
+            // Validate User
+
+            var userExists =
+                await _userRepository
+                    .AnyAsync(u =>
+                        u.Id == userId);
 
             if (!userExists)
             {
-                return Result.Failure<ParsedCvDto>(
-                    CommonErrors.NotFound("User"));
+                return Result
+                    .Failure<ParsedCvDto>(
+                        CommonErrors
+                            .NotFound("User"));
             }
 
-            // Extract text from CV
-            var text = await _fileExtractor
-                .ExtractTextAsync(file);
+            // Extract Text
+
+            var text =
+                await _fileExtractor
+                    .ExtractTextAsync(file);
 
             if (string.IsNullOrWhiteSpace(text))
             {
-                return Result.Failure<ParsedCvDto>(
-                    CommonErrors.InvalidInput("CV is empty"));
+                return Result
+                    .Failure<ParsedCvDto>(
+                        CommonErrors
+                            .InvalidInput(
+                                "CV is empty"));
             }
 
-            // Parse CV using AI
-            var parsedCv = await _cvParser
-                .ParseCvAsync(text);
-            // Get employee
-            var employee = await _employeeRepository
-                .FindSingleAsync(e => e.Id == userId);
+            // Get Employee
+
+            var employee =
+                await _employeeRepository
+                    .FindSingleAsync(e =>
+                        e.Id == userId);
 
             if (employee is null)
             {
-                return Result.Failure<ParsedCvDto>(
-                    CommonErrors.NotFound("Employee"));
+                return Result
+                    .Failure<ParsedCvDto>(
+                        CommonErrors
+                            .NotFound("Employee"));
             }
 
-            employee.JobTitle = parsedCv.JobTitle;
+            employee.CvProcessingStatus =
+                AiProcessingStatus.Processing;
 
-            employee.SeniorityLevel =
-                parsedCv.SeniorityLevel;
-
-            employee.TotalYearsOfExperience =
-                parsedCv.TotalYearsOfExperience;
-
-            var normalizedSkills = parsedCv.Skills
-                .Where(s => !string.IsNullOrWhiteSpace(s.Name))
-                .Select(s => new
-                {
-                    ParsedSkill = s,
-
-                    NormalizedName =
-                        SkillNormalizer.Normalize(s.Name)
-                })
-                .Where(x =>
-                    !string.IsNullOrWhiteSpace(
-                        x.NormalizedName))
-                .DistinctBy(x => x.NormalizedName)
-                .ToList();
-
-            var normalizedNames = normalizedSkills
-                .Select(x => x.NormalizedName)
-                .ToList();
-
-            var existingSkills = await _skillRepository
-                .FindAsync(s =>
-                    normalizedNames.Contains(
-                        s.NormalizedName));
-
-            var skillDictionary = existingSkills
-                .ToDictionary(s => s.NormalizedName);
-
-            foreach (var item in normalizedSkills)
+            try
             {
-                if (!skillDictionary.TryGetValue(
-                        item.NormalizedName,
-                        out var skill))
-                {
-                    skill = new Skill
-                    {
-                        Name = item.ParsedSkill.Name.Trim(),
+                // Parse CV Using AI
 
-                        NormalizedName =
-                            item.NormalizedName
-                    };
+                var parsedCv =
+                    await _cvParser
+                        .ParseCvAsync(text);
 
+                parsedCv.Skills ??=new List<ParsedSkillDto>();
+
+                employee.JobTitle =
+                    parsedCv.JobTitle;
+
+                employee.SeniorityLevel =
+                    parsedCv.SeniorityLevel;
+
+                employee.TotalYearsOfExperience =
+                    parsedCv
+                        .TotalYearsOfExperience;
+
+                // Normalize Skills
+
+                var normalizedSkills =
+                    parsedCv.Skills
+                        .Where(s =>
+                            !string
+                                .IsNullOrWhiteSpace(
+                                    s.Name))
+                        .Select(s => new
+                        {
+                            ParsedSkill = s,
+
+                            NormalizedName =
+                                SkillNormalizer
+                                    .Normalize(
+                                        s.Name)
+                        })
+                        .Where(x =>
+                            !string
+                                .IsNullOrWhiteSpace(
+                                    x.NormalizedName))
+                        .DistinctBy(x =>
+                            x.NormalizedName)
+                        .ToList();
+
+                // Extract Skill Names
+
+                var normalizedNames =
+                    normalizedSkills
+                        .Select(x =>
+                            x.NormalizedName)
+                        .ToList();
+
+                // Existing Skills
+
+                var existingSkills =
                     await _skillRepository
-                        .AddAsync(skill);
+                        .FindAsync(s =>
+                            normalizedNames
+                                .Contains(
+                                    s.NormalizedName));
 
-                    skillDictionary[item.NormalizedName]
-                        = skill;
+                var skillDictionary =
+                    existingSkills
+                        .ToDictionary(
+                            s => s.NormalizedName);
+
+                // Remove Old User Skills
+
+                var existingUserSkills =
+                    await _userSkillRepository
+                        .FindAsync(us =>
+                            us.UserId == userId);
+
+                _userSkillRepository
+                    .DeleteRange(
+                        existingUserSkills);
+
+                // Add Fresh Skills
+
+                foreach (var item
+                         in normalizedSkills)
+                {
+                    if (!skillDictionary
+                            .TryGetValue(
+                                item.NormalizedName,
+                                out var skill))
+                    {
+                        skill = new Skill
+                        {
+                            Name =
+                                item
+                                    .ParsedSkill
+                                    .Name
+                                    .Trim(),
+
+                            NormalizedName =
+                                item.NormalizedName
+                        };
+
+                        await _skillRepository
+                            .AddAsync(skill);
+
+                        skillDictionary[
+                            item.NormalizedName]
+                            = skill;
+                    }
+
+                    await _userSkillRepository
+                        .AddAsync(
+                            new UserSkill
+                            {
+                                UserId = userId,
+
+                                Skill = skill,
+
+                                Level =
+                                    item
+                                        .ParsedSkill
+                                        .Level
+                                    ??
+                                    SkillLevel
+                                        .Intermediate,
+
+                                YearsOfExperience =
+                                    item
+                                        .ParsedSkill
+                                        .YearsOfExperience,
+
+                                ConfidenceScore =
+                                    item
+                                        .ParsedSkill
+                                        .ConfidenceScore,
+
+                                IsPrimary = false
+                            });
                 }
 
-                var userAlreadyHasSkill =
-                    await _userSkillRepository.AnyAsync(us =>
-                        us.UserId == userId &&
-                        us.SkillId == skill.Id);
+                // Processing Completed
 
-                if (userAlreadyHasSkill)
-                    continue;
+                employee.CvProcessingStatus =
+                    AiProcessingStatus.Completed;
 
-                await _userSkillRepository
-                    .AddAsync(new UserSkill
-                    {
-                        UserId = userId,
+                employee.IsProfileCompleted =
+                    true;
 
-                        Skill = skill,
+                employee.LastCvProcessedAt =
+                    DateTime.UtcNow;
 
-                        Level =
-                            item.ParsedSkill.Level
-                            ?? SkillLevel.Intermediate,
-
-                        YearsOfExperience =
-                            item.ParsedSkill
-                                .YearsOfExperience,
-
-                        ConfidenceScore =
-                            item.ParsedSkill
-                                .ConfidenceScore,
-
-                        IsPrimary = false
-                    });
+                return Result
+                    .Success(parsedCv);
             }
+            catch (Exception)
+            {
+                employee.CvProcessingStatus =
+                    AiProcessingStatus.Failed;
 
-            return Result.Success(parsedCv);
+                return Result
+                    .Failure<ParsedCvDto>(
+                        CommonErrors
+                            .OperationFailed(
+                                "Failed to process CV."));
+            }
         }
     }
 }

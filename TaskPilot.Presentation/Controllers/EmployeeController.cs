@@ -1,7 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using TaskPilot.Data.Context;
 using TaskPilot.Data.Repositories;
+using TaskPilot.Models.Common.Errors;
+using TaskPilot.Models.Common.Results;
 using TaskPilot.Presentation.Contracts;
 using TaskPilot.Presentation.Controllers;
 using TaskPilot.Services.Interfaces;
@@ -36,7 +37,19 @@ public class EmployeeController : ApiControllerBase
     {
         if (request.File == null || request.File.Length == 0)
         {
-            return BadRequest("Invalid file.");
+            return HandleResult(
+                   Result.Failure(
+                       CommonErrors.InvalidInput(
+                           "Invalid file.")));
+        }
+        const long maxFileSize = 5 * 1024 * 1024;
+
+        if (request.File.Length > maxFileSize)
+        {
+            return HandleResult(
+                Result.Failure(
+                    CommonErrors.InvalidInput(
+                        "Maximum allowed file size is 5 MB.")));
         }
         var allowedExtensions = new[] { ".pdf", ".docx" };
 
@@ -46,8 +59,10 @@ public class EmployeeController : ApiControllerBase
 
         if (!allowedExtensions.Contains(extension))
         {
-            return BadRequest(
-                "Only PDF and DOCX files are allowed.");
+            return HandleResult(
+            Result.Failure(
+                 CommonErrors.InvalidInput(
+                "Only PDF and DOCX files are allowed.")));
         }
 
         Guid finalUserId;

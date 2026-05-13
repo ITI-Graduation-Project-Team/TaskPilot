@@ -10,6 +10,9 @@ namespace TaskPilot.Models.Entities
         public decimal? HistoricalVelocity { get; set; }
         public decimal? MaxSprintHours { get; set; }
         public Availability? AvailabilityStatus { get; set; }
+        public bool IsProfileCompleted { get; set; } = false;
+        public DateTime? LastCvProcessedAt { get; set; }
+        public AiProcessingStatus CvProcessingStatus { get; set; }
 
         public ICollection<TaskItem> AssignedTasks { get; set; } = new List<TaskItem>();
         public ICollection<ProjectEmployee> ProjectEmployees { get; set; } = new List<ProjectEmployee>();
