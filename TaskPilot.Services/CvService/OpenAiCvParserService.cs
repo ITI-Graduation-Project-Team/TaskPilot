@@ -2,6 +2,7 @@
 using OpenAI.Chat;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 using TaskPilot.DTOs.CV;
 using TaskPilot.Services.Interfaces;
 
@@ -108,17 +109,29 @@ namespace TaskPilot.Services
 
                 return result ?? new ParsedCvDto();
             }
-            catch
+            catch (Exception ex)
             {
-                return new ParsedCvDto();
+                throw new Exception(
+                    "Failed to parse CV response.",
+                    ex);
             }
         }
 
         private string CleanJson(string input)
         {
-            return input.Replace("```json", "")
-                        .Replace("```", "")
-                        .Trim();
+            input = input
+                .Replace("```json", "")
+                .Replace("```", "")
+                .Trim();
+
+            var match = Regex.Match(
+                input,
+                @"\{[\s\S]*\}",
+                RegexOptions.Multiline);
+
+            return match.Success
+                ? match.Value
+                : input;
         }
     }
 }
