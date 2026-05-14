@@ -62,5 +62,18 @@ namespace TaskPilot.Presentation.Controllers
                 result,
                 "Company setup completed successfully.");
         }
+        [Authorize(Roles = "ProjectManager")]
+        [HttpGet("employees/search")]
+        public async Task<ActionResult>
+       SearchEmployees(
+           [FromQuery] string query)
+        {
+            var result =
+                await _companyService
+                    .SearchEmployeesAsync(
+                        query);
+
+            return HandleResult(result);
+        }
     }
 }

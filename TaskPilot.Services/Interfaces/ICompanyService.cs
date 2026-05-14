@@ -9,5 +9,9 @@ namespace TaskPilot.Services.Interfaces
             SetupCompanyAsync(
                 SetupCompanyRequest request,
                 Guid ownerId);
+
+        Task<Result<List<EmployeeSuggestionDTO>>>
+         SearchEmployeesAsync(
+           string query);
     }
 }
