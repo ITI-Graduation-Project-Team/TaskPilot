@@ -19,14 +19,16 @@ namespace TaskPilot.Services
         private readonly IGoogleAuthService _googleAuthService;
         private readonly IRepository<SubscriptionPlan> _planRepo;
         private readonly IRepository<EmployeeInvitation> _invitationRepository;
+        private readonly IRefreshTokenService _refreshTokenService;
         public AuthService(
-            IIdentityService identityService, 
-            IEmailService emailService, 
-            IEmailBodyService emailBodyService, 
-            ITokenService tokenService, 
+            IIdentityService identityService,
+            IEmailService emailService,
+            IEmailBodyService emailBodyService,
+            ITokenService tokenService,
             IGoogleAuthService googleAuthService,
             IRepository<SubscriptionPlan> planRepo,
-            IRepository<EmployeeInvitation> invitationRepository)
+            IRepository<EmployeeInvitation> invitationRepository,
+            IRefreshTokenService refreshTokenService)
         {
             _identityService = identityService;
             _emailService = emailService;
@@ -35,6 +37,7 @@ namespace TaskPilot.Services
             _googleAuthService = googleAuthService;
             _planRepo = planRepo;
             _invitationRepository = invitationRepository;
+            _refreshTokenService = refreshTokenService;
         }
 
         public async Task<Result> RegisterAsync(RegisterDTO RegisterRequest, UserRole Role)
@@ -138,11 +141,17 @@ namespace TaskPilot.Services
             {
                 return verifyResult.Error;
             }
+            var token = await _tokenService.GenerateAccessToken(user);
+            var refreshToken = await _refreshTokenService.GenerateAsync(user);
+            if (refreshToken.IsFailure)
+            {
+                return Result.Failure<AuthResponseDTO>(refreshToken.Error);
 
-            var token = await _tokenService.GenerateAccessToken(userResult.Value);
+            }
             var response = new AuthResponseDTO
             {
                 Email = confirmEmailDTO.Email,
+                RefreshToken = refreshToken.Value,
                 Token = token,
                 UserId = userResult.Value.Id,
                 Message = "Email confirmed successfully."
@@ -164,21 +173,53 @@ namespace TaskPilot.Services
                 return CommonErrors.Conflict("Email is not confirmed. Please confirm your email before logging in.");
             }
             var passwordCheckResult = await _identityService.CheckPasswordAsync(user, loginDTO.Password);
-            if (passwordCheckResult.Value == false)
+            if (passwordCheckResult.IsFailure)
             {
-                return CommonErrors.Unauthorized("Invalid credentials.");
+                return Result.Failure<AuthResponseDTO>(passwordCheckResult.Error);
             }
+
             var token = await _tokenService.GenerateAccessToken(user);
+            var refreshToken = await _refreshTokenService.GenerateAsync(user);
+            if (refreshToken.IsFailure)
+                return Result.Failure<AuthResponseDTO>(refreshToken.Error);
             var response = new AuthResponseDTO
             {
                 Email = user.Email,
                 Token = token,
+                RefreshToken = refreshToken.Value,
                 UserId = user.Id,
                 Message = "Login successful."
             };
             return response;
         }
+        public async Task<Result<AuthResponseDTO>> RefreshTokenAsync(RefreshTokenDTO refreshTokenDto)
+        {
+            var validateResult = await _refreshTokenService.ValidateAsync(refreshTokenDto.RefreshToken);
+            if (validateResult.IsFailure)
+                return Result.Failure<AuthResponseDTO>(validateResult.Error);
+            var user = validateResult.Value;
 
+            var newAccessToken = await _tokenService.GenerateAccessToken(user);
+            var newRefreshToken = await _refreshTokenService.GenerateAsync(user);
+            if (newRefreshToken.IsFailure)
+                return Result.Failure<AuthResponseDTO>(newRefreshToken.Error);
+            var response = new AuthResponseDTO
+            {
+                UserId = user.Id,
+                Email = user.Email,
+                Token = newAccessToken,
+                RefreshToken = newRefreshToken.Value,
+                Message = "Token refreshed successfully."
+            };
+            return response;
+        }
+        public async Task<Result> LogoutAsync(string Token)
+        {
+            var result = await _refreshTokenService.RevokeAsync(Token);
+            if (result.IsFailure)
+                return Result.Failure(result.Error);
+            return Result.Success();
+        }
 
         private async Task<Result<string>> SendConfirmationEmailAsync(User user)
         {
@@ -229,11 +270,15 @@ namespace TaskPilot.Services
             var user = userResult.Value;
             //3-generate our token
             var token = await _tokenService.GenerateAccessToken(user);
+            var refreshToken = await _refreshTokenService.GenerateAsync(user);
+            if (refreshToken.IsFailure)
+                return Result.Failure<AuthResponseDTO>(refreshToken.Error);
             var response = new AuthResponseDTO
             {
                 Email = user.Email,
                 Token = token,
                 UserId = user.Id,
+                RefreshToken = refreshToken.Value,
                 Message = "Login successful."
             };
             return response;
@@ -281,6 +326,7 @@ namespace TaskPilot.Services
             {
                 return resetResult.Error;
             }
+            await _refreshTokenService.RevokeAllAsync(user.Id);
             return Result.Success("Password has been reset successfully.");
         }
         public async Task<

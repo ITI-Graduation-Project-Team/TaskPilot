@@ -22,6 +22,7 @@ namespace TaskPilot.Services
             services.AddScoped<IRoleService, RoleService>();
             services.AddScoped<ISubscriptionPlanService, SubscriptionPlanService>();
             services.AddScoped<IUserSubscriptionService, UserSubscriptionService>();
+            services.AddScoped<IRefreshTokenService, RefreshTokenService>();
             
             // الآن التكوين (configuration) متاح للاستخدام
             services.Configure<EmailSettings>(configuration.GetSection("EmailSettings"));

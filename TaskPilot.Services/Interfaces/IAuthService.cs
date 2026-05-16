@@ -13,6 +13,8 @@ namespace TaskPilot.Services.Interfaces
         Task<Result<AuthResponseDTO>> ConfirmEmailAsync(ConfirmEmailDTO confirmEmailDTO);
         Task<Result<AuthResponseDTO>> LoginAsync(LoginDTO loginDTO);
         Task<Result<AuthResponseDTO>>GoogleLoginAsync(string idToken);
+        Task<Result> LogoutAsync(string Token);
+        Task<Result<AuthResponseDTO>> RefreshTokenAsync(RefreshTokenDTO refreshTokenDto);
         Task<Result<string>> ForgotPasswordAsync(string email);
         Task<Result<string>> ResetPasswordAsync(ResetPasswordDTO resetPasswordDTO);
         Task<Result<InvitationInfoResponse>>

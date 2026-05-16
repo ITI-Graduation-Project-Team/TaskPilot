@@ -21,58 +21,80 @@ namespace TaskPilot.Presentation.Controllers
 
         [HttpPost("register")]
         public async Task<ActionResult> Register(
-            [FromBody] RegisterDTO request,
-            CancellationToken cancellationToken,
-             UserRole Role)
+              [FromBody] RegisterDTO request,
+              CancellationToken cancellationToken,
+              UserRole Role)
         {
-         
             var result = await _authService.RegisterAsync(request, Role);
-            return HandleResult(result, "Registered successfully.");
+            return HandleResult(result);
         }
+
         [HttpPost("login")]
         public async Task<ActionResult> Login(
-         [FromBody] LoginDTO request
-            )
+            [FromBody] LoginDTO request)
         {
             var result = await _authService.LoginAsync(request);
             return HandleResult(result);
         }
+
         [HttpPost("confirm-email")]
         public async Task<ActionResult> ConfirmEmail(
-          [FromBody] ConfirmEmailDTO request
-          )
+            [FromBody] ConfirmEmailDTO request)
         {
             var result = await _authService.ConfirmEmailAsync(request);
             return HandleResult(result);
         }
+
         [HttpPost("resend-confirmation")]
         public async Task<ActionResult> ResendConfirmation(
-           [FromBody] ResendConfirmationDTO request
-         )
+            [FromBody] ResendConfirmationDTO request)
         {
             var result = await _authService.ResendConfirmationEmailAsync(request.Email);
             return HandleResult(result);
         }
+
         [HttpPost("google")]
         public async Task<ActionResult> Google(
-    [FromBody] GoogleAuthDTO request
-     )
+            [FromBody] GoogleAuthDTO request)
         {
-            var result = await _authService
-                .GoogleLoginAsync(request.IdToken);
+            var result = await _authService.GoogleLoginAsync(request.IdToken);
+            return HandleResult(result);
+        }
+
+        [HttpPost("refresh-token")]
+        public async Task<ActionResult> RefreshToken([FromBody] RefreshTokenDTO request)
+        {
+            var result = await _authService.RefreshTokenAsync(request);
+
+            if (result.IsSuccess)
+                await _unitOfWork.SaveChangesAsync();
 
             return HandleResult(result);
         }
-        [HttpPost("forgot-password")]
-        public async Task<ActionResult> ForgotPassword([FromBody]string email)
+
+        [Authorize]
+        [HttpPost("logout")]
+        public async Task<IActionResult> Logout([FromBody] RevokeTokenDTO request)
         {
-            var result=await _authService.ForgotPasswordAsync(email);
+            var result = await _authService.LogoutAsync(request.RefreshToken);
+
+            if (result.IsSuccess)
+                await _unitOfWork.SaveChangesAsync();
+
             return HandleResult(result);
         }
-        [HttpPost("reset-password")]
-        public async Task<ActionResult>ResetPassword([FromBody]ResetPasswordDTO request)
+
+        [HttpPost("forgot-password")]
+        public async Task<ActionResult> ForgotPassword([FromBody] string email)
         {
-            var result=await _authService.ResetPasswordAsync(request);
+            var result = await _authService.ForgotPasswordAsync(email);
+            return HandleResult(result);
+        }
+
+        [HttpPost("reset-password")]
+        public async Task<ActionResult> ResetPassword([FromBody] ResetPasswordDTO request)
+        {
+            var result = await _authService.ResetPasswordAsync(request);
             return HandleResult(result);
         }
 
