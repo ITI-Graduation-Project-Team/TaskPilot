@@ -8,6 +8,7 @@ using TaskPilot.Data;
 using TaskPilot.Models.Common.Errors;
 using TaskPilot.Models.Common.Results;
 using TaskPilot.Services;
+using TaskPilot.AI.Extensions;
 namespace TaskPilot.Presentation
 {
     public class Program
@@ -17,7 +18,7 @@ namespace TaskPilot.Presentation
             var builder = WebApplication.CreateBuilder(args);
             builder.Services.AddData(builder.Configuration);
             builder.Services.AddServices(builder.Configuration);
-
+            builder.Services.AddAiLayer();
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("AllowAll", policy =>

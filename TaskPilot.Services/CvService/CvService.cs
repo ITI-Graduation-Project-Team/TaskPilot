@@ -6,7 +6,7 @@ using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Entities;
 using TaskPilot.Models.Enums;
 using TaskPilot.Services.Helpers;
-using TaskPilot.Services.Interfaces;
+using TaskPilot.AI.Services.Interfaces;
 using TaskPilot.Services.Interfaces.CVExtractorInterfaces;
 
 namespace TaskPilot.Services
@@ -28,8 +28,8 @@ namespace TaskPilot.Services
         private readonly IFileTextExtractor
             _fileExtractor;
 
-        private readonly ICvParserService
-            _cvParser;
+        private readonly ICvAiService
+                _cvAiService;
 
         public CvService(
             IRepository<User> userRepository,
@@ -37,7 +37,7 @@ namespace TaskPilot.Services
             IRepository<Skill> skillRepository,
             IRepository<UserSkill> userSkillRepository,
             IFileTextExtractor fileExtractor,
-            ICvParserService cvParser)
+            ICvAiService cvAiService)
         {
             _userRepository = userRepository;
 
@@ -53,8 +53,7 @@ namespace TaskPilot.Services
             _fileExtractor =
                 fileExtractor;
 
-            _cvParser =
-                cvParser;
+            _cvAiService = cvAiService;
         }
 
         public async Task<Result<ParsedCvDto>>
@@ -115,8 +114,7 @@ namespace TaskPilot.Services
                 // Parse CV Using AI
 
                 var parsedCv =
-                    await _cvParser
-                        .ParseCvAsync(text);
+                    await _cvAiService.ParseCvAsync(text);
 
                 parsedCv.Skills ??=new List<ParsedSkillDto>();
 

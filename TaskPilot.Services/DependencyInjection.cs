@@ -32,7 +32,6 @@ namespace TaskPilot.Services
             services.AddScoped<ITokenService, JWTService>();
             //for ---CV
             services.AddScoped<ICvService, CvService>();
-            services.AddScoped<ICvParserService, OpenAiCvParserService>();
             services.AddScoped<IFileTextExtractor, FileTextExtractor>();
 
             services.AddScoped<ISkillService, SkillService>();
