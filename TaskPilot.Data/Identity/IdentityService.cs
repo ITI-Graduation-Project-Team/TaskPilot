@@ -19,12 +19,14 @@ namespace TaskPilot.Data.Identity
         private readonly UserManager<User> _UserManager;
         private readonly RoleManager<IdentityRole<Guid>> _roleManager;
         private readonly ApplicationDbContext _context;
+        private readonly SignInManager<User> _signInManager;
 
-        public IdentityService(UserManager<User> userManager, RoleManager<IdentityRole<Guid>> roleManager, ApplicationDbContext context)
+        public IdentityService(UserManager<User> userManager, RoleManager<IdentityRole<Guid>> roleManager, ApplicationDbContext context, SignInManager<User> signInManager)
         {
             _UserManager = userManager;
             _roleManager = roleManager;
             _context = context;
+            _signInManager = signInManager;
         }
 
 
@@ -112,15 +114,41 @@ namespace TaskPilot.Data.Identity
             return Result.Success("Email verified successfully.");
         }
 
-        public async Task<Result<bool>> CheckPasswordAsync(User user, string password)
+        public async Task<Result> CheckPasswordAsync(User user, string password)
         {
-           var valid= await _UserManager.CheckPasswordAsync(user, password);
-            if(!valid)
             {
-                return false;
+                var result = await _signInManager.CheckPasswordSignInAsync(user, password, lockoutOnFailure: true);
+                if (result.IsLockedOut)
+                {
+                    return CommonErrors.Unauthorized("Account is temporarily locked due to multiple failed attempts please try again later");
+                }
+                if (!result.Succeeded)
+                {
+                    return CommonErrors.InvalidCredentials();
+                }
+                return Result.Success();
             }
-            return true;
         }
+        public async Task<bool> IsLockedOutAsync(User user)
+        {
+            return await _UserManager.IsLockedOutAsync(user);
+        }
+        //public async Task<Result<bool>> CheckPasswordAsync(User user, string password)
+        //{
+        //   var valid= await _userManager.CheckPasswordAsync(user, password);
+        //    if(!valid)
+        //    {
+        //        return false;
+        //    }
+        //    return true;
+        //}
+           //var valid= await _UserManager.CheckPasswordAsync(user, password);
+           // if(!valid)
+           // {
+           //     return false;
+           // }
+           // return true;
+        
         public async Task<Result<User>>GetOrCreateExternalUser(string firstName, string lastName, string email,string provider,string providerKey)
         {
             // 1- has signed with google before

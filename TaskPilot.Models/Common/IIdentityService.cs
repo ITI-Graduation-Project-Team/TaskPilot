@@ -15,7 +15,8 @@ namespace TaskPilot.Models.Common
         Task<Result<IList<string>>>GetRolesAsync(User user);
         Task<Result> DeleteUserAsync(User user);
         Task<Result<string>>VerifyEmailAsync(User user, string otp);
-        Task<Result<bool>> CheckPasswordAsync(User user, string password);
+        Task<Result> CheckPasswordAsync(User user, string password);
+        Task<bool> IsLockedOutAsync(User user);
         Task<Result<User>> GetOrCreateExternalUser(string firstName, string lastName, string email, string provider, string providerKey);
         Task<Result<string>>GeneratePasswordResetTokenAsync(User user);
         Task<Result>ResetPasswordAsync(User user, string token, string newPassword);

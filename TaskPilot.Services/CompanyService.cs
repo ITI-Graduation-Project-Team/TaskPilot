@@ -17,6 +17,8 @@ namespace TaskPilot.Services
 
         private readonly IRepository<ProjectManager>
             _projectManagerRepository;
+        private readonly IRepository<Employee>
+            _employeeRepository;
 
         private readonly IRepository<Policy>
             _policyRepository;
@@ -38,7 +40,8 @@ namespace TaskPilot.Services
             IRepository<EmployeeInvitation>
                 invitationRepository,
             IEmailService emailService,
-            IEmailBodyService emailBodyService)
+            IEmailBodyService emailBodyService,
+            IRepository<Employee> employeeRepository)
         {
             _companyRepository =
                 companyRepository;
@@ -57,6 +60,7 @@ namespace TaskPilot.Services
 
             _emailBodyService =
                 emailBodyService;
+            _employeeRepository = employeeRepository;
         }
 
         public async Task<Result<CompanyResponse>>
@@ -261,5 +265,67 @@ namespace TaskPilot.Services
             return Result<CompanyResponse>
                 .Success(response);
         }
+        public async Task<
+    Result<List<EmployeeSuggestionDTO>>>
+    SearchEmployeesAsync(
+        string query)
+        {
+            if (string.IsNullOrWhiteSpace(query))
+            {
+                return new List<EmployeeSuggestionDTO>();
+            }
+
+            query = query.Trim().ToLower();
+
+            var employees =
+                await _employeeRepository
+                    .FindAsync(e =>
+
+                    e.CompanyId == null
+
+                    &&
+
+                    e.Email != null
+
+                    &&
+
+                    (
+                        e.Email.ToLower()
+                            .Contains(query)
+
+                        ||
+
+                        e.FirstNameEn
+                            .ToLower()
+                            .Contains(query)
+
+                        ||
+
+                        e.LastNameEn
+                            .ToLower()
+                            .Contains(query)
+                    ));
+
+            var result =
+                employees
+                    .Take(10)
+                    .Select(e =>
+                        new EmployeeSuggestionDTO
+                        {
+                            Id = e.Id,
+
+                            FullName =
+                                $"{e.FirstNameEn} {e.LastNameEn}",
+
+                            Email = e.Email!,
+
+                            HasCompany =
+                                e.CompanyId != null
+                        })
+                    .ToList();
+
+            return result;
+        }
+
     }
 }
