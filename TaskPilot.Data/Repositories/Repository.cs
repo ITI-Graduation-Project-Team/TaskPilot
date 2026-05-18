@@ -15,6 +15,11 @@ namespace TaskPilot.Data.Repositories
             _dbSet = context.Set<T>();
         }
 
+        public IQueryable<T> GetQueryable()
+        {
+            return _dbSet.AsQueryable();
+        }
+
         // ──────────────────────────── Single Entity Queries ────────────────────────────
 
         public async Task<T?> GetByIdAsync(Guid id)

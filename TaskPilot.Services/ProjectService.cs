@@ -3,6 +3,8 @@ using TaskPilot.Models.Common.Results;
 using TaskPilot.Services.Interfaces;
 using TaskPilot.Models.Entities;
 using TaskPilot.Data.Repositories;
+using TaskPilot.DTOs.Projects;
+using Microsoft.EntityFrameworkCore;
 
 namespace TaskPilot.Services
 {
@@ -15,80 +17,133 @@ namespace TaskPilot.Services
         private readonly IRepository<Project> _projectRepo;
         private readonly IRepository<Company> _companyRepo;
         private readonly IRepository<ProjectManager> _managerRepo;
+        private readonly ILocalizationService _localizationService;
 
         public ProjectService(
             IRepository<Project> projectRepo, 
             IRepository<Company> companyRepo,
-            IRepository<ProjectManager> managerRepo)
+            IRepository<ProjectManager> managerRepo,
+            ILocalizationService localizationService)
         {
             _projectRepo = projectRepo;
             _companyRepo = companyRepo;
             _managerRepo = managerRepo;
+            _localizationService = localizationService;
         }
 
-        public async Task<Result<Project>> GetByIdAsync(Guid id)
+        public async Task<Result<ProjectDto>> GetByIdAsync(Guid id)
         {
-            var project = await _projectRepo.GetByIdAsync(id, 
-                p => p.Manager, 
-                p => p.Company, 
-                p => p.Sprints);
+            bool isArabic = _localizationService.CurrentLanguage == "ar";
+
+            var project = await _projectRepo.GetQueryable()
+                .Where(p => p.Id == id && !p.IsDeleted)
+                .Select(p => new ProjectDto
+                {
+                    Id = p.Id,
+                    Name = isArabic ? p.NameAr : p.NameEn,
+                    Description = isArabic ? p.DescriptionAr : p.DescriptionEn,
+                    CompanyId = p.CompanyId,
+                    ManagerId = p.ManagerId
+                })
+                .FirstOrDefaultAsync();
 
             if (project is null)
-                return Result.Failure<Project>(CommonErrors.NotFound("Project"));
+                return Result.Failure<ProjectDto>(CommonErrors.NotFound("Project"));
 
             return Result.Success(project);
         }
 
-        public async Task<Result<List<Project>>> GetAllAsync()
+        public async Task<Result<List<ProjectDto>>> GetAllAsync()
         {
-            var projects = await _projectRepo.GetAllAsync(
-                p => p.Manager, 
-                p => p.Company);
+            bool isArabic = _localizationService.CurrentLanguage == "ar";
 
-            return Result.Success(projects.ToList());
+            var projects = await _projectRepo.GetQueryable()
+                .Where(p => !p.IsDeleted)
+                .Select(p => new ProjectDto
+                {
+                    Id = p.Id,
+                    Name = isArabic ? p.NameAr : p.NameEn,
+                    Description = isArabic ? p.DescriptionAr : p.DescriptionEn,
+                    CompanyId = p.CompanyId,
+                    ManagerId = p.ManagerId
+                })
+                .ToListAsync();
+
+            return Result.Success(projects);
         }
 
-        public async Task<Result<IEnumerable<Project>>> GetByCompanyIdAsync(Guid companyId)
+        public async Task<Result<IEnumerable<ProjectDto>>> GetByCompanyIdAsync(Guid companyId)
         {
             var companyExists = await _companyRepo.AnyAsync(c => c.Id == companyId);
 
             if (!companyExists)
-                return Result.Failure<IEnumerable<Project>>(CommonErrors.NotFound("Company"));
+                return Result.Failure<IEnumerable<ProjectDto>>(CommonErrors.NotFound("Company"));
 
-            var projects = await _projectRepo.FindAsync(
-                p => p.CompanyId == companyId, 
-                p => p.Manager);
+            bool isArabic = _localizationService.CurrentLanguage == "ar";
+
+            var projects = await _projectRepo.GetQueryable()
+                .Where(p => p.CompanyId == companyId && !p.IsDeleted)
+                .Select(p => new ProjectDto
+                {
+                    Id = p.Id,
+                    Name = isArabic ? p.NameAr : p.NameEn,
+                    Description = isArabic ? p.DescriptionAr : p.DescriptionEn,
+                    CompanyId = p.CompanyId,
+                    ManagerId = p.ManagerId
+                })
+                .ToListAsync();
 
             return Result.Success(projects.AsEnumerable());
         }
 
-        public async Task<Result<Project>> CreateAsync(Project project)
+        public async Task<Result<ProjectDto>> CreateAsync(CreateProjectDto dto)
         {
-            var managerExists = await _managerRepo.AnyAsync(pm => pm.Id == project.ManagerId);
+            var managerExists = await _managerRepo.AnyAsync(pm => pm.Id == dto.ManagerId);
 
             if (!managerExists)
-                return Result.Failure<Project>(CommonErrors.NotFound("Project Manager"));
+                return Result.Failure<ProjectDto>(CommonErrors.NotFound("Project Manager"));
 
-            var companyExists = await _companyRepo.AnyAsync(c => c.Id == project.CompanyId);
+            var companyExists = await _companyRepo.AnyAsync(c => c.Id == dto.CompanyId);
 
             if (!companyExists)
-                return Result.Failure<Project>(CommonErrors.NotFound("Company"));
+                return Result.Failure<ProjectDto>(CommonErrors.NotFound("Company"));
+
+            var project = new Project
+            {
+                NameEn = dto.NameEn,
+                NameAr = dto.NameAr,
+                DescriptionEn = dto.DescriptionEn,
+                DescriptionAr = dto.DescriptionAr,
+                ManagerId = dto.ManagerId,
+                CompanyId = dto.CompanyId
+            };
 
             await _projectRepo.AddAsync(project);
-            return Result.Success(project);
+
+            bool isArabic = _localizationService.CurrentLanguage == "ar";
+            var resultDto = new ProjectDto
+            {
+                Id = project.Id,
+                Name = isArabic ? project.NameAr : project.NameEn,
+                Description = isArabic ? project.DescriptionAr : project.DescriptionEn,
+                CompanyId = project.CompanyId,
+                ManagerId = project.ManagerId
+            };
+
+            return Result.Success(resultDto);
         }
 
-        public async Task<Result> UpdateAsync(Project project)
+        public async Task<Result> UpdateAsync(UpdateProjectDto dto)
         {
-            var existing = await _projectRepo.GetByIdAsync(project.Id);
+            var existing = await _projectRepo.GetByIdAsync(dto.Id);
 
             if (existing is null)
                 return Result.Failure(CommonErrors.NotFound("Project"));
 
-            existing.NameEn = project.NameEn;
-            existing.NameAr = project.NameAr;
-            existing.DescriptionEn = project.DescriptionEn;
-            existing.DescriptionAr = project.DescriptionAr;
+            existing.NameEn = dto.NameEn;
+            existing.NameAr = dto.NameAr;
+            existing.DescriptionEn = dto.DescriptionEn;
+            existing.DescriptionAr = dto.DescriptionAr;
             existing.ModifiedAt = DateTime.UtcNow;
 
             _projectRepo.Update(existing);
