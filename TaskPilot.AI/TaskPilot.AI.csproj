@@ -1,0 +1,41 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="Prompts\CV\ParseCvPrompt.txt" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Prompts\CV\ParseCvPrompt.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.SemanticKernel" Version="1.76.0" />
+    <PackageReference Include="Microsoft.SemanticKernel.Connectors.Google" Version="1.76.0-alpha" />
+    <PackageReference Include="Microsoft.SemanticKernel.Connectors.OpenAI" Version="1.76.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TaskPilot.DTOs\TaskPilot.DTOs.csproj" />
+    <ProjectReference Include="..\TaskPilot.Models\TaskPilot.Models.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Agents\" />
+	<Folder Include="Builders\" />
+	<Folder Include="Models\" />
+	<Folder Include="Constants\" />
+	<Folder Include="Extensions\" />
+	<Folder Include="Helpers\" />
+	<Folder Include="Plugins\" />
+	<Folder Include="Services\" />
+  </ItemGroup>
+
+</Project>
