@@ -21,6 +21,8 @@ namespace TaskPilot.Data.Context
         }
 
         //public DbSet<User> Users => Set<User>();
+        public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+
         public DbSet<Company> Companies => Set<Company>();
         public DbSet<Project> Projects => Set<Project>();
         public DbSet<Sprint> Sprints => Set<Sprint>();

@@ -54,6 +54,7 @@ namespace TaskPilot.Models.Common.Results
 
         /// <summary>Creates a failed typed result from multiple errors.</summary>
         public static Result<T> Failure<T>(IEnumerable<Error> errors) => Result<T>.Failure(errors);
+        public static implicit operator Result(Error error) => Failure(error);
     }
 
     /// <summary>
