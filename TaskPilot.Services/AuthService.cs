@@ -30,7 +30,7 @@ namespace TaskPilot.Services
             IGoogleAuthService googleAuthService,
             IRepository<SubscriptionPlan> planRepo,
             IRepository<EmployeeInvitation> invitationRepository,
-            ILocalizationService localizationService)
+            ILocalizationService localizationService,
             IRefreshTokenService refreshTokenService)
         {
             _identityService = identityService;
