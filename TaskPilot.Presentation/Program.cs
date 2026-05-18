@@ -8,6 +8,7 @@ using TaskPilot.Data;
 using TaskPilot.Models.Common.Errors;
 using TaskPilot.Models.Common.Results;
 using TaskPilot.Services;
+using TaskPilot.Presentation.Middlewares;
 namespace TaskPilot.Presentation
 {
     public class Program
@@ -97,6 +98,8 @@ namespace TaskPilot.Presentation
             }
             app.UseCors("AllowAll");
             app.UseHttpsRedirection();
+
+            app.UseMiddleware<LanguageMiddleware>();
 
             app.UseAuthentication();
 

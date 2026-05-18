@@ -19,6 +19,8 @@ namespace TaskPilot.Services
         private readonly IGoogleAuthService _googleAuthService;
         private readonly IRepository<SubscriptionPlan> _planRepo;
         private readonly IRepository<EmployeeInvitation> _invitationRepository;
+        private readonly ILocalizationService _localizationService;
+
         public AuthService(
             IIdentityService identityService, 
             IEmailService emailService, 
@@ -26,7 +28,8 @@ namespace TaskPilot.Services
             ITokenService tokenService, 
             IGoogleAuthService googleAuthService,
             IRepository<SubscriptionPlan> planRepo,
-            IRepository<EmployeeInvitation> invitationRepository)
+            IRepository<EmployeeInvitation> invitationRepository,
+            ILocalizationService localizationService)
         {
             _identityService = identityService;
             _emailService = emailService;
@@ -35,6 +38,7 @@ namespace TaskPilot.Services
             _googleAuthService = googleAuthService;
             _planRepo = planRepo;
             _invitationRepository = invitationRepository;
+            _localizationService = localizationService;
         }
 
         public async Task<Result> RegisterAsync(RegisterDTO RegisterRequest, UserRole Role)
@@ -143,9 +147,10 @@ namespace TaskPilot.Services
             var response = new AuthResponseDTO
             {
                 Email = confirmEmailDTO.Email,
+                FullName = _localizationService.GetLocalizedProperty($"{user.FirstNameEn} {user.LastNameEn}".Trim(), $"{user.FirstNameAr} {user.LastNameAr}".Trim()),
                 Token = token,
                 UserId = userResult.Value.Id,
-                Message = "Email confirmed successfully."
+                Message = _localizationService.GetString("Success") // Example of using static localization
             };
 
             return response;
@@ -172,9 +177,10 @@ namespace TaskPilot.Services
             var response = new AuthResponseDTO
             {
                 Email = user.Email,
+                FullName = _localizationService.GetLocalizedProperty($"{user.FirstNameEn} {user.LastNameEn}".Trim(), $"{user.FirstNameAr} {user.LastNameAr}".Trim()),
                 Token = token,
                 UserId = user.Id,
-                Message = "Login successful."
+                Message = _localizationService.GetString("Success")
             };
             return response;
         }
@@ -232,9 +238,10 @@ namespace TaskPilot.Services
             var response = new AuthResponseDTO
             {
                 Email = user.Email,
+                FullName = _localizationService.GetLocalizedProperty($"{user.FirstNameEn} {user.LastNameEn}".Trim(), $"{user.FirstNameAr} {user.LastNameAr}".Trim()),
                 Token = token,
                 UserId = user.Id,
-                Message = "Login successful."
+                Message = _localizationService.GetString("Success")
             };
             return response;
 
