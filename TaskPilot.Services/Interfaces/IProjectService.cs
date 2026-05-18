@@ -1,5 +1,6 @@
 using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Entities;
+using TaskPilot.DTOs.Projects;
 
 namespace TaskPilot.Services.Interfaces
 {
@@ -8,11 +9,11 @@ namespace TaskPilot.Services.Interfaces
     /// </summary>
     public interface IProjectService
     {
-        Task<Result<Project>> GetByIdAsync(Guid id);
-        Task<Result<List<Project>>> GetAllAsync();
-        Task<Result<IEnumerable<Project>>> GetByCompanyIdAsync(Guid companyId);
-        Task<Result<Project>> CreateAsync(Project project);
-        Task<Result> UpdateAsync(Project project);
+        Task<Result<ProjectDto>> GetByIdAsync(Guid id);
+        Task<Result<List<ProjectDto>>> GetAllAsync();
+        Task<Result<IEnumerable<ProjectDto>>> GetByCompanyIdAsync(Guid companyId);
+        Task<Result<ProjectDto>> CreateAsync(CreateProjectDto projectDto);
+        Task<Result> UpdateAsync(UpdateProjectDto projectDto);
         Task<Result> DeleteAsync(Guid id);
     }
 }

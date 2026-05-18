@@ -4,6 +4,8 @@ namespace TaskPilot.Data.Repositories
 {
     public interface IRepository<T> where T : class
     {
+        IQueryable<T> GetQueryable();
+
         // ──────────────────────────── Single Entity Queries ────────────────────────────
 
         /// <summary>

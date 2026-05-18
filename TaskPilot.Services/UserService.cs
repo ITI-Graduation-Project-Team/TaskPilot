@@ -1,9 +1,10 @@
-using TaskPilot.Data.Context;
+using Microsoft.EntityFrameworkCore;
+using TaskPilot.Data.Repositories;
+using TaskPilot.DTOs.Users;
 using TaskPilot.Models.Common.Errors;
 using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Entities;
 using TaskPilot.Services.Interfaces;
-using Microsoft.EntityFrameworkCore;
 
 namespace TaskPilot.Services
 {
@@ -14,38 +15,68 @@ namespace TaskPilot.Services
     /// </summary>
     public class UserService : IUserService
     {
-        private readonly ApplicationDbContext _context;
+        //private readonly ApplicationDbContext _context;
+        private readonly IRepository<User> _userRepo;
+        private readonly ILocalizationService _localizationService;
 
-        public UserService(ApplicationDbContext applicationDbContext)
+        public UserService(/*ApplicationDbContext applicationDbContext,*/ ILocalizationService localizationService, IRepository<User> UserRepo)
         {
-            _context = applicationDbContext;
+            //_context = applicationDbContext;
+            _localizationService = localizationService;
+            _userRepo = UserRepo;
         }
 
-        public async Task<Result<User>> GetByIdAsync(Guid id)
+        public async Task<Result<UserDto>> GetByIdAsync(Guid id)
         {
-            var user = await _context.Users.FindAsync(id);
+            bool isArabic = _localizationService.CurrentLanguage == "ar";
+
+            var user = await _userRepo.GetQueryable()
+                .Where(u => u.Id == id)
+                .Select(u => new UserDto
+                {
+                    Id = u.Id,
+                    Email = u.Email,
+                    FirstName = isArabic ? u.FirstNameAr : u.FirstNameEn,
+                    LastName = isArabic ? u.LastNameAr : u.LastNameEn,
+                    CompanyId = u.CompanyId,
+                    IsDeleted = u.IsDeleted
+                })
+                .FirstOrDefaultAsync();
 
             if (user is null)
-                return Result.Failure<User>(CommonErrors.NotFound("User"));
+                return Result.Failure<UserDto>(CommonErrors.NotFound("User"));
 
             return Result.Success(user);
         }
 
-        public async Task<Result<List<User>>> GetAllAsync()
+        public async Task<Result<List<UserDto>>> GetAllAsync()
         {
-            var users = await _context.Users
+            bool isArabic = _localizationService.CurrentLanguage == "ar";
+
+            var users = await _userRepo.GetQueryable()
                 .Where(u => !u.IsDeleted)
+                .Select(u => new UserDto
+                {
+                    Id = u.Id,
+                    Email = u.Email,
+                    FirstName = isArabic ? u.FirstNameAr : u.FirstNameEn,
+                    LastName = isArabic ? u.LastNameAr : u.LastNameEn,
+                    CompanyId = u.CompanyId,
+                    IsDeleted = u.IsDeleted
+                })
                 .ToListAsync();
+
             return Result.Success(users);
         }
         public async Task<Result> DeleteAsync(Guid id)
         {
-            var user = await _context.Users.FindAsync(id);
+            var user = await _userRepo.GetByIdAsync(id);
 
             if (user is null)
                 return Result.Failure(CommonErrors.NotFound("User"));
 
-            _context.Users.Remove(user);
+            user.IsDeleted = true;
+            _userRepo.Update(user);
             return Result.Success();
         }
     }

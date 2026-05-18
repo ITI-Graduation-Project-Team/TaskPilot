@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -21,6 +21,11 @@
     <ProjectReference Include="..\TaskPilot.DTOs\TaskPilot.DTOs.csproj" />
     <ProjectReference Include="..\TaskPilot.Models\TaskPilot.Models.csproj" />
     <ProjectReference Include="..\TaskPilot.Services\TaskPilot.Services.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="Resources\*.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

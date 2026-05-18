@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using TaskPilot.Data.Repositories;
 using TaskPilot.Services.Interfaces;
-using TaskPilot.Models.Entities;
+using TaskPilot.DTOs.Projects;
 
 namespace TaskPilot.Presentation.Controllers
 {
@@ -38,7 +38,7 @@ namespace TaskPilot.Presentation.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult> Create([FromBody] Project project)
+        public async Task<ActionResult> Create([FromBody] CreateProjectDto project)
         {
             var result = await _projectService.CreateAsync(project);
 
@@ -49,7 +49,7 @@ namespace TaskPilot.Presentation.Controllers
         }
 
         [HttpPut]
-        public async Task<ActionResult> Update([FromBody] Project project)
+        public async Task<ActionResult> Update([FromBody] UpdateProjectDto project)
         {
             var result = await _projectService.UpdateAsync(project);
 
