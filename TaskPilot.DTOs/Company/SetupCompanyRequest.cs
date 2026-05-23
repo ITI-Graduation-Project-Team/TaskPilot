@@ -1,4 +1,5 @@
-﻿namespace TaskPilot.DTOs.Company
+﻿using Microsoft.AspNetCore.Http;
+namespace TaskPilot.DTOs.Company
 {
     public class SetupCompanyRequest
     {
@@ -14,9 +15,8 @@
 
         public string? PolicyContentAr { get; set; }
 
-        public string? PolicyDocumentUrl { get; set; }
-
-
+        public IFormFile? PolicyDocument
+        { get; set; }
         public List<string> EmployeeEmails
         { get; set; } = new();
     }

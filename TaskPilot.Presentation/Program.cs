@@ -10,6 +10,7 @@ using TaskPilot.Models.Common.Results;
 using TaskPilot.Services;
 using TaskPilot.Presentation.Middlewares;
 using TaskPilot.AI.Extensions;
+using TaskPilot.Infrastructure.Extensions;
 namespace TaskPilot.Presentation
 {
     public class Program
@@ -20,6 +21,8 @@ namespace TaskPilot.Presentation
             builder.Services.AddData(builder.Configuration);
             builder.Services.AddServices(builder.Configuration);
             builder.Services.AddAiLayer();
+            builder.Services.AddInfrastructure(
+    builder.Configuration);
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("AllowAll", policy =>

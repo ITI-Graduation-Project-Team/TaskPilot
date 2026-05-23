@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace TaskPilot.DTOs
+namespace TaskPilot.DTOs.Auth
 {
     public class RegisterResponseDTO
     {

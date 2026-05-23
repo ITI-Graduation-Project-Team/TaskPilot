@@ -1,18 +1,14 @@
-﻿using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Rewrite;
-using Microsoft.Extensions.Options;
+﻿using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
-using System;
-using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using TaskPilot.Infrastructure.Settings;
 using TaskPilot.Models.Common;
 using TaskPilot.Models.Entities;
-using TaskPilot.Services.Helpers;
-using TaskPilot.Services.Interfaces;
+using TaskPilot.Services.Interfaces.External;
 
-namespace TaskPilot.Services
+namespace TaskPilot.Infrastructure.Services.Token
 {
     public class JWTService : ITokenService
     {

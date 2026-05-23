@@ -32,7 +32,7 @@ namespace TaskPilot.Presentation.Controllers
         [HttpPost("setup")]
         public async Task<ActionResult>
             SetupCompany(
-                [FromBody]
+                [FromForm]
                 SetupCompanyRequest request)
             {
             var userId =

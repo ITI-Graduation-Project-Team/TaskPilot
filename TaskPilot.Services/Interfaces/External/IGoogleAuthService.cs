@@ -1,10 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using TaskPilot.DTOs;
+﻿using TaskPilot.DTOs.Auth;
 using TaskPilot.Models.Common.Results;
 
-namespace TaskPilot.Services.Interfaces
+namespace TaskPilot.Services.Interfaces.External
 {
     public interface IGoogleAuthService
     {

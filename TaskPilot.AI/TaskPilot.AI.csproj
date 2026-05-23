@@ -34,6 +34,8 @@
 	<Folder Include="Constants\" />
 	<Folder Include="Extensions\" />
 	<Folder Include="Helpers\" />
+	<Folder Include="Orchestrators\" />
+	<Folder Include="RAG\" />
 	<Folder Include="Plugins\" />
 	<Folder Include="Services\" />
   </ItemGroup>

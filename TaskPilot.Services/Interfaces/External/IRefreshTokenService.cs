@@ -1,10 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using TaskPilot.Models.Common.Results;
+﻿using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Entities;
 
-namespace TaskPilot.Services.Interfaces
+namespace TaskPilot.Services.Interfaces.External
 {
     public interface IRefreshTokenService
     {

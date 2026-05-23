@@ -2,14 +2,13 @@
 using Microsoft.Extensions.Options;
 using MimeKit;
 using TaskPilot.DTOs;
-using TaskPilot.Services.Helpers;
-using TaskPilot.Services.Interfaces;
-
 using MailKit.Net.Smtp;
 using TaskPilot.Models.Common.Results;
+using TaskPilot.Services.Interfaces.External;
+using TaskPilot.Infrastructure.Settings;
 
 
-namespace TaskPilot.Services
+namespace TaskPilot.Infrastructure.Services.Email
 {
     public class EmailService : IEmailService
     {

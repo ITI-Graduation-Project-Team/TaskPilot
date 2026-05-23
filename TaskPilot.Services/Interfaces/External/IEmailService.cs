@@ -1,7 +1,7 @@
 using TaskPilot.DTOs;
 using TaskPilot.Models.Common.Results;
 
-namespace TaskPilot.Services.Interfaces
+namespace TaskPilot.Services.Interfaces.External
 {
     public interface IEmailService
     {

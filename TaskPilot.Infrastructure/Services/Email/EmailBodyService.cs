@@ -1,31 +1,33 @@
-﻿using TaskPilot.Services.Interfaces;
+﻿using TaskPilot.Services.Interfaces.External;
 
-public class EmailBodyService : IEmailBodyService
+namespace TaskPilot.Infrastructure.Services.Email
 {
-    public string GenerateConfirmationEmailBody(string name, string email, string otp)
+    public class EmailBodyService : IEmailBodyService
     {
-        return $@"
+        public string GenerateConfirmationEmailBody(string name, string email, string otp)
+        {
+            return $@"
             <h2>Hello {name}</h2>
             <p>Your confirmation code is:</p>
             <h3>{otp}</h3>
             <p>This code will expire soon.</p>
         ";
-    }
-    public string GeneratePasswordResetEmailBody(string name, string email, string otp)
-    {
-        return $@"
+        }
+        public string GeneratePasswordResetEmailBody(string name, string email, string otp)
+        {
+            return $@"
             <h2>Hello {name}</h2>
             <p>Your password reset code is:</p>
             <h3>{otp}</h3>
             <p>This code will expire soon.</p>
         ";
-    }
-    public string GenerateEmployeeInvitationBody(
-    string employeeName,
-    string companyName,
-    string invitationLink)
-    {
-        return $@"
+        }
+        public string GenerateEmployeeInvitationBody(
+        string employeeName,
+        string companyName,
+        string invitationLink)
+        {
+            return $@"
         <h2>Welcome to {companyName}</h2>
 
         <p>Hello {employeeName},</p>
@@ -53,5 +55,6 @@ public class EmailBodyService : IEmailBodyService
         <p>
             This invitation expires in 7 days.
         </p>";
+        }
     }
 }
