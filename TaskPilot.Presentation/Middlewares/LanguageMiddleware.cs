@@ -1,6 +1,4 @@
 using System.Globalization;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
 
 namespace TaskPilot.Presentation.Middlewares
 {

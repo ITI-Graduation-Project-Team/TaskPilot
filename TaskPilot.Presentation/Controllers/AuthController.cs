@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using TaskPilot.Data.Repositories;
-using TaskPilot.DTOs;
 using TaskPilot.DTOs.Auth;
 using TaskPilot.Models.Enums;
 using TaskPilot.Services.Interfaces;

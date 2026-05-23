@@ -7,6 +7,7 @@ using TaskPilot.Models.Entities;
 using TaskPilot.Models.Enums;
 using TaskPilot.DTOs.Auth;
 using TaskPilot.DTOs;
+using TaskPilot.Services.Interfaces.External;
 
 namespace TaskPilot.Services
 {
@@ -147,6 +148,7 @@ namespace TaskPilot.Services
             }
             var token = await _tokenService.GenerateAccessToken(user);
             var refreshToken = await _refreshTokenService.GenerateAsync(user);
+            var roles = (await _identityService.GetRolesAsync(user)).Value.ToList();
             if (refreshToken.IsFailure)
             {
                 return Result.Failure<AuthResponseDTO>(refreshToken.Error);
@@ -157,6 +159,7 @@ namespace TaskPilot.Services
                 Email = confirmEmailDTO.Email,
                 FullName = _localizationService.GetLocalizedProperty($"{user.FirstNameEn} {user.LastNameEn}".Trim(), $"{user.FirstNameAr} {user.LastNameAr}".Trim()),
                 RefreshToken = refreshToken.Value,
+                Roles = roles,
                 Token = token,
                 UserId = userResult.Value.Id,
                 Message = _localizationService.GetString("Success") // Example of using static localization
@@ -182,11 +185,15 @@ namespace TaskPilot.Services
             {
                 return Result.Failure<AuthResponseDTO>(passwordCheckResult.Error);
             }
-
+            var roles = (await _identityService.GetRolesAsync(user)).Value.ToList();
             var token = await _tokenService.GenerateAccessToken(user);
             var refreshToken = await _refreshTokenService.GenerateAsync(user);
             if (refreshToken.IsFailure)
                 return Result.Failure<AuthResponseDTO>(refreshToken.Error);
+
+
+
+
             var response = new AuthResponseDTO
             {
                 Email = user.Email,
@@ -194,6 +201,7 @@ namespace TaskPilot.Services
                 Token = token,
                 RefreshToken = refreshToken.Value,
                 UserId = user.Id,
+                Roles = roles,
                 Message = _localizationService.GetString("Success")
             };
             return response;
@@ -204,6 +212,7 @@ namespace TaskPilot.Services
             if (validateResult.IsFailure)
                 return Result.Failure<AuthResponseDTO>(validateResult.Error);
             var user = validateResult.Value;
+            var roles = (await _identityService.GetRolesAsync(user)).Value.ToList();
 
             var newAccessToken = await _tokenService.GenerateAccessToken(user);
             var newRefreshToken = await _refreshTokenService.GenerateAsync(user);
@@ -214,6 +223,7 @@ namespace TaskPilot.Services
                 UserId = user.Id,
                 Email = user.Email,
                 Token = newAccessToken,
+                Roles = roles,
                 RefreshToken = newRefreshToken.Value,
                 Message = "Token refreshed successfully."
             };
@@ -268,6 +278,7 @@ namespace TaskPilot.Services
             }
             var googleUser = googleResult.Value;
             //2-create or get user in our system
+
             var userResult = await _identityService.GetOrCreateExternalUser(googleUser.FirstName, googleUser.LastName, googleUser.Email, "Google", googleUser.GoogleId);
             if (userResult.IsFailure)
             {
@@ -277,6 +288,8 @@ namespace TaskPilot.Services
             //3-generate our token
             var token = await _tokenService.GenerateAccessToken(user);
             var refreshToken = await _refreshTokenService.GenerateAsync(user);
+            var roles = (await _identityService.GetRolesAsync(user)).Value.ToList();
+
             if (refreshToken.IsFailure)
                 return Result.Failure<AuthResponseDTO>(refreshToken.Error);
             var response = new AuthResponseDTO
@@ -284,6 +297,7 @@ namespace TaskPilot.Services
                 Email = user.Email,
                 FullName = _localizationService.GetLocalizedProperty($"{user.FirstNameEn} {user.LastNameEn}".Trim(), $"{user.FirstNameAr} {user.LastNameAr}".Trim()),
                 Token = token,
+                Roles = roles,
                 UserId = user.Id,
                 Message = _localizationService.GetString("Success"),
                 RefreshToken = refreshToken.Value

@@ -1,15 +1,12 @@
 ﻿using Google.Apis.Auth;
 using Microsoft.Extensions.Options;
-using System;
-using System.Collections.Generic;
-using System.Text;
-using TaskPilot.DTOs;
+using TaskPilot.DTOs.Auth;
+using TaskPilot.Infrastructure.Settings;
 using TaskPilot.Models.Common.Errors;
 using TaskPilot.Models.Common.Results;
-using TaskPilot.Services.Helpers;
-using TaskPilot.Services.Interfaces;
+using TaskPilot.Services.Interfaces.External;
 
-namespace TaskPilot.Services
+namespace TaskPilot.Infrastructure.Services.Google
 {
     public class GoogleAuthService : IGoogleAuthService
     {

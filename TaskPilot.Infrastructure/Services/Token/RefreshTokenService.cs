@@ -1,16 +1,14 @@
 ﻿using Microsoft.Extensions.Options;
-using System;
-using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Text;
 using TaskPilot.Data.Repositories;
+using TaskPilot.Infrastructure.Settings;
 using TaskPilot.Models.Common.Errors;
 using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Entities;
-using TaskPilot.Services.Helpers;
-using TaskPilot.Services.Interfaces;
+using TaskPilot.Services.Interfaces.External;
 
-namespace TaskPilot.Services
+namespace TaskPilot.Infrastructure.Services.Token
 {
     public class RefreshTokenService:IRefreshTokenService
     {

@@ -1,9 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
 using System.Security.Claims;
-using System.Text;
 using TaskPilot.Data.Context;
 using TaskPilot.Models.Common;
 using TaskPilot.Models.Common.Errors;

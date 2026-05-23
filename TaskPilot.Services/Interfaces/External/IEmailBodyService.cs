@@ -1,4 +1,4 @@
-namespace TaskPilot.Services.Interfaces
+namespace TaskPilot.Services.Interfaces.External
 {
     public interface IEmailBodyService
     {

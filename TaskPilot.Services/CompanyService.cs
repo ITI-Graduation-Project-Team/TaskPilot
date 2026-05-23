@@ -7,6 +7,8 @@ using TaskPilot.Models.Entities;
 using TaskPilot.Models.Enums;
 using TaskPilot.Services.Helpers;
 using TaskPilot.Services.Interfaces;
+using TaskPilot.Services.Interfaces.External;
+using TaskPilot.Services.Interfaces.ExternalServicesInterfaces;
 
 namespace TaskPilot.Services
 {
@@ -17,6 +19,7 @@ namespace TaskPilot.Services
 
         private readonly IRepository<ProjectManager>
             _projectManagerRepository;
+
         private readonly IRepository<Employee>
             _employeeRepository;
 
@@ -32,6 +35,9 @@ namespace TaskPilot.Services
         private readonly IEmailBodyService
             _emailBodyService;
 
+        private readonly IFileStorageService
+            _fileStorage;
+
         public CompanyService(
             IRepository<Company> companyRepository,
             IRepository<ProjectManager>
@@ -41,6 +47,7 @@ namespace TaskPilot.Services
                 invitationRepository,
             IEmailService emailService,
             IEmailBodyService emailBodyService,
+            IFileStorageService fileStorage,
             IRepository<Employee> employeeRepository)
         {
             _companyRepository =
@@ -60,7 +67,12 @@ namespace TaskPilot.Services
 
             _emailBodyService =
                 emailBodyService;
-            _employeeRepository = employeeRepository;
+
+            _employeeRepository =
+                employeeRepository;
+
+            _fileStorage =
+                fileStorage;
         }
 
         public async Task<Result<CompanyResponse>>
@@ -68,7 +80,6 @@ namespace TaskPilot.Services
                 SetupCompanyRequest request,
                 Guid ownerId)
         {
-            // Validate Owner
 
             var ownerExists =
                 await _projectManagerRepository
@@ -104,7 +115,6 @@ namespace TaskPilot.Services
                             .CompanyAlreadyExists);
             }
 
-            // Create Company
 
             var company = new Company
             {
@@ -116,6 +126,34 @@ namespace TaskPilot.Services
             await _companyRepository
                 .AddAsync(company);
 
+            // Upload Policy Document
+
+            string? documentUrl = null;
+
+            string? documentPublicId = null;
+
+            if (request.PolicyDocument != null)
+            {
+                var uploadResult =
+                    await _fileStorage
+                        .UploadFileAsync(
+                            request.PolicyDocument,
+                           $"taskpilot/companies/{company.Id}/policies");
+
+                if (!uploadResult.IsSuccess)
+                {
+                    return Result<CompanyResponse>
+                        .Failure(
+                            uploadResult.Error!);
+                }
+
+                documentUrl =
+                    uploadResult.Value.Url;
+
+                documentPublicId =
+                    uploadResult.Value.PublicId;
+            }
+
             // Create Default Policy
 
             if (
@@ -125,8 +163,7 @@ namespace TaskPilot.Services
                 !string.IsNullOrWhiteSpace(
                     request.PolicyContentAr)
                 ||
-                !string.IsNullOrWhiteSpace(
-                    request.PolicyDocumentUrl)
+                request.PolicyDocument != null
             )
             {
                 var policy = new Policy
@@ -150,7 +187,10 @@ namespace TaskPilot.Services
                         request.PolicyContentAr,
 
                     DocumentUrl =
-                        request.PolicyDocumentUrl,
+                        documentUrl,
+
+                    DocumentPublicId =
+                        documentPublicId,
 
                     AiStatus =
                         AiProcessingStatus.Pending,
@@ -166,11 +206,8 @@ namespace TaskPilot.Services
 
             // Employee Invitations
 
-            if (request.EmployeeEmails is null)
-            {
-                request.EmployeeEmails =
-                    new List<string>();
-            }
+            request.EmployeeEmails ??=
+                new List<string>();
 
             var emails =
                 request.EmployeeEmails
@@ -209,7 +246,7 @@ namespace TaskPilot.Services
 
                         Token =
                             InvitationTokenGenerator
-                           .Generate(),
+                                .Generate(),
 
                         ExpiresAt =
                             DateTime.UtcNow
@@ -265,46 +302,48 @@ namespace TaskPilot.Services
             return Result<CompanyResponse>
                 .Success(response);
         }
+
         public async Task<
-    Result<List<EmployeeSuggestionDTO>>>
-    SearchEmployeesAsync(
-        string query)
+            Result<List<EmployeeSuggestionDTO>>>
+            SearchEmployeesAsync(
+                string query)
         {
             if (string.IsNullOrWhiteSpace(query))
             {
                 return new List<EmployeeSuggestionDTO>();
             }
 
-            query = query.Trim().ToLower();
+            query =
+                query.Trim().ToLower();
 
             var employees =
                 await _employeeRepository
                     .FindAsync(e =>
 
-                    e.CompanyId == null
+                        e.CompanyId == null
 
-                    &&
+                        &&
 
-                    e.Email != null
+                        e.Email != null
 
-                    &&
+                        &&
 
-                    (
-                        e.Email.ToLower()
-                            .Contains(query)
+                        (
+                            e.Email.ToLower()
+                                .Contains(query)
 
-                        ||
+                            ||
 
-                        e.FirstNameEn
-                            .ToLower()
-                            .Contains(query)
+                            e.FirstNameEn
+                                .ToLower()
+                                .Contains(query)
 
-                        ||
+                            ||
 
-                        e.LastNameEn
-                            .ToLower()
-                            .Contains(query)
-                    ));
+                            e.LastNameEn
+                                .ToLower()
+                                .Contains(query)
+                        ));
 
             var result =
                 employees
@@ -326,6 +365,5 @@ namespace TaskPilot.Services
 
             return result;
         }
-
     }
 }

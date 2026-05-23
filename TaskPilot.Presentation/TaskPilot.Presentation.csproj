@@ -19,6 +19,7 @@
     <ProjectReference Include="..\TaskPilot.AI\TaskPilot.AI.csproj" />
     <ProjectReference Include="..\TaskPilot.Data\TaskPilot.Data.csproj" />
     <ProjectReference Include="..\TaskPilot.DTOs\TaskPilot.DTOs.csproj" />
+    <ProjectReference Include="..\TaskPilot.Infrastructure\TaskPilot.Infrastructure.csproj" />
     <ProjectReference Include="..\TaskPilot.Models\TaskPilot.Models.csproj" />
     <ProjectReference Include="..\TaskPilot.Services\TaskPilot.Services.csproj" />
   </ItemGroup>

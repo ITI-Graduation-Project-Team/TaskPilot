@@ -4,6 +4,7 @@ using TaskPilot.Data.Repositories;
 using TaskPilot.Services.Helpers;
 using TaskPilot.Services.Interfaces;
 using TaskPilot.Services.Interfaces.CVExtractorInterfaces;
+using TaskPilot.Services.Interfaces.External;
 
 namespace TaskPilot.Services
 {
@@ -16,22 +17,16 @@ namespace TaskPilot.Services
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IProjectService, ProjectService>();
             services.AddScoped<IAuthService, AuthService>();
-            services.AddScoped<IEmailService, EmailService>();
-            services.AddScoped<IEmailBodyService, EmailBodyService>();
-            services.AddScoped<IGoogleAuthService, GoogleAuthService>();
+            
             services.AddScoped<IRoleService, RoleService>();
             services.AddScoped<ISubscriptionPlanService, SubscriptionPlanService>();
             services.AddScoped<IUserSubscriptionService, UserSubscriptionService>();
             services.AddScoped<ILocalizationService, LocalizationService>();
-            services.AddScoped<IRefreshTokenService, RefreshTokenService>();
             
             // الآن التكوين (configuration) متاح للاستخدام
-            services.Configure<EmailSettings>(configuration.GetSection("EmailSettings"));
-            services.Configure<JWTSettings>(configuration.GetSection("JWTSettings"));
-            services.Configure<GoogleSettings>(configuration.GetSection("GoogleSettings"));
+          
             // ── External ──
 
-            services.AddScoped<ITokenService, JWTService>();
             //for ---CV
             services.AddScoped<ICvService, CvService>();
             services.AddScoped<IFileTextExtractor, FileTextExtractor>();
