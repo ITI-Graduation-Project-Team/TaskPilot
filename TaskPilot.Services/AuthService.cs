@@ -1,8 +1,9 @@
+using TaskPilot.Data.Repositories;
+using TaskPilot.DTOs;
+using TaskPilot.DTOs.Auth;
 using TaskPilot.Models.Common;
 using TaskPilot.Models.Common.Errors;
 using TaskPilot.Models.Common.Results;
-using TaskPilot.Services.Interfaces;
-using TaskPilot.Data.Repositories;
 using TaskPilot.Models.Entities;
 using TaskPilot.Models.Enums;
 using TaskPilot.DTOs.Auth;
@@ -83,7 +84,7 @@ namespace TaskPilot.Services
                         IsTrial = false
                     });
                 }
-                
+
                 user = pm;
             }
             else
@@ -154,10 +155,12 @@ namespace TaskPilot.Services
                 return Result.Failure<AuthResponseDTO>(refreshToken.Error);
 
             }
+            bool isArabic = _localizationService.CurrentLanguage == "ar";
+
             var response = new AuthResponseDTO
             {
                 Email = confirmEmailDTO.Email,
-                FullName = _localizationService.GetLocalizedProperty($"{user.FirstNameEn} {user.LastNameEn}".Trim(), $"{user.FirstNameAr} {user.LastNameAr}".Trim()),
+                FullName = isArabic ? $"{user.FirstNameAr} {user.LastNameAr}".Trim() : $"{user.FirstNameEn} {user.LastNameEn}".Trim(),
                 RefreshToken = refreshToken.Value,
                 Roles = roles,
                 Token = token,
@@ -190,14 +193,12 @@ namespace TaskPilot.Services
             var refreshToken = await _refreshTokenService.GenerateAsync(user);
             if (refreshToken.IsFailure)
                 return Result.Failure<AuthResponseDTO>(refreshToken.Error);
-
-
-
+            bool isArabic = _localizationService.CurrentLanguage == "ar";
 
             var response = new AuthResponseDTO
             {
                 Email = user.Email,
-                FullName = _localizationService.GetLocalizedProperty($"{user.FirstNameEn} {user.LastNameEn}".Trim(), $"{user.FirstNameAr} {user.LastNameAr}".Trim()),
+                FullName = isArabic ? $"{user.FirstNameAr} {user.LastNameAr}".Trim() : $"{user.FirstNameEn} {user.LastNameEn}".Trim(),
                 Token = token,
                 RefreshToken = refreshToken.Value,
                 UserId = user.Id,
@@ -292,10 +293,12 @@ namespace TaskPilot.Services
 
             if (refreshToken.IsFailure)
                 return Result.Failure<AuthResponseDTO>(refreshToken.Error);
+            bool isArabic = _localizationService.CurrentLanguage == "ar";
+
             var response = new AuthResponseDTO
             {
                 Email = user.Email,
-                FullName = _localizationService.GetLocalizedProperty($"{user.FirstNameEn} {user.LastNameEn}".Trim(), $"{user.FirstNameAr} {user.LastNameAr}".Trim()),
+                FullName = isArabic ? $"{user.FirstNameAr} {user.LastNameAr}".Trim() : $"{user.FirstNameEn} {user.LastNameEn}".Trim(),
                 Token = token,
                 Roles = roles,
                 UserId = user.Id,
@@ -335,7 +338,7 @@ namespace TaskPilot.Services
         }
         public async Task<Result<string>> ResetPasswordAsync(ResetPasswordDTO resetPasswordDTO)
         {
-          
+
             var userResult = await _identityService.FindByEmailAsync(resetPasswordDTO.Email);
             if (userResult.IsFailure)
             {
@@ -355,7 +358,7 @@ namespace TaskPilot.Services
     GetInvitationInfoAsync(
         string token)
         {
-           
+
 
             var invitation =
             await _invitationRepository
