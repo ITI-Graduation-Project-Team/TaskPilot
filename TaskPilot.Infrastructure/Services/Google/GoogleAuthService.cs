@@ -19,7 +19,7 @@ namespace TaskPilot.Infrastructure.Services.Google
         {
             if (string.IsNullOrWhiteSpace(idToken))
             {
-                return CommonErrors.InvalidInput("Google token cannot be empty.");
+               return  AuthErrors.EmptyGoogleToken;
             }
             try
             {
@@ -43,7 +43,7 @@ namespace TaskPilot.Infrastructure.Services.Google
             }
             catch (InvalidJwtException)
             {
-                return CommonErrors.Unauthorized("Invalid Google token.");
+                return AuthErrors.InvalidGoogleToken;
             }
             catch (Exception ex)
             {

@@ -54,7 +54,7 @@ namespace TaskPilot.Presentation.Models
             return new()
             {
                 Succeeded = false,
-                Message = list.Count > 0 ? list[0].Description : "One or more errors occurred.",
+                Message = list.Count > 0 ? list[0].Description :null,
                 Errors = list
             };
         }
@@ -73,7 +73,7 @@ namespace TaskPilot.Presentation.Models
             return new()
             {
                 Succeeded = false,
-                Message = list.Count > 0 ? list[0].Description : "One or more errors occurred.",
+                Message = list.Count > 0 ? list[0].Description : null,
                 Errors = list
             };
         }

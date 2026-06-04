@@ -42,6 +42,7 @@ namespace TaskPilot.Presentation
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen(options =>
             {
+                options.OperationFilter<LanguageHeaderFilter>();
                 options.AddSecurityDefinition("bearer", new OpenApiSecurityScheme
                 {
                     Type = SecuritySchemeType.Http,
