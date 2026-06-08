@@ -54,7 +54,7 @@ namespace TaskPilot.Services
             var existingUser = await _identityService.FindByEmailAsync(RegisterRequest.Email);
             if (existingUser.IsSuccess)
             {
-                return Result.Failure(CommonErrors.Conflict("This email address is already registered."));
+                return AuthErrors.EmailAlreadyRegistered;
             }
             //2 create
             User user;
@@ -116,19 +116,17 @@ namespace TaskPilot.Services
             await SendConfirmationEmailAsync(CreatedUser.Value);
             return Result.Success();
         }
-        public async Task<Result<string>> ResendConfirmationEmailAsync(string email)
+        public async Task<Result> ResendConfirmationEmailAsync(string email)
         {
             var userResult = await _identityService.FindByEmailAsync(email);
             if (userResult.IsFailure)
             {
-                return Result.Success("If the email is registered, a new code will be sent.");
+                return Result.Success();
             }
             var user = userResult.Value;
 
             if (user.EmailConfirmed)
-            {
-                return CommonErrors.Conflict("This email is already verified. Please log in.");
-            }
+             return AuthErrors.EmailAlreadyVerified;
 
             return await SendConfirmationEmailAsync(user);
         }
@@ -138,7 +136,7 @@ namespace TaskPilot.Services
             var userResult = await _identityService.FindByEmailAsync(confirmEmailDTO.Email);
             if (userResult.IsFailure)
             {
-                return CommonErrors.NotFound("user");
+                return AuthErrors.UserNotFound;
             }
             //2
             var user = userResult.Value;
@@ -166,7 +164,6 @@ namespace TaskPilot.Services
                 Roles = roles,
                 Token = token,
                 UserId = userResult.Value.Id,
-                Message = _localizationService.GetString("Success") // Example of using static localization
             };
 
             return response;
@@ -182,7 +179,7 @@ namespace TaskPilot.Services
             var user = userResult.Value;
             if (!user.EmailConfirmed)
             {
-                return CommonErrors.Conflict("Email is not confirmed. Please confirm your email before logging in.");
+                return AuthErrors.EmailNotConfirmed;
             }
             var passwordCheckResult = await _identityService.CheckPasswordAsync(user, loginDTO.Password);
             if (passwordCheckResult.IsFailure)
@@ -204,7 +201,6 @@ namespace TaskPilot.Services
                 RefreshToken = refreshToken.Value,
                 UserId = user.Id,
                 Roles = roles,
-                Message = _localizationService.GetString("Success")
             };
             return response;
         }
@@ -227,7 +223,6 @@ namespace TaskPilot.Services
                 Token = newAccessToken,
                 Roles = roles,
                 RefreshToken = newRefreshToken.Value,
-                Message = "Token refreshed successfully."
             };
             return response;
         }
@@ -239,18 +234,18 @@ namespace TaskPilot.Services
             return Result.Success();
         }
 
-        private async Task<Result<string>> SendConfirmationEmailAsync(User user)
+        private async Task<Result> SendConfirmationEmailAsync(User user)
         {
             //1
             if (user.EmailConfirmed)
             {
-                return CommonErrors.Conflict("This email is already verified.");
+                return AuthErrors.EmailAlreadyVerified;
             }
             //2
             var OtpResult = await _identityService.GenerateOTPAsync(user);
             if (OtpResult.IsFailure)
             {
-                return CommonErrors.OperationFailed("Failed to generate OTP");
+                return AuthErrors.OtpGenerationFailed;
             }
             //3
             var name = $"{user.FirstNameEn}  {user.LastNameEn}";
@@ -267,7 +262,7 @@ namespace TaskPilot.Services
             //{
             //    return CommonErrors.OperationFailed("We couldn't send the confirmation email. Please try resending it.");
             //}
-            return Result.Success("OTP sent successfully.");
+            return Result.Success();
         }
 
         public async Task<Result<AuthResponseDTO>> GoogleLoginAsync(string idToken)
@@ -303,25 +298,24 @@ namespace TaskPilot.Services
                 Token = token,
                 Roles = roles,
                 UserId = user.Id,
-                Message = _localizationService.GetString("Success"),
                 RefreshToken = refreshToken.Value
             };
             return response;
 
         }
 
-        public async Task<Result<string>> ForgotPasswordAsync(string email)
+        public async Task<Result> ForgotPasswordAsync(string email)
         {
             var userResult = await _identityService.FindByEmailAsync(email);
             if (userResult.IsFailure)
             {
-                return Result.Success("If the email is registered, a password reset link will be sent.");
+                return Result.Success();
             }
             var user = userResult.Value;
             var resetTokenResult = await _identityService.GeneratePasswordResetTokenAsync(user);
             if (resetTokenResult.IsFailure)
             {
-                return CommonErrors.OperationFailed("Failed to generate password reset token.");
+                return AuthErrors.PasswordResetFailed;
             }
             var resetToken = resetTokenResult.Value;
             var name = $"{user.FirstNameEn}  {user.LastNameEn}";
@@ -334,16 +328,16 @@ namespace TaskPilot.Services
                 Body = EmailBody
             };
             var EmailResult = await _emailService.SendEmailAsync(emailRequest);
-            return Result.Success("If the email is registered, a password reset link will be sent.");
+            return Result.Success();
 
         }
-        public async Task<Result<string>> ResetPasswordAsync(ResetPasswordDTO resetPasswordDTO)
+        public async Task<Result> ResetPasswordAsync(ResetPasswordDTO resetPasswordDTO)
         {
 
             var userResult = await _identityService.FindByEmailAsync(resetPasswordDTO.Email);
             if (userResult.IsFailure)
             {
-                return CommonErrors.NotFound("user");
+                return AuthErrors.UserNotFound;
             }
             var user = userResult.Value;
             var resetResult = await _identityService.ResetPasswordAsync(user, resetPasswordDTO.OTP, resetPasswordDTO.Password);
@@ -352,7 +346,7 @@ namespace TaskPilot.Services
                 return resetResult.Error;
             }
             await _refreshTokenService.RevokeAllAsync(user.Id);
-            return Result.Success("Password has been reset successfully.");
+            return Result.Success();
         }
         public async Task<
     Result<InvitationInfoResponse>>
@@ -425,9 +419,8 @@ namespace TaskPilot.Services
 
             if (invitation is null)
             {
-                return Result.Failure(
-                    CommonErrors.NotFound(
-                        "Invitation"));
+                return AuthErrors.InvitationNotFound;
+
             }
 
             // Expired
@@ -435,8 +428,8 @@ namespace TaskPilot.Services
             if (invitation.ExpiresAt
                 < DateTime.UtcNow)
             {
-                return Result.Failure(
-                    CompanyErrors.InvitationExpired);
+                return CompanyErrors.InvitationExpired;
+
             }
 
             // Already Accepted
@@ -455,9 +448,8 @@ namespace TaskPilot.Services
 
             if (userResult.IsFailure)
             {
-                return Result.Failure(
-                    CommonErrors.NotFound(
-                        "User"));
+                return AuthErrors.UserNotFound;
+
             }
 
             var user = userResult.Value;
@@ -467,9 +459,8 @@ namespace TaskPilot.Services
             if (user.Email!.ToLower()
                 != invitation.Email.ToLower())
             {
-                return Result.Failure(
-                    CommonErrors.Forbidden(
-                        "This invitation does not belong to you."));
+                return AuthErrors.InvitationNotYours;
+
             }
             // Assign Company
 

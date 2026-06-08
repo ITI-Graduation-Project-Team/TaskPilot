@@ -8,14 +8,14 @@ namespace TaskPilot.Services.Interfaces
     public interface IAuthService
     {
         Task<Result> RegisterAsync(RegisterDTO RegisterRequest, UserRole Role);
-        Task<Result<string>> ResendConfirmationEmailAsync(string email);
+        Task<Result> ResendConfirmationEmailAsync(string email);
         Task<Result<AuthResponseDTO>> ConfirmEmailAsync(ConfirmEmailDTO confirmEmailDTO);
         Task<Result<AuthResponseDTO>> LoginAsync(LoginDTO loginDTO);
         Task<Result<AuthResponseDTO>>GoogleLoginAsync(string idToken);
         Task<Result> LogoutAsync(string Token);
         Task<Result<AuthResponseDTO>> RefreshTokenAsync(RefreshTokenDTO refreshTokenDto);
-        Task<Result<string>> ForgotPasswordAsync(string email);
-        Task<Result<string>> ResetPasswordAsync(ResetPasswordDTO resetPasswordDTO);
+        Task<Result> ForgotPasswordAsync(string email);
+        Task<Result> ResetPasswordAsync(ResetPasswordDTO resetPasswordDTO);
         Task<Result<InvitationInfoResponse>>
       GetInvitationInfoAsync(
           string token);

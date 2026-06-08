@@ -1,5 +1,53 @@
 {
   "Welcome": "مرحباً",
   "Success": "تمت العملية بنجاح.",
-  "Error": "حدث خطأ."
+  "Error": "حدث خطأ.",
+  "UNAUTHORIZED": "يجب تسجيل الدخول أولاً.",
+  "FORBIDDEN": "ليس لديك صلاحية لتنفيذ هذا الإجراء.",
+  "INVALID_CREDENTIALS": "البريد الإلكتروني أو كلمة المرور غير صحيحة.",
+  "EMAIL_NOT_CONFIRMED": "لم يتم تأكيد البريد الإلكتروني بعد.",
+  "INVALID_REFRESH_TOKEN": "رمز التحديث غير صالح أو منتهي الصلاحية.",
+  "INVALID_INPUT": "قيمة واحدة أو أكثر من المدخلات غير صالحة.",
+  "USER_NOT_FOUND": "المستخدم غير موجود.",
+  "PROJECT_NOT_FOUND": "المشروع غير موجود.",
+  "INVITATION_NOT_FOUND": "الدعوة غير موجودة.",
+  "SAVE_FAILED": "فشل حفظ البيانات.",
+  "CONFLICT": "يوجد تعارض.",
+  "EMAIL_ALREADY_REGISTERED": "هذا البريد الإلكتروني مسجل بالفعل.",
+  "EMAIL_ALREADY_VERIFIED": "تم التحقق من هذا البريد بالفعل. يرجى تسجيل الدخول.",
+  "OPERATION_FAILED": "تعذر إتمام العملية.",
+  "SERVER_ERROR": "حدث خطأ غير متوقع.",
+
+  //
+  "ROLE_CREATION_FAILED": "فشل إنشاء الدور.",
+  "USER_CREATION_FAILED": "فشل إنشاء المستخدم.",
+  "USER_DELETION_FAILED": "فشل حذف المستخدم.",
+  "ROLE_ASSIGNMENT_FAILED": "فشل تعيين الدور.",
+  "EMAIL_VERIFICATION_FAILED": "فشل التحقق من البريد الإلكتروني.",
+  "ACCOUNT_LOCKED": "تم قفل الحساب مؤقتًا بسبب محاولات تسجيل دخول خاطئة متكررة.",
+  "EXTERNAL_LOGIN_FAILED": "فشل تسجيل الدخول الخارجي.",
+  "PASSWORD_RESET_FAILED": "فشل إعادة تعيين كلمة المرور.",
+
+  //refresh token 
+  "TOKEN_REUSE_DETECTED": "تم اكتشاف استخدام غير مصرح به للرمز، وتم إلغاء جميع الجلسات للحماية.",
+  "SESSION_EXPIRED": "انتهت الجلسة. يرجى تسجيل الدخول مرة أخرى.",
+  "SESSION_EXPIRED_INACTIVE": "انتهت الجلسة بسبب عدم النشاط. يرجى تسجيل الدخول مرة أخرى.",
+  "REFRESH_TOKEN_GENERATION_FAILED": "فشل إنشاء رمز التحديث.",
+  //google
+  "EMPTY_GOOGLE_TOKEN": "رمز Google فارغ.",
+  "INVALID_GOOGLE_TOKEN": "رمز Google غير صالح.",
+  "GOOGLE_AUTHENTICATION_FAILED": "فشل تسجيل الدخول عبر Google.",
+
+  //success
+  "REGISTER_SUCCESS": "تم تسجيل المستخدم بنجاح.",
+  "LOGIN_SUCCESS": "تم تسجيل الدخول بنجاح.",
+  "EMAIL_CONFIRMED_SUCCESS": "تم تأكيد البريد الإلكتروني بنجاح.",
+  "OTP_SENT_SUCCESS": "تم إرسال رمز التحقق بنجاح.",
+  "PASSWORD_RESET_SUCCESS": "تم إعادة تعيين كلمة المرور بنجاح.",
+  "TOKEN_REFRESHED_SUCCESS": "تم تحديث الرمز بنجاح.",
+  "LOGOUT_SUCCESS": "تم تسجيل الخروج بنجاح.",
+  "INVITATION_COMPLETED_SUCCESS": "تم قبول الدعوة بنجاح."
+
+
+
 }

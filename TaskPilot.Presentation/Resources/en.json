@@ -1,5 +1,53 @@
 {
   "Welcome": "Welcome",
   "Success": "Operation completed successfully.",
-  "Error": "An error occurred."
+
+  // auth 
+  "Error": "An error occurred.",
+  "UNAUTHORIZED": "Authentication is required.",
+  "FORBIDDEN": "You do not have permission to perform this action.",
+  "INVALID_CREDENTIALS": "The email or password is incorrect.",
+  "EMAIL_NOT_CONFIRMED": "The email address has not been confirmed.",
+  "INVALID_REFRESH_TOKEN": "The refresh token is invalid or expired.",
+  "INVALID_INPUT": "One or more input values are invalid.",
+  "USER_NOT_FOUND": "User was not found.",
+  "PROJECT_NOT_FOUND": "Project was not found.",
+  "INVITATION_NOT_FOUND": "Invitation was not found.",
+  "SAVE_FAILED": "Failed to save data.",
+  "CONFLICT": "A conflict occurred.",
+  "EMAIL_ALREADY_REGISTERED": "This email address is already registered.",
+  "EMAIL_ALREADY_VERIFIED": "This email is already verified. Please log in.",
+  "OPERATION_FAILED": "The operation could not be completed.",
+  "SERVER_ERROR": "An unexpected error occurred.",
+  // identity 
+  "ROLE_CREATION_FAILED": "Failed to create role.",
+  "USER_CREATION_FAILED": "Failed to create user.",
+  "USER_DELETION_FAILED": "Failed to delete user.",
+  "ROLE_ASSIGNMENT_FAILED": "Failed to assign role.",
+  "EMAIL_VERIFICATION_FAILED": "Email verification failed.",
+  "ACCOUNT_LOCKED": "Account is temporarily locked due to multiple failed attempts.",
+  "EXTERNAL_LOGIN_FAILED": "External login failed.",
+  "PASSWORD_RESET_FAILED": "Password reset failed.",
+
+  //refresh token
+  "TOKEN_REUSE_DETECTED": "Token reuse detected. All sessions have been revoked for your security.",
+  "SESSION_EXPIRED": "Session expired. Please log in again.",
+  "SESSION_EXPIRED_INACTIVE": "Session expired due to inactivity. Please log in again.",
+  "REFRESH_TOKEN_GENERATION_FAILED": "Failed to generate refresh token.",
+  // google 
+  "EMPTY_GOOGLE_TOKEN": "Google token cannot be empty.",
+  "INVALID_GOOGLE_TOKEN": "Invalid Google token.",
+  "GOOGLE_AUTHENTICATION_FAILED": "Google authentication failed.",
+
+  //success
+  "REGISTER_SUCCESS": "User registered successfully.",
+  "LOGIN_SUCCESS": "Logged in successfully.",
+  "EMAIL_CONFIRMED_SUCCESS": "Email confirmed successfully.",
+  "OTP_SENT_SUCCESS": "OTP sent successfully.",
+  "PASSWORD_RESET_SUCCESS": "Password has been reset successfully.",
+  "TOKEN_REFRESHED_SUCCESS": "Token refreshed successfully.",
+  "LOGOUT_SUCCESS": "Logged out successfully.",
+  "INVITATION_COMPLETED_SUCCESS": "Invitation completed successfully."
+
+
 }

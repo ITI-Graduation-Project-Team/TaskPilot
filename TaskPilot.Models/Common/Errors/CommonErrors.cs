@@ -3,66 +3,67 @@ namespace TaskPilot.Models.Common.Errors
     /// <summary>
     /// A catalogue of reusable, domain-level error instances.
     /// Covers the most common failure scenarios across the application.
-    /// 
+    ///
     /// Usage:  return Result.Failure(CommonErrors.NotFound("Project"));
     /// </summary>
     public static class CommonErrors
     {
         // ──────────────────────── Authentication / Authorization ────────────────────────
 
-        public static Error Unauthorized(string description = "Authentication is required.")
-            => new("UNAUTHORIZED", description, ErrorType.Unauthorized);
+        public static Error Unauthorized(string? description = null)
+            => new("UNAUTHORIZED", ErrorType.Unauthorized, description);
 
-        public static Error Forbidden(string description = "You do not have permission to perform this action.")
-            => new("FORBIDDEN", description, ErrorType.Forbidden);
+        public static Error Forbidden(string? description = null)
+            => new("FORBIDDEN", ErrorType.Forbidden, description);
 
-        public static Error InvalidCredentials(string description = "The email or password is incorrect.")
-            => new("INVALID_CREDENTIALS", description, ErrorType.Unauthorized);
+        public static Error InvalidCredentials(string? description = null)
+            => new("INVALID_CREDENTIALS", ErrorType.Unauthorized, description);
 
-        public static Error EmailNotConfirmed(string description = "The email address has not been confirmed.")
-            => new("EMAIL_NOT_CONFIRMED", description, ErrorType.Unauthorized);
+        public static Error EmailNotConfirmed(string? description = null)
+            => new("EMAIL_NOT_CONFIRMED", ErrorType.Unauthorized, description);
 
-        public static Error InvalidRefreshToken(string description = "The refresh token is invalid or expired.")
-            => new("INVALID_REFRESH_TOKEN", description, ErrorType.Unauthorized);
+        public static Error InvalidRefreshToken(string? description = null)
+            => new("INVALID_REFRESH_TOKEN", ErrorType.Unauthorized, description);
 
         // ──────────────────────── Validation ────────────────────────
 
-        public static Error InvalidInput(string description = "One or more input values are invalid.")
-            => new("INVALID_INPUT", description, ErrorType.Validation);
+        public static Error InvalidInput(string? description = null)
+            => new("INVALID_INPUT", ErrorType.Validation, description);
 
         // ──────────────────────── Resource Lookup ────────────────────────
 
-        public static Error NotFound(string resource = "Resource")
-            => new("NOT_FOUND", $"{resource} was not found.", ErrorType.NotFound);
+        // تم دمج resource مع إمكانية تمرير description
+        public static Error NotFound(string resource = "Resource", string? description = null)
+            => new("NOT_FOUND", ErrorType.NotFound, description ?? $"{resource} was not found.");
 
         // ──────────────────────── Persistence ────────────────────────
 
-        public static Error SaveFailed(string description = "Failed to save data.")
-            => new("SAVE_FAILED", description, ErrorType.Failure);
+        public static Error SaveFailed(string? description = null)
+            => new("SAVE_FAILED", ErrorType.Failure, description);
 
-        public static Error UpdateFailed(string description = "Failed to update data.")
-            => new("UPDATE_FAILED", description, ErrorType.Failure);
+        public static Error UpdateFailed(string? description = null)
+            => new("UPDATE_FAILED", ErrorType.Failure, description);
 
-        public static Error DeleteFailed(string description = "Failed to delete data.")
-            => new("DELETE_FAILED", description, ErrorType.Failure);
+        public static Error DeleteFailed(string? description = null)
+            => new("DELETE_FAILED", ErrorType.Failure, description);
 
-        public static Error RetrieveFailed(string description = "Failed to retrieve data.")
-            => new("RETRIEVE_FAILED", description, ErrorType.Failure);
+        public static Error RetrieveFailed(string? description = null)
+            => new("RETRIEVE_FAILED", ErrorType.Failure, description);
 
         // ──────────────────────── Business Operations ────────────────────────
 
-        public static Error OperationFailed(string description = "The operation could not be completed.")
-            => new("OPERATION_FAILED", description, ErrorType.Failure);
+        public static Error OperationFailed(string? description = null)
+            => new("OPERATION_FAILED", ErrorType.Failure, description);
 
-        public static Error Conflict(string description = "A conflict occurred with the current state.")
-            => new("CONFLICT", description, ErrorType.Conflict);
+        public static Error Conflict(string code = "CONFLICT", string? description = null)
+            => new(code, ErrorType.Conflict, description);
 
-        public static Error SendCodeFailed(string description = "Failed to send the verification code.")
-            => new("SEND_CODE_FAILED", description, ErrorType.Failure);
+        public static Error SendCodeFailed(string? description = null)
+            => new("SEND_CODE_FAILED", ErrorType.Failure, description);
 
         // ──────────────────────── Server ────────────────────────
 
-        public static Error ServerError(string description = "An unexpected error occurred on the server.")
-            => new("SERVER_ERROR", description, ErrorType.Failure);
+        public static Error ServerError(string? description = null)
+            => new("SERVER_ERROR", ErrorType.Failure, description);
     }
 }
