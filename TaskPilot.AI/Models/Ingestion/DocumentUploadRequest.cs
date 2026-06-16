@@ -11,6 +11,20 @@ namespace TaskPilot.AI.Models.Ingestion
             set;
         }
 
+        public Guid? ProjectId
+        {
+            get;
+            set;
+        }
+
+        public bool IsAvailableToContextSummarizer
+        {
+            get;
+            set;
+        }
+        =
+            true;
+
         public IFormFile File
         {
             get;

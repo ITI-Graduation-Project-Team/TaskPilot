@@ -6,6 +6,8 @@ namespace TaskPilot.AI.Models.Ingestion
     {
         public Guid Id { get; set; }
 
+        public Guid? ProjectId { get; set; }
+
         public string FileName { get; set; }
             = string.Empty;
 
@@ -29,6 +31,9 @@ namespace TaskPilot.AI.Models.Ingestion
 
         public string ExtractedText { get; set; }
             = string.Empty;
+
+        public bool IsAvailableToContextSummarizer { get; set; }
+            = true;
 
         public DateTime UploadedAt { get; set; }
             = DateTime.UtcNow;
