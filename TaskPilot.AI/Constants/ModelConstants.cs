@@ -19,7 +19,7 @@
 
         //gemini
         public const string GeminiFast =
-           "gemini-2-flash";
+             "gemini-3.5-flash";
 
         public const string GeminiPro =
             "gemini-1.5-pro";

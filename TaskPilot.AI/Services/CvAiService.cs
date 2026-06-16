@@ -13,6 +13,7 @@ namespace TaskPilot.AI.Services
     {
         private readonly Kernel
             _kernel;
+        private readonly IPromptLoaderService _promptLoaderService;
 
         private static readonly
             JsonSerializerOptions
@@ -29,13 +30,17 @@ namespace TaskPilot.AI.Services
 
         public CvAiService(
             IAiKernelService
-                kernelService)
+                kernelService,
+            IPromptLoaderService
+                promptLoaderService)
         {
             _kernel =
                 kernelService
                     .CreateKernel(
                         ModelConstants
                             .CheapModel);
+
+            _promptLoaderService = promptLoaderService;
         }
 
         public async Task<ParsedCvDto>
@@ -43,7 +48,7 @@ namespace TaskPilot.AI.Services
                 string text)
         {
             var prompt =
-                PromptLoader.Load(
+                await _promptLoaderService.LoadAsync(
                     "Prompts/Cv/ParseCvPrompt.txt");
 
             var arguments =

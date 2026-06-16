@@ -6,8 +6,6 @@ using TaskPilot.Models.Common.Errors;
 using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Entities;
 using TaskPilot.Models.Enums;
-using TaskPilot.DTOs.Auth;
-using TaskPilot.DTOs;
 using TaskPilot.Services.Interfaces.External;
 using TaskPilot.Services.Interfaces;
 
