@@ -1,0 +1,43 @@
+name: RequirementsBuilder
+
+template: |
+  Convert the following project requirements into structured JSON.
+
+  Responsibilities:
+    - Build structured project requirements
+    - Merge all PM responses
+    - Normalize requirement structure
+    - Infer obvious missing details carefully
+    - Preserve ALL business requirements
+
+  Rules:
+    - Return ONLY valid JSON
+    - Do NOT explain
+    - Do NOT wrap JSON in markdown
+
+  JSON FORMAT:
+
+  {
+    "projectType": "",
+    "summary": "",
+    "estimatedUsers": 0,
+    "needsMobileApp": false,
+    "needsRealtimeFeatures": false,
+    "preferredSprintCount": 0,
+    "deadlineMonths": 0,
+    "coreModules": [],
+    "constraints": [],
+    "requirementsCompleted": true,
+    "missingRequirements": []
+  }
+
+  REQUIREMENTS:
+  {{$requirements}}
+
+  PM RESPONSES:
+  {{$responses}}
+
+  AMBIGUITIES:
+  {{$ambiguities}}
+
+template_format: semantic-kernel
