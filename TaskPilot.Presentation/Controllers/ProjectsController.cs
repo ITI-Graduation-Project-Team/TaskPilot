@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using TaskPilot.Models.Common;
 using TaskPilot.Data.Repositories;
 using TaskPilot.Services.Interfaces;
 using TaskPilot.DTOs.Projects;
@@ -20,21 +21,21 @@ namespace TaskPilot.Presentation.Controllers
         public async Task<ActionResult> GetAll()
         {
             var result = await _projectService.GetAllAsync();
-            return HandleResult(result);
+            return HandleResult(result, SuccessCodes.Project.Retrieved);
         }
 
         [HttpGet("{id:guid}")]
         public async Task<ActionResult> GetById(Guid id)
         {
             var result = await _projectService.GetByIdAsync(id);
-            return HandleResult(result);
+            return HandleResult(result, SuccessCodes.Project.Retrieved);
         }
 
         [HttpGet("company/{companyId:guid}")]
         public async Task<ActionResult> GetByCompanyId(Guid companyId)
         {
             var result = await _projectService.GetByCompanyIdAsync(companyId);
-            return HandleResult(result);
+            return HandleResult(result, SuccessCodes.Project.Retrieved);
         }
 
         [HttpPost]
@@ -45,7 +46,7 @@ namespace TaskPilot.Presentation.Controllers
             if (result.IsSuccess)
                 await _unitOfWork.SaveChangesAsync();
 
-            return HandleCreated(result, "Project created successfully.");
+            return HandleCreated(result, SuccessCodes.Project.Created);
         }
 
         [HttpPut]
@@ -56,7 +57,7 @@ namespace TaskPilot.Presentation.Controllers
             if (result.IsSuccess)
                 await _unitOfWork.SaveChangesAsync();
 
-            return HandleResult(result, "Project updated successfully.");
+            return HandleResult(result, SuccessCodes.Project.Updated);
         }
 
         [HttpDelete("{id:guid}")]
@@ -67,7 +68,7 @@ namespace TaskPilot.Presentation.Controllers
             if (result.IsSuccess)
                 await _unitOfWork.SaveChangesAsync();
 
-            return HandleResult(result, "Project deleted successfully.");
+            return HandleResult(result, SuccessCodes.Project.Deleted);
         }
     }
 }

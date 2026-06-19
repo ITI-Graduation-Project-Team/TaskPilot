@@ -44,7 +44,7 @@ namespace TaskPilot.Services
                 .FirstOrDefaultAsync();
 
             if (user is null)
-                return Result.Failure<UserDto>(CommonErrors.NotFound("User"));
+                return Result.Failure<UserDto>(UserErrors.NotFound);
 
             return Result.Success(user);
         }
@@ -73,7 +73,7 @@ namespace TaskPilot.Services
             var user = await _userRepo.GetByIdAsync(id);
 
             if (user is null)
-                return Result.Failure(CommonErrors.NotFound("User"));
+                return Result.Failure(UserErrors.NotFound);
 
             user.IsDeleted = true;
             _userRepo.Update(user);

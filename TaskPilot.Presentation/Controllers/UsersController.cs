@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using TaskPilot.Models.Common;
 using TaskPilot.Data.Repositories;
 using TaskPilot.Services.Interfaces;
 
@@ -23,14 +24,14 @@ namespace TaskPilot.Presentation.Controllers
         public async Task<ActionResult> GetAll()
         {
             var result = await _userService.GetAllAsync();
-            return HandleResult(result);
+            return HandleResult(result, SuccessCodes.User.Retrieved);
         }
 
         [HttpGet("{id:guid}")]
         public async Task<ActionResult> GetById(Guid id)
         {
             var result = await _userService.GetByIdAsync(id);
-            return HandleResult(result);
+            return HandleResult(result, SuccessCodes.User.Retrieved);
         }
 
         [HttpDelete("{id:guid}")]
@@ -41,7 +42,7 @@ namespace TaskPilot.Presentation.Controllers
             if (result.IsSuccess)
                 await _unitOfWork.SaveChangesAsync();
 
-            return HandleResult(result, "User deleted successfully.");
+            return HandleResult(result, SuccessCodes.User.Deleted);
         }
     }
 }
