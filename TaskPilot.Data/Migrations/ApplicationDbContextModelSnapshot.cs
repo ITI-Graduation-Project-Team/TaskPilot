@@ -520,6 +520,10 @@ namespace TaskPilot.Data.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
 
+                    b.PrimitiveCollection<string>("DocumentIds")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<bool>("IsDeleted")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
@@ -543,6 +547,9 @@ namespace TaskPilot.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -973,6 +980,9 @@ namespace TaskPilot.Data.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
 
+                    b.Property<int>("EffortSize")
+                        .HasColumnType("int");
+
                     b.Property<Guid?>("EmployeeId")
                         .HasColumnType("uniqueidentifier");
 
@@ -1016,6 +1026,9 @@ namespace TaskPilot.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
 
                     b.Property<Guid?>("UserStoryId")
                         .HasColumnType("uniqueidentifier");
@@ -1603,9 +1616,42 @@ namespace TaskPilot.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.OwnsOne("TaskPilot.Models.Entities.RequirementsSnapshot", "RequirementsSnapshot", b1 =>
+                        {
+                            b1.Property<Guid>("ProjectId");
+
+                            b1.PrimitiveCollection<string>("BusinessRequirements")
+                                .IsRequired();
+
+                            b1.PrimitiveCollection<string>("Constraints")
+                                .IsRequired();
+
+                            b1.PrimitiveCollection<string>("Integrations")
+                                .IsRequired();
+
+                            b1.PrimitiveCollection<string>("ScaleRequirements")
+                                .IsRequired();
+
+                            b1.PrimitiveCollection<string>("TechnicalRequirements")
+                                .IsRequired();
+
+                            b1.HasKey("ProjectId");
+
+                            b1.ToTable("Projects");
+
+                            b1
+                                .ToJson("RequirementsSnapshot")
+                                .HasColumnType("nvarchar(max)");
+
+                            b1.WithOwner()
+                                .HasForeignKey("ProjectId");
+                        });
+
                     b.Navigation("Company");
 
                     b.Navigation("Manager");
+
+                    b.Navigation("RequirementsSnapshot");
                 });
 
             modelBuilder.Entity("TaskPilot.Models.Entities.ProjectEmployee", b =>

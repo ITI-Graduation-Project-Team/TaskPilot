@@ -1,0 +1,20 @@
+using System;
+
+namespace TaskPilot.DTOs.AI.Requirements
+{
+    public sealed class FinalizeRequirementsRequest
+    {
+        public Guid CompanyId { get; set; }
+        public string ProjectNameEn { get; set; } = string.Empty;
+        public string? ProjectNameAr { get; set; }
+    }
+
+    public class FinalizeRequirementsResponse
+    {
+        public Guid ProjectId { get; set; }
+        public Guid CompanyId { get; set; }
+        public string ProjectName { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public bool RequirementsFinalized { get; set; }
+    }
+}

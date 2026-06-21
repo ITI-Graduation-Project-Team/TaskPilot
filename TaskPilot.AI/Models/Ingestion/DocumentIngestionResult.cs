@@ -1,4 +1,4 @@
-﻿using TaskPilot.AI.Enums;
+using TaskPilot.AI.Enums;
 
 namespace TaskPilot.AI.Models.Ingestion
 {

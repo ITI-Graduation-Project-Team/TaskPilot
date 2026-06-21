@@ -4,13 +4,13 @@
     {
         // Cheap + Fast
 
-        public const string FastModel =
-            "gpt-4.1-mini";
+        //public const string FastModel =
+        //    "gpt-4.1-mini";
 
         // Strong Reasoning
 
-        public const string SmartModel =
-            "gpt-4.1";
+        //public const string SmartModel =
+        //    "gpt-4.1";
 
         // Very Cheap
 
@@ -19,7 +19,7 @@
 
         //gemini
         public const string GeminiFast =
-             "gemini-3.5-flash";
+             "gemini-2.5-flash";
 
         public const string GeminiPro =
             "gemini-1.5-pro";

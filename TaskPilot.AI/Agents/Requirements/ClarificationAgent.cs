@@ -41,9 +41,9 @@ namespace TaskPilot.AI.Agents.Requirements
         {
             var kernel =
                 _kernelService
-                    .CreateGeminiKernel(
+                    .CreateKernel(
                         ModelConstants
-                            .GeminiFast);
+                            .CheapModel);
 
             // Load YAML prompt
             var prompt =
