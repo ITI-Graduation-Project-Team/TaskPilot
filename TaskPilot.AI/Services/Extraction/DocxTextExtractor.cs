@@ -2,6 +2,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using TaskPilot.AI.Services.Interfaces;
+using DocumentFormat.OpenXml.Packaging;
 
 namespace TaskPilot.AI.Services.Extraction
 {
@@ -14,10 +15,22 @@ namespace TaskPilot.AI.Services.Extraction
                    extension == ".docx";
         }
 
-        public Task<string> ExtractTextAsync(Stream fileStream, CancellationToken cancellationToken = default)
+        public async Task<string> ExtractTextAsync(Stream fileStream, CancellationToken cancellationToken = default)
         {
-            // Word DOCX parsing mock fallback as there are no external libraries loaded in project references
-            return Task.FromResult("[DOCX Extracted Text]: Enterprise workflow requirements spec. Integrate with stripe gateway. Realtime alerts when transaction fails. Timeline: System must launch by Q4.");
+            using var document = WordprocessingDocument.Open(fileStream, false);
+            var body = document.MainDocumentPart?.Document?.Body;
+            if (body == null) return string.Empty;
+
+            var sb = new System.Text.StringBuilder();
+            foreach (var para in body.Elements<DocumentFormat.OpenXml.Wordprocessing.Paragraph>())
+            {
+                var text = para.InnerText;
+                if (!string.IsNullOrWhiteSpace(text))
+                {
+                    sb.AppendLine(text);
+                }
+            }
+            return await Task.FromResult(sb.ToString().TrimEnd());
         }
     }
 }

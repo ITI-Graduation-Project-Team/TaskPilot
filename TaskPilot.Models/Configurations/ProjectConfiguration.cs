@@ -48,7 +48,12 @@ namespace TaskPilot.Models.Configurations
                  .HasForeignKey(p => p.ManagerId)
               .OnDelete(DeleteBehavior.Restrict);
 
-
+                            builder.OwnsOne(
+                p => p.RequirementsSnapshot,
+                snapshot =>
+                {
+                snapshot.ToJson();
+                });
             builder.HasIndex(p => p.CompanyId);
             builder.HasIndex(p => p.ManagerId);
             builder.HasIndex(p => new { p.CompanyId, p.NameEn })

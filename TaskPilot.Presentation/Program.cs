@@ -20,7 +20,7 @@ namespace TaskPilot.Presentation
             var builder = WebApplication.CreateBuilder(args);
             builder.Services.AddData(builder.Configuration);
             builder.Services.AddServices(builder.Configuration);
-            builder.Services.AddAiLayer();
+            builder.Services.AddAiLayer(builder.Configuration);
             builder.Services.AddInfrastructure(
     builder.Configuration);
             builder.Services.AddCors(options =>

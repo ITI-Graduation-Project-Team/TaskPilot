@@ -1,0 +1,122 @@
+﻿{
+    "sprints":  [
+                    {
+                        "titleEn":  "Sprint 1: Foundation",
+                        "titleAr":  "السبرنت الأول: الأساسيات",
+                        "sprintGoalEn":  "Set up core infrastructure for user authentication.",
+                        "sprintGoalAr":  "إعداد البنية التحتية الأساسية لمصادقة المستخدمين.",
+                        "userStories":  [
+                                            {
+                                                "titleEn":  "User Authentication",
+                                                "titleAr":  "مصادقة المستخدمين",
+                                                "descriptionEn":  "As a user, I want to log in securely so that I can access my account.",
+                                                "descriptionAr":  "كمستخدم، أريد تسجيل الدخول بأمان حتى أتمكن من الوصول إلى حسابي.",
+                                                "acceptanceCriteriaEn":  "1. User can login with email.\n2. Password recovery works.",
+                                                "acceptanceCriteriaAr":  "1. يمكن للمستخدم تسجيل الدخول بالبريد.\n2. تعمل ميزة استعادة كلمة المرور.",
+                                                "tasks":  [
+                                                              {
+                                                                  "titleEn":  "Setup Identity Database",
+                                                                  "titleAr":  "إعداد قاعدة بيانات الهوية",
+                                                                  "descriptionEn":  "Configure EF Core for Identity with SQL Server.",
+                                                                  "descriptionAr":  "إعداد EF Core للهوية مع SQL Server.",
+                                                                  "effortSize":  "Medium",
+                                                                  "type":  "Technical",
+                                                                  "estimatedHours":  8
+                                                              },
+                                                              {
+                                                                  "titleEn":  "Implement Login Functionality",
+                                                                  "titleAr":  "تنفيذ وظيفة تسجيل الدخول",
+                                                                  "descriptionEn":  "Develop the backend logic for user login.",
+                                                                  "descriptionAr":  "تطوير المنطق الخلفي لتسجيل دخول المستخدم.",
+                                                                  "effortSize":  "Medium",
+                                                                  "type":  "Technical",
+                                                                  "estimatedHours":  12
+                                                              },
+                                                              {
+                                                                  "titleEn":  "Create Login UI",
+                                                                  "titleAr":  "إنشاء واجهة تسجيل الدخول",
+                                                                  "descriptionEn":  "Design and implement the user interface for login.",
+                                                                  "descriptionAr":  "تصميم وتنفيذ واجهة المستخدم لتسجيل الدخول.",
+                                                                  "effortSize":  "Medium",
+                                                                  "type":  "NonTechnical",
+                                                                  "estimatedHours":  10
+                                                              }
+                                                          ]
+                                            },
+                                            {
+                                                "titleEn":  "Password Recovery",
+                                                "titleAr":  "استعادة كلمة المرور",
+                                                "descriptionEn":  "As a user, I want to be able to recover my password if I forget it.",
+                                                "descriptionAr":  "كمستخدم، أريد أن أكون قادراً على استعادة كلمة المرور إذا نسيتها.",
+                                                "acceptanceCriteriaEn":  "1. User receives a recovery email.\n2. User can reset their password.",
+                                                "acceptanceCriteriaAr":  "1. يتلقى المستخدم بريد استعادة.\n2. يمكن للمستخدم إعادة تعيين كلمة المرور.",
+                                                "tasks":  [
+                                                              {
+                                                                  "titleEn":  "Setup Sendgrid Integration",
+                                                                  "titleAr":  "إعداد تكامل Sendgrid",
+                                                                  "descriptionEn":  "Integrate Sendgrid for sending recovery emails.",
+                                                                  "descriptionAr":  "دمج Sendgrid لإرسال رسائل البريد الإلكتروني للاستعادة.",
+                                                                  "effortSize":  "Medium",
+                                                                  "type":  "Technical",
+                                                                  "estimatedHours":  8
+                                                              },
+                                                              {
+                                                                  "titleEn":  "Develop Password Recovery Logic",
+                                                                  "titleAr":  "تطوير منطق استعادة كلمة المرور",
+                                                                  "descriptionEn":  "Implement backend logic for password recovery.",
+                                                                  "descriptionAr":  "تنفيذ المنطق الخلفي لاستعادة كلمة المرور.",
+                                                                  "effortSize":  "Medium",
+                                                                  "type":  "Technical",
+                                                                  "estimatedHours":  12
+                                                              },
+                                                              {
+                                                                  "titleEn":  "Create Recovery Email Template",
+                                                                  "titleAr":  "إنشاء قالب بريد الاستعادة",
+                                                                  "descriptionEn":  "Design the email template for password recovery.",
+                                                                  "descriptionAr":  "تصميم قالب البريد الإلكتروني لاستعادة كلمة المرور.",
+                                                                  "effortSize":  "Small",
+                                                                  "type":  "NonTechnical",
+                                                                  "estimatedHours":  4
+                                                              }
+                                                          ]
+                                            }
+                                        ]
+                    },
+                    {
+                        "titleEn":  "Sprint 2: Performance and Scaling",
+                        "titleAr":  "السبرنت الثاني: الأداء والتوسع",
+                        "sprintGoalEn":  "Improve system performance and ensure scalability.",
+                        "sprintGoalAr":  "تحسين أداء النظام وضمان قابليته للتوسع.",
+                        "userStories":  [
+                                            {
+                                                "titleEn":  "User Load Handling",
+                                                "titleAr":  "معالجة أحمال المستخدمين",
+                                                "descriptionEn":  "As a system, I need to handle 100 concurrent users efficiently.",
+                                                "descriptionAr":  "كنظام، أحتاج إلى معالجة 100 مستخدم متزامن بكفاءة.",
+                                                "acceptanceCriteriaEn":  "1. System should maintain performance with 100 concurrent users.\n2. Response time should be under 2 seconds.",
+                                                "acceptanceCriteriaAr":  "1. يجب أن يحتفظ النظام بالأداء مع 100 مستخدم متزامن.\n2. يجب أن يكون وقت الاستجابة أقل من ثانيتين.",
+                                                "tasks":  [
+                                                              {
+                                                                  "titleEn":  "Conduct Load Testing",
+                                                                  "titleAr":  "إجراء اختبارات الحمل",
+                                                                  "descriptionEn":  "Test the application with 100 concurrent users.",
+                                                                  "descriptionAr":  "اختبار التطبيق مع 100 مستخدم متزامن.",
+                                                                  "effortSize":  "Large",
+                                                                  "type":  "Technical",
+                                                                  "estimatedHours":  20
+                                                              },
+                                                              {
+                                                                  "titleEn":  "Optimize Database Queries",
+                                                                  "titleAr":  "تحسين استعلامات قاعدة البيانات",
+                                                                  "descriptionEn":  "Review and optimize SQL queries for better performance.",
+                                                                  "descriptionAr":  "مراجعة وتحسين استعلامات SQL لتحسين الأداء.",
+                                                                  "effortSize":  "Medium",
+                                                                  "type":  "Technical",
+                                                                  "estimatedHours":  12
+                                                              }
+                                                          ]
+                                            }
+                                        ]
+                    }
+                ]
+}

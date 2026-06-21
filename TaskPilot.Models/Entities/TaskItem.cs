@@ -20,6 +20,8 @@ namespace TaskPilot.Models.Entities
         public TaskItemStatus Status { get; set; } = TaskItemStatus.ToDo;
         public decimal EstimatedHours { get; set; }
         public decimal ActualHours { get; set; } = 0;
+        public EffortSize EffortSize { get; set; }
+        public TaskType Type { get; set; }
         public Employee? Employee { get; set; }
         public Sprint Sprint { get; set; } = null!;
         public UserStory? UserStory{ get; set;}
