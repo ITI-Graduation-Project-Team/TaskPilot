@@ -5,7 +5,7 @@ namespace TaskPilot.Models.Entities
 {
     public class UserStory : AuditableEntity<Guid>
     {
-        public Guid SprintId { get; set; }
+        public Guid SprintId { get; set; } 
         public Sprint Sprint { get; set; } = null!;
         public string TitleEn { get; set; } = string.Empty;
         public string? DescriptionEn { get; set; }
@@ -15,6 +15,6 @@ namespace TaskPilot.Models.Entities
         public string? AcceptanceCriteriaAr { get; set; }
         public StoryPriority Priority { get; set; }
         public StoryStatus Status { get; set; } = StoryStatus.ToDo;
-        public ICollection<TaskItem> Tasks { get; set; } = new List<TaskItem>();
+        public ICollection<TaskItem> Tasks { get; set; } = new List<TaskItem>(); //on cascade delete no action
     }
 }
