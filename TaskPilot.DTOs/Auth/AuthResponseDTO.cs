@@ -13,6 +13,7 @@ namespace TaskPilot.DTOs.Auth
         public string RefreshToken { get; set; } = string.Empty;
         //addRoles
         public List<string>? Roles { get; set; } = new List<string>();
+        public bool IsProfileCompleted { get; set; }
         //public bool IsProfileCompleted
         //{ get; set; }
     }

@@ -199,6 +199,7 @@ namespace TaskPilot.Services
                 RefreshToken = refreshToken.Value,
                 UserId = user.Id,
                 Roles = roles,
+                IsProfileCompleted = user is Employee emp ? emp.IsProfileCompleted : true
             };
             return response;
         }
