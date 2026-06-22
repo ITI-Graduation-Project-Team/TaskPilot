@@ -46,8 +46,11 @@ namespace TaskPilot.Infrastructure.Services.Token
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
             }
             .Union(UserClaims.Value ?? Enumerable.Empty<Claim>())
-            .Union(roleClaims);
-
+            .Union(roleClaims).ToList();
+            if (user is Employee employee)
+            {
+                claims.Add(new Claim("ProfileCompleted", employee.IsProfileCompleted.ToString()));
+            }
             var symmetricSecurityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwt.Key));
             var signingCredentials = new SigningCredentials(symmetricSecurityKey, SecurityAlgorithms.HmacSha256);
             var now = DateTime.UtcNow;
