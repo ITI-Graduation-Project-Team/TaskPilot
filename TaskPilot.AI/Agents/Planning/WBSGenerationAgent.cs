@@ -2,8 +2,8 @@ using System.Text.Json;
 using Microsoft.SemanticKernel;
 using TaskPilot.AI.Constants;
 using TaskPilot.AI.Exceptions;
-using TaskPilot.AI.Models.Planning;
 using TaskPilot.AI.Services.Interfaces;
+using TaskPilot.AI.Models.Planning;
 using TaskPilot.Models.Entities;
 
 namespace TaskPilot.AI.Agents.Planning
@@ -25,70 +25,58 @@ namespace TaskPilot.AI.Agents.Planning
             RequirementsSnapshot snapshot,
             CancellationToken cancellationToken = default)
         {
-            var promptTemplate = await _promptLoader.LoadAsync("Planning/WbsGeneration.yaml");
-            
-            var kernel = _kernelService.CreateKernel(ModelConstants.CheapModel); // Use powerful model
+            var kernel = _kernelService.CreateKernel(
+                ModelConstants.PowerfulModel);
 
-            var snapshotJson = JsonSerializer.Serialize(new
-            {
-                snapshot.BusinessRequirements,
-                snapshot.TechnicalRequirements,
-                snapshot.Constraints,
-                snapshot.Integrations,
-                snapshot.ScaleRequirements
-            }, new JsonSerializerOptions { WriteIndented = true });
+            var prompt = await _promptLoader.LoadAsync(
+                "Planning/WbsGeneration.yaml");
 
-            var arguments = new KernelArguments
-            {
-                ["snapshotData"] = snapshotJson
-            };
+            var function = KernelFunctionYaml.FromPromptYaml(prompt);
 
-            var promptRendered = await kernel.InvokePromptAsync(promptTemplate, arguments, cancellationToken: cancellationToken);
-            var responseText = promptRendered.GetValue<string>()?.Trim();
+            var result = await kernel.InvokeAsync(
+                function,
+                new KernelArguments
+                {
+                    ["businessRequirements"] =
+                        string.Join("\n", snapshot.BusinessRequirements),
 
-            if (string.IsNullOrWhiteSpace(responseText))
-            {
-                throw new WbsGenerationException("Model returned an empty response.");
-            }
+                    ["technicalRequirements"] =
+                        string.Join("\n", snapshot.TechnicalRequirements),
 
-            // Clean up common markdown block formatting if present
-            if (responseText.StartsWith("```json", StringComparison.OrdinalIgnoreCase))
-            {
-                responseText = responseText.Substring(7);
-            }
-            else if (responseText.StartsWith("```", StringComparison.OrdinalIgnoreCase))
-            {
-                responseText = responseText.Substring(3);
-            }
+                    ["constraints"] =
+                        string.Join("\n", snapshot.Constraints),
 
-            if (responseText.EndsWith("```"))
-            {
-                responseText = responseText.Substring(0, responseText.Length - 3);
-            }
+                    ["integrations"] =
+                        string.Join("\n", snapshot.Integrations),
 
-            responseText = responseText.Trim();
+                    ["scaleRequirements"] =
+                        string.Join("\n", snapshot.ScaleRequirements)
+                },
+                cancellationToken: cancellationToken);
+
+            var raw = result.ToString();
 
             try
             {
-                var options = new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                };
-                
-                var generatedWbs = JsonSerializer.Deserialize<GeneratedWbs>(responseText, options);
-                
-                if (generatedWbs == null || generatedWbs.Sprints == null)
-                {
-                    throw new WbsGenerationException("Deserialized output was null or missing expected structure.");
-                }
+                var wbs = JsonSerializer.Deserialize<GeneratedWbs>(
+                    raw,
+                    new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    });
 
-                return generatedWbs;
+                if (wbs is null || !wbs.UserStories.Any())
+                    throw new WbsGenerationException(
+                        "WBS generation returned empty or null result.",
+                        raw);
+
+                return wbs;
             }
             catch (JsonException ex)
             {
-                var snippetLength = Math.Min(responseText.Length, 500);
-                var snippet = responseText.Substring(0, snippetLength);
-                throw new WbsGenerationException($"Failed to deserialize WBS from model output. Start of response: {snippet}...", ex);
+                throw new WbsGenerationException(
+                    $"WBS generation returned invalid JSON: {ex.Message}",
+                    raw);
             }
         }
     }
