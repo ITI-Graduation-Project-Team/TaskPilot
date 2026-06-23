@@ -46,8 +46,93 @@
   "PASSWORD_RESET_SUCCESS": "تم إعادة تعيين كلمة المرور بنجاح.",
   "TOKEN_REFRESHED_SUCCESS": "تم تحديث الرمز بنجاح.",
   "LOGOUT_SUCCESS": "تم تسجيل الخروج بنجاح.",
-  "INVITATION_COMPLETED_SUCCESS": "تم قبول الدعوة بنجاح."
+  "INVITATION_COMPLETED_SUCCESS": "تم قبول الدعوة بنجاح.",
 
+  // company
+  "COMPANY_NOT_FOUND": "الشركة غير موجودة.",
+  
+  // skill
+  "SKILL_NOT_FOUND": "المهارة غير موجودة.",
+  "SKILL_NAME_REQUIRED": "اسم المهارة مطلوب.",
+  "SKILL_ALREADY_EXISTS": "المهارة موجودة بالفعل.",
+  "SKILL_LIST_EMPTY": "قائمة المهارات فارغة.",
+  
+  // role
+  "ROLE_NOT_FOUND": "الدور غير موجود.",
+  
+  // project
+  "PROJECT_MANAGER_NOT_FOUND": "مدير المشروع غير موجود.",
+  "NOT_PROJECT_MANAGER": "المستخدم ليس مدير مشروع.",
+  
+  // subscription plan
+  "PLAN_NOT_FOUND": "خطة الاشتراك غير موجودة.",
+  "PLAN_NAME_ALREADY_EXISTS": "توجد خطة اشتراك بهذا الاسم بالفعل.",
+  
+  // user subscription
+  "USER_SUBSCRIPTION_NOT_FOUND": "اشتراك المستخدم غير موجود.",
+  "ACTIVE_SUBSCRIPTION_NOT_FOUND": "الاشتراك النشط غير موجود.",
+  "INVALID_BILLING_CYCLE": "دورة الفوترة غير صالحة.",
+  "INVALID_SUBSCRIPTION_STATUS": "حالة الاشتراك غير صالحة.",
+  
+  // ai
+  "AI_SERVER_ERROR": "حدث خطأ في خدمة الذكاء الاصطناعي.",
+  "AI_UNREADABLE_RESPONSE": "أرجعت خدمة الذكاء الاصطناعي استجابة غير مقروءة.",
+  "AI_PARSING_FAILED": "فشل تحليل استجابة الذكاء الاصطناعي.",
+  "AI_PROJECT_NAME_REQUIRED": "اسم المشروع مطلوب من الذكاء الاصطناعي.",
+  "AI_EMPTY_AUDIO": "الملف الصوتي فارغ.",
+  "AI_INVALID_AUDIO_FORMAT": "تنسيق الملف الصوتي غير مدعوم.",
+  "AI_EMPTY_TRANSCRIPTION": "النسخ الصوتي فارغ.",
+  
+  // cv
+  "CV_EXTRACTION_FAILED": "فشل استخراج النص من السيرة الذاتية.",
+  "INVALID_CV_FILE": "ملف السيرة الذاتية غير صالح.",
+  "CV_FILE_TOO_LARGE": "ملف السيرة الذاتية كبير جداً.",
+  "CV_UNSUPPORTED_FORMAT": "تنسيق السيرة الذاتية غير مدعوم.",
 
-
+  // company success
+  "COMPANY_SETUP_SUCCESS": "تم إعداد الشركة بنجاح.",
+  "COMPANY_EMPLOYEES_SEARCHED": "تم البحث عن الموظفين بنجاح.",
+  
+  // project success
+  "PROJECT_CREATED_SUCCESS": "تم إنشاء المشروع بنجاح.",
+  "PROJECT_UPDATED_SUCCESS": "تم تحديث المشروع بنجاح.",
+  "PROJECT_DELETED_SUCCESS": "تم حذف المشروع بنجاح.",
+  "PROJECT_RETRIEVED_SUCCESS": "تم جلب المشروع بنجاح.",
+  
+  // skill success
+  "SKILL_CREATED_SUCCESS": "تم إنشاء المهارة بنجاح.",
+  "SKILL_DELETED_SUCCESS": "تم حذف المهارة بنجاح.",
+  "SKILL_RETRIEVED_SUCCESS": "تم جلب المهارة بنجاح.",
+  
+  // role success
+  "ROLE_PERMISSIONS_UPDATED": "تم تحديث صلاحيات الدور بنجاح.",
+  "ROLE_RETRIEVED_SUCCESS": "تم جلب الدور بنجاح.",
+  
+  // subscription plan success
+  "PLAN_CREATED_SUCCESS": "تم إنشاء خطة الاشتراك بنجاح.",
+  "PLAN_UPDATED_SUCCESS": "تم تحديث خطة الاشتراك بنجاح.",
+  "PLAN_DELETED_SUCCESS": "تم حذف خطة الاشتراك بنجاح.",
+  "PLAN_RETRIEVED_SUCCESS": "تم جلب خطة الاشتراك بنجاح.",
+  
+  // user success
+  "USER_DELETED_SUCCESS": "تم حذف المستخدم بنجاح.",
+  "USER_RETRIEVED_SUCCESS": "تم جلب المستخدم بنجاح.",
+  
+  // user subscription success
+  "SUBSCRIPTION_CREATED_SUCCESS": "تم الاشتراك بنجاح.",
+  "SUBSCRIPTION_UPDATED_SUCCESS": "تم تحديث الاشتراك بنجاح.",
+  "SUBSCRIPTION_DELETED_SUCCESS": "تم حذف الاشتراك بنجاح.",
+  "SUBSCRIPTION_RETRIEVED_SUCCESS": "تم جلب الاشتراك بنجاح.",
+  
+  // employee success
+  "EMPLOYEE_CV_UPLOADED": "تمت معالجة السيرة الذاتية بنجاح.",
+  
+  // requirement success
+  "REQUIREMENT_DOCUMENT_UPLOADED": "تم رفع المستند بنجاح.",
+  "REQUIREMENT_MESSAGE_SENT": "تم إرسال الرسالة بنجاح.",
+  "REQUIREMENT_SESSION_RETRIEVED": "تم جلب الجلسة بنجاح.",
+  
+  // ai project success
+  "AI_PROJECT_GENERATED": "تم إنشاء مسودة المشروع بنجاح.",
+  "AI_PROJECT_CONFIRMED": "تم تأكيد المشروع بنجاح."
 }

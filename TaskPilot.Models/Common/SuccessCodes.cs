@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -19,6 +19,72 @@ namespace TaskPilot.Models.Common
             public const string PasswordReset = "PASSWORD_RESET_SUCCESS";
             public const string Logout = "LOGOUT_SUCCESS";
             public const string InvitationCompleted = "INVITATION_COMPLETED_SUCCESS";
+        }
+        public static class Company
+        {
+            public const string Setup = "COMPANY_SETUP_SUCCESS";
+            public const string EmployeesSearched = "COMPANY_EMPLOYEES_SEARCHED";
+        }
+
+        public static class Project
+        {
+            public const string Created = "PROJECT_CREATED_SUCCESS";
+            public const string Updated = "PROJECT_UPDATED_SUCCESS";
+            public const string Deleted = "PROJECT_DELETED_SUCCESS";
+            public const string Retrieved = "PROJECT_RETRIEVED_SUCCESS";
+        }
+
+        public static class Skill
+        {
+            public const string Created = "SKILL_CREATED_SUCCESS";
+            public const string Deleted = "SKILL_DELETED_SUCCESS";
+            public const string Retrieved = "SKILL_RETRIEVED_SUCCESS";
+        }
+
+        public static class Role
+        {
+            public const string PermissionsUpdated = "ROLE_PERMISSIONS_UPDATED";
+            public const string Retrieved = "ROLE_RETRIEVED_SUCCESS";
+        }
+
+        public static class SubscriptionPlan
+        {
+            public const string Created = "PLAN_CREATED_SUCCESS";
+            public const string Updated = "PLAN_UPDATED_SUCCESS";
+            public const string Deleted = "PLAN_DELETED_SUCCESS";
+            public const string Retrieved = "PLAN_RETRIEVED_SUCCESS";
+        }
+
+        public static class User
+        {
+            public const string Deleted = "USER_DELETED_SUCCESS";
+            public const string Retrieved = "USER_RETRIEVED_SUCCESS";
+        }
+
+        public static class UserSubscription
+        {
+            public const string Created = "SUBSCRIPTION_CREATED_SUCCESS";
+            public const string Updated = "SUBSCRIPTION_UPDATED_SUCCESS";
+            public const string Deleted = "SUBSCRIPTION_DELETED_SUCCESS";
+            public const string Retrieved = "SUBSCRIPTION_RETRIEVED_SUCCESS";
+        }
+
+        public static class Employee
+        {
+            public const string CvUploaded = "EMPLOYEE_CV_UPLOADED";
+        }
+
+        public static class Requirement
+        {
+            public const string DocumentUploaded = "REQUIREMENT_DOCUMENT_UPLOADED";
+            public const string MessageSent = "REQUIREMENT_MESSAGE_SENT";
+            public const string SessionRetrieved = "REQUIREMENT_SESSION_RETRIEVED";
+        }
+
+        public static class AiProject
+        {
+            public const string Generated = "AI_PROJECT_GENERATED";
+            public const string Confirmed = "AI_PROJECT_CONFIRMED";
         }
     }
 }
