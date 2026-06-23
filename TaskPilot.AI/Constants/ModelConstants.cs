@@ -1,4 +1,4 @@
-﻿namespace TaskPilot.AI.Constants
+namespace TaskPilot.AI.Constants
 {
     public static class ModelConstants
     {
@@ -9,8 +9,8 @@
 
         // Strong Reasoning
 
-        //public const string SmartModel =
-        //    "gpt-4.1";
+        public const string PowerfulModel =
+            "gpt-4.1-mini";
 
         // Very Cheap
 

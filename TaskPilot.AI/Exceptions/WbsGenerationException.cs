@@ -2,7 +2,14 @@ namespace TaskPilot.AI.Exceptions
 {
     public class WbsGenerationException : Exception
     {
-        public WbsGenerationException(string message) : base(message) { }
-        public WbsGenerationException(string message, Exception innerException) : base(message, innerException) { }
+        public string RawResponse { get; }
+
+        public WbsGenerationException(
+            string message,
+            string rawResponse)
+            : base(message)
+        {
+            RawResponse = rawResponse;
+        }
     }
 }

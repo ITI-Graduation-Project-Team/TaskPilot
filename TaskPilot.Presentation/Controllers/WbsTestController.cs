@@ -1,43 +1,50 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using TaskPilot.AI.Agents.Planning;
-using TaskPilot.AI.Models.Planning;
 using TaskPilot.Data.Repositories;
 using TaskPilot.Models.Entities;
 
-[ApiController]
-[Route("api/test/wbs")]
-public class WbsTestController : ControllerBase
+namespace TaskPilot.Presentation.Controllers
 {
-    private readonly WBSGenerationAgent _wbsAgent;
-    private readonly IRepository<Project> _projectRepository;
-
-    public WbsTestController(
-        WBSGenerationAgent wbsAgent,
-        IRepository<Project> projectRepository)
+    [ApiController]
+    [Route("api/test/wbs")]
+    public class WbsTestController : ControllerBase
     {
-        _wbsAgent = wbsAgent;
-        _projectRepository = projectRepository;
-    }
+        private readonly WBSGenerationAgent _wbsAgent;
+        private readonly IRepository<Project> _projectRepository;
 
-    [HttpGet("{projectId:guid}")]
-    public async Task<IActionResult> Generate(
-        Guid projectId,
-        CancellationToken cancellationToken)
-    {
-        var project =
-            await _projectRepository.GetByIdAsync(projectId);
+        public WbsTestController(
+            WBSGenerationAgent wbsAgent,
+            IRepository<Project> projectRepository)
+        {
+            _wbsAgent = wbsAgent;
+            _projectRepository = projectRepository;
+        }
 
-        if (project is null)
-            return NotFound("Project not found.");
+        /// <summary>
+        /// TEMPORARY — for Sprint 5b verification only.
+        /// Remove before production.
+        /// </summary>
+        [HttpGet("{projectId}")]
+        public async Task<IActionResult> GenerateWbs(
+            Guid projectId,
+            CancellationToken cancellationToken)
+        {
+            var project = await _projectRepository
+                .GetByIdAsync(projectId, p => p.RequirementsSnapshot);
 
-        if (project.RequirementsSnapshot is null)
-            return BadRequest("Project has no RequirementsSnapshot.");
+            if (project is null)
+                return NotFound("Project not found.");
 
-        var result =
-            await _wbsAgent.GenerateAsync(
+            if (project.RequirementsSnapshot is null)
+                return BadRequest(
+                    "Project has no RequirementsSnapshot. " +
+                    "Complete requirement finalization first.");
+
+            var result = await _wbsAgent.GenerateAsync(
                 project.RequirementsSnapshot,
                 cancellationToken);
 
-        return Ok(result);
+            return Ok(result);
+        }
     }
 }

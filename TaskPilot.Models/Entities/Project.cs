@@ -19,5 +19,6 @@ namespace TaskPilot.Models.Entities
         public ProjectStatus Status { get; set; }
         public RequirementsSnapshot? RequirementsSnapshot { get; set; }
         public List<Guid> DocumentIds { get; set; } = new List<Guid>();
+        public ICollection<UserStory> UserStories { get; set; } = new List<UserStory>();
     }
 }

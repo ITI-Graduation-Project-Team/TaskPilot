@@ -1,50 +1,96 @@
-You are an expert Agile Scrum Master and Technical Project Manager.
-Your task is to generate a complete Work Breakdown Structure (WBS) for a software project based on the provided requirements snapshot.
+name: WbsGeneration
+description: Generates a Work Breakdown Structure from project requirements
+template_format: semantic-kernel
+execution_settings:
+  default:
+    temperature: 0.3
+    max_tokens: 4000
+input_variables:
+  - name: businessRequirements
+    description: Business requirements from the project snapshot
+  - name: technicalRequirements
+    description: Technical requirements from the project snapshot
+  - name: constraints
+    description: Project constraints
+  - name: integrations
+    description: Required integrations
+  - name: scaleRequirements
+    description: Scale and performance requirements
+template: |
+  You are an expert Agile project planner.
 
-# Instructions:
-1. Review the provided requirements and decide on a reasonable number of Sprints (prefer 2-6 sprints for a typical scope unless clearly larger).
-2. Distribute features logically into UserStories and assign them to Sprints.
-3. For each UserStory, generate 1 or more concrete Tasks.
-4. For each Task, classify its EffortSize as exactly one of "Small", "Medium", or "Large".
-5. For each Task, classify its Type as exactly one of "Technical" or "NonTechnical".
-6. For each Task, estimate the effort in hours (EstimatedHours) consistent with the EffortSize (Small: 1-4, Medium: 4-16, Large: 16+).
-7. You must generate both English (En) and Arabic (Ar) text for every Title, Goal, Description, and AcceptanceCriteria field. DO NOT leave Arabic fields empty or use placeholder text. Ensure proper, professional translation.
-8. Format your output strictly as a valid JSON object matching the requested schema. DO NOT include any markdown formatting such as ```json, and do not include any prose before or after the JSON.
+  Your task is to analyze the following project requirements and generate
+  a complete Work Breakdown Structure (WBS) as a flat list of User Stories,
+  each containing Tasks.
 
-# Schema
-```json
-{
-  "Sprints": [
-    {
-      "TitleEn": "Sprint 1: Foundation",
-      "TitleAr": "السبرنت الأول: الأساسيات",
-      "SprintGoalEn": "Set up core infrastructure...",
-      "SprintGoalAr": "إعداد البنية التحتية الأساسية...",
-      "UserStories": [
-        {
-          "TitleEn": "User Authentication",
-          "TitleAr": "مصادقة المستخدمين",
-          "DescriptionEn": "As a user, I want to log in...",
-          "DescriptionAr": "كمستخدم، أريد تسجيل الدخول...",
-          "AcceptanceCriteriaEn": "1. User can login with email.\n2. Password recovery works.",
-          "AcceptanceCriteriaAr": "1. يمكن للمستخدم تسجيل الدخول بالبريد.\n2. تعمل ميزة استعادة كلمة المرور.",
-          "Tasks": [
-            {
-              "TitleEn": "Setup Identity Database",
-              "TitleAr": "إعداد قاعدة بيانات الهوية",
-              "DescriptionEn": "Configure EF Core for Identity",
-              "DescriptionAr": "إعداد EF Core للهوية",
-              "EffortSize": "Medium",
-              "Type": "Technical",
-              "EstimatedHours": 8
-            }
-          ]
-        }
-      ]
-    }
-  ]
-}
-```
+  ## Requirements
 
-# Input Requirements Snapshot
-{{$snapshotData}}
+  ### Business Requirements
+  {{$businessRequirements}}
+
+  ### Technical Requirements
+  {{$technicalRequirements}}
+
+  ### Constraints
+  {{$constraints}}
+
+  ### Integrations
+  {{$integrations}}
+
+  ### Scale Requirements
+  {{$scaleRequirements}}
+
+  ## Language Detection Rule
+  Detect the primary language of the requirements above.
+  - If primarily Arabic → write Arabic content first, English as translation
+  - If primarily English → write English content first, Arabic as translation
+  - BOTH language fields must always be fully populated — never leave
+    TitleAr, DescriptionAr, or AcceptanceCriteriaAr empty or as
+    placeholder text. Write complete, natural Arabic sentences — do NOT
+    mix English words into Arabic fields.
+
+  ## Output Rules
+  - Generate between 5 and 15 UserStories depending on project scope.
+  - Each UserStory must have between 2 and 6 Tasks.
+  - Every Task EffortSize must be exactly one of: Small, Medium, Large
+  - Every Task Type must be exactly one of: Technical, NonTechnical
+  - Every Task Priority must be exactly one of: Low, Medium, High
+  - Every UserStory Priority must be exactly one of: Low, Medium, High
+  - EstimatedHours must be consistent with EffortSize:
+      Small  = 1 to 4 hours
+      Medium = 4 to 16 hours
+      Large  = 16 to 40 hours
+  - AcceptanceCriteria should be written as numbered lines in a single
+    string (e.g. "1. Criteria one\n2. Criteria two") — not as a JSON array.
+  - Do NOT group UserStories into Sprints — Sprint assignment happens later.
+  - Return ONLY valid JSON. No markdown, no code fences, no explanation
+    text before or after the JSON.
+
+  ## Required JSON Structure
+  {
+    "userStories": [
+      {
+        "titleEn": "string",
+        "titleAr": "string",
+        "descriptionEn": "string",
+        "descriptionAr": "string",
+        "acceptanceCriteriaEn": "string",
+        "acceptanceCriteriaAr": "string",
+        "priority": "High | Medium | Low",
+        "tasks": [
+          {
+            "titleEn": "string",
+            "titleAr": "string",
+            "descriptionEn": "string",
+            "descriptionAr": "string",
+            "acceptanceCriteriaEn": "string",
+            "acceptanceCriteriaAr": "string",
+            "effortSize": "Small | Medium | Large",
+            "type": "Technical | NonTechnical",
+            "estimatedHours": number,
+            "priority": "High | Medium | Low"
+          }
+        ]
+      }
+    ]
+  }
