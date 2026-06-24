@@ -1,6 +1,6 @@
+using Microsoft.SemanticKernel;
 using System.Text;
 using System.Text.Json;
-using Microsoft.SemanticKernel;
 using TaskPilot.AI.Constants;
 using TaskPilot.AI.Helpers;
 using TaskPilot.AI.Models.ContextAdvisor;
@@ -31,7 +31,7 @@ namespace TaskPilot.AI.Agents.ContextAdvisor
         {
             var kernel =
                 _kernelService
-                    .CreateGeminiKernel(ModelConstants.GeminiFast);
+                    .CreateKernel(ModelConstants.FastModel);
 
             var prompt =
                 await _promptLoader
@@ -96,7 +96,7 @@ namespace TaskPilot.AI.Agents.ContextAdvisor
         {
             var kernel =
                 _kernelService
-                    .CreateGeminiKernel(ModelConstants.GeminiFast);
+                    .CreateKernel(ModelConstants.FastModel);
 
             var prompt =
                 await _promptLoader

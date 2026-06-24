@@ -1,6 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
 using TaskPilot.AI.Models.ContextAdvisor;
 using TaskPilot.AI.Orchestrators;
+using TaskPilot.Data.Repositories;
+using TaskPilot.Models.Entities;
+using TaskPilot.Models.Common.Errors;
+using TaskPilot.Models.Common.Results;
 
 namespace TaskPilot.Presentation.Controllers
 {
@@ -10,13 +14,16 @@ namespace TaskPilot.Presentation.Controllers
     {
         private readonly ContextAdvisorOrchestrator _contextAdvisorOrchestrator;
         private readonly DocumentIngestionOrchestrator _documentIngestionOrchestrator;
+        private readonly IRepository<TaskItem> _taskRepository;
 
         public ContextAdvisorController(
             ContextAdvisorOrchestrator contextAdvisorOrchestrator,
-            DocumentIngestionOrchestrator documentIngestionOrchestrator)
+            DocumentIngestionOrchestrator documentIngestionOrchestrator,
+            IRepository<TaskItem> taskRepository)
         {
             _contextAdvisorOrchestrator = contextAdvisorOrchestrator;
             _documentIngestionOrchestrator = documentIngestionOrchestrator;
+            _taskRepository = taskRepository;
         }
 
         [HttpPost("documents")]
@@ -37,24 +44,66 @@ namespace TaskPilot.Presentation.Controllers
 
         [HttpPost("summary")]
         public async Task<IActionResult> GetContextSummary(
-            [FromBody] TaskContextRequest request,
+            [FromBody] ContextAdvisorSummaryRequest request,
             CancellationToken cancellationToken)
         {
+            var taskItem = await _taskRepository.GetByIdAsync(request.TaskId, t => t.Sprint);
+            if (taskItem is null)
+            {
+                return HandleResult(Result.Failure(CommonErrors.NotFound("Task")));
+            }
+
+            bool isArabic = Localizer.CurrentLanguage == "ar";
+
+            var downstreamRequest = new TaskContextRequest
+            {
+                ProjectId = taskItem.Sprint?.ProjectId,
+                TaskId = taskItem.Id,
+                TaskTitle = isArabic ? taskItem.TitleAr : taskItem.TitleEn,
+                TaskDescription = isArabic ? taskItem.DescriptionAr : taskItem.DescriptionEn,
+                AcceptanceCriteria = isArabic ? taskItem.AcceptanceCriteriaAr : taskItem.AcceptanceCriteriaEn,
+                TechnicalSummary = isArabic ? taskItem.TechnicalSummaryAr : taskItem.TechnicalSummaryEn,
+                RelatedPastTasks = new List<string>(), // AI mapping expectation - defaults to empty if task model doesn't supply it
+                TopK = 6
+            };
+
             var result =
                 await _contextAdvisorOrchestrator
-                    .GenerateSummaryAsync(request, cancellationToken);
+                    .GenerateSummaryAsync(downstreamRequest, cancellationToken);
 
             return Ok(result);
         }
 
         [HttpPost("ask")]
         public async Task<IActionResult> Ask(
-            [FromBody] ContextAdvisorChatRequest request,
+            [FromBody] ContextAdvisorAskRequest request,
             CancellationToken cancellationToken)
         {
+            var taskItem = await _taskRepository.GetByIdAsync(request.TaskId, t => t.Sprint);
+            if (taskItem is null)
+            {
+                return HandleResult(Result.Failure(CommonErrors.NotFound("Task")));
+            }
+
+            bool isArabic = Localizer.CurrentLanguage == "ar";
+
+            var downstreamRequest = new ContextAdvisorChatRequest
+            {
+                ProjectId = taskItem.Sprint?.ProjectId,
+                TaskId = taskItem.Id,
+                TaskTitle = isArabic ? taskItem.TitleAr : taskItem.TitleEn,
+                TaskDescription = isArabic ? taskItem.DescriptionAr : taskItem.DescriptionEn,
+                AcceptanceCriteria = isArabic ? taskItem.AcceptanceCriteriaAr : taskItem.AcceptanceCriteriaEn,
+                TechnicalSummary = isArabic ? taskItem.TechnicalSummaryAr : taskItem.TechnicalSummaryEn,
+                RelatedPastTasks = new List<string>(), // AI mapping expectation
+                TopK = 6,
+                ConversationId = request.ConversationId,
+                Question = request.Question
+            };
+
             var result =
                 await _contextAdvisorOrchestrator
-                    .AskAsync(request, cancellationToken);
+                    .AskAsync(downstreamRequest, cancellationToken);
 
             return Ok(result);
         }
