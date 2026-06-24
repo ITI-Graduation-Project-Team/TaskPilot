@@ -1,8 +1,7 @@
-using System.Text.Json;
 using Microsoft.SemanticKernel;
+using System.Text.Json;
 using TaskPilot.AI.Constants;
 using TaskPilot.AI.Helpers;
-using TaskPilot.AI.Models;
 using TaskPilot.AI.Models.Requirements;
 using TaskPilot.AI.Models.Session;
 using TaskPilot.AI.Services.Interfaces;
@@ -36,7 +35,7 @@ namespace TaskPilot.AI.Agents.Requirements
                 _kernelService
                     .CreateKernel(
                         ModelConstants
-                            .CheapModel);
+                            .FastModel);
 
             // Load YAML prompt
             var prompt =

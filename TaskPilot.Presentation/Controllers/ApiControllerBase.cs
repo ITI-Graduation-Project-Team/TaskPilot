@@ -41,13 +41,10 @@ namespace TaskPilot.Presentation.Controllers
         /// <summary>
         /// Maps a <see cref="Result{T}"/> to an HTTP 201 Created on success.
         /// </summary>
-        protected ActionResult HandleCreated<T>(Result<T> result, string? messageKey = null)
+        protected ActionResult HandleCreated<T>(Result<T> result, string? message = null)
         {
             if (result.IsSuccess)
-            {
-                var message = messageKey != null ? Localizer.GetString(messageKey) : Localizer.GetString("Success");
-                return StatusCode(201, ApiResponse.Success(result.Value, message));
-            }
+                return StatusCode(201, ApiResponse.Success(result.Value, message ?? "Resource created successfully."));
 
             return MapError(result.Error);
         }

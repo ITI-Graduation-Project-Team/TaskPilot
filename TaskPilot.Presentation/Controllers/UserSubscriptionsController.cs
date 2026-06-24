@@ -1,5 +1,4 @@
 using System;
-using TaskPilot.Models.Common;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -42,7 +41,7 @@ namespace TaskPilot.Presentation.Controllers
             if (result.IsSuccess)
                 await _unitOfWork.SaveChangesAsync();
 
-            return HandleResult(result, SuccessCodes.UserSubscription.Retrieved);
+            return HandleResult(result);
         }
 
         [HttpGet]
@@ -50,7 +49,7 @@ namespace TaskPilot.Presentation.Controllers
         public async Task<ActionResult> GetAll([FromQuery] Guid? projectManagerId = null)
         {
             var result = await _userSubscriptionService.GetAllAsync(projectManagerId);
-            return HandleResult(result, SuccessCodes.UserSubscription.Retrieved);
+            return HandleResult(result);
         }
 
         [HttpGet("{id:guid}")]
@@ -58,7 +57,7 @@ namespace TaskPilot.Presentation.Controllers
         public async Task<ActionResult> GetById(Guid id)
         {
             var result = await _userSubscriptionService.GetByIdAsync(id);
-            return HandleResult(result, SuccessCodes.UserSubscription.Retrieved);
+            return HandleResult(result);
         }
 
         [HttpPost]
@@ -71,7 +70,7 @@ namespace TaskPilot.Presentation.Controllers
             if (result.IsSuccess)
                 await _unitOfWork.SaveChangesAsync();
 
-            return HandleCreated(result, SuccessCodes.UserSubscription.Created);
+            return HandleCreated(result, "Subscribed successfully.");
         }
 
         [HttpPut("{id:guid}")]
@@ -82,7 +81,7 @@ namespace TaskPilot.Presentation.Controllers
             if (result.IsSuccess)
                 await _unitOfWork.SaveChangesAsync();
 
-            return HandleResult(result, SuccessCodes.UserSubscription.Updated);
+            return HandleResult(result, "Subscription updated successfully.");
         }
 
         [HttpDelete("{id:guid}")]
@@ -93,7 +92,7 @@ namespace TaskPilot.Presentation.Controllers
             if (result.IsSuccess)
                 await _unitOfWork.SaveChangesAsync();
 
-            return HandleResult(result, SuccessCodes.UserSubscription.Deleted);
+            return HandleResult(result, "Subscription deleted successfully.");
         }
     }
 }

@@ -1,5 +1,4 @@
 using System;
-using TaskPilot.Models.Common;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
@@ -24,28 +23,28 @@ namespace TaskPilot.Presentation.Controllers
         public async Task<IActionResult> GetAllRoles()
         {
             var result = await _roleService.GetAllRolesAsync();
-            return HandleResult(result, SuccessCodes.Role.Retrieved);
+            return HandleResult(result);
         }
 
         [HttpGet("{id}")]
         public async Task<IActionResult> GetRoleById(Guid id)
         {
             var result = await _roleService.GetRoleByIdAsync(id);
-            return HandleResult(result, SuccessCodes.Role.Retrieved);
+            return HandleResult(result);
         }
 
         [HttpGet("permissions-matrix")]
         public async Task<IActionResult> GetPermissionMatrix()
         {
             var result = await _roleService.GetPermissionMatrixAsync();
-            return HandleResult(result, SuccessCodes.Role.Retrieved);
+            return HandleResult(result);
         }
 
         [HttpPut("{id}/permissions")]
         public async Task<IActionResult> UpdateRolePermissions(Guid id, [FromBody] UpdateRolePermissionsDto request)
         {
             var result = await _roleService.UpdateRolePermissionsAsync(id, request);
-            return HandleResult(result, SuccessCodes.Role.PermissionsUpdated);
+            return HandleResult(result, "Role permissions updated successfully");
         }
     }
 }

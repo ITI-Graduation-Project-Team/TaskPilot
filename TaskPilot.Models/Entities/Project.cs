@@ -1,5 +1,4 @@
 using TaskPilot.Models.Common;
-using TaskPilot.Models.Enums;
 
 namespace TaskPilot.Models.Entities
 {
@@ -16,9 +15,5 @@ namespace TaskPilot.Models.Entities
         public ICollection<Sprint> Sprints { get; set; } = new List<Sprint>();
         public ICollection<Policy> Policies { get; set; } = new List<Policy>();
         public ICollection<ProjectEmployee> ProjectEmployees { get; set; } = new List<ProjectEmployee>();
-        public ProjectStatus Status { get; set; }
-        public RequirementsSnapshot? RequirementsSnapshot { get; set; }
-        public List<Guid> DocumentIds { get; set; } = new List<Guid>();
-        public ICollection<UserStory> UserStories { get; set; } = new List<UserStory>();
     }
 }

@@ -4,8 +4,6 @@ using TaskPilot.AI.Orchestrators;
 using TaskPilot.AI.Persistence.Interfaces;
 using TaskPilot.DTOs.AI.Requirements;
 using TaskPilot.AI.Models.Ingestion;
-using TaskPilot.AI.Services.Interfaces;
-using TaskPilot.Services.Interfaces;
 
 namespace TaskPilot.Presentation.Controllers
 {
@@ -26,20 +24,10 @@ namespace TaskPilot.Presentation.Controllers
             IRequirementSessionStore
                 _sessionStore;
 
-        private readonly
-            IVectorStore
-                _vectorStore;
-
-        private readonly
-            IRequirementFinalizationService
-                _finalizationService;
-
         public RequirementController(
             RequirementsOrchestrator orchestrator,
             DocumentIngestionOrchestrator documentIngestionOrchestrator,
-            IRequirementSessionStore sessionStore,
-            IVectorStore vectorStore,
-            IRequirementFinalizationService finalizationService)
+            IRequirementSessionStore sessionStore)
         {
             _orchestrator =
                 orchestrator;
@@ -49,12 +37,6 @@ namespace TaskPilot.Presentation.Controllers
 
             _sessionStore =
                 sessionStore;
-                
-            _vectorStore =
-                vectorStore;
-                
-            _finalizationService =
-                finalizationService;
         }
 
         [HttpPost("document")]
@@ -69,6 +51,8 @@ namespace TaskPilot.Presentation.Controllers
                     .IngestAsync(
                         request.SessionId,
                         request.File,
+                        request.ProjectId,
+                        request.IsAvailableToContextSummarizer,
                         cancellationToken);
 
             return Ok(result);
@@ -122,45 +106,6 @@ namespace TaskPilot.Presentation.Controllers
             }
 
             return Ok(session);
-        }
-
-        [HttpGet("search")]
-        public async Task<IActionResult> Search(
-            [FromQuery] Guid sessionId,
-            [FromQuery] string query,
-            CancellationToken cancellationToken)
-        {
-            var results = await _vectorStore.SearchAsync(sessionId, query, cancellationToken: cancellationToken);
-            return Ok(results);
-        }
-
-        [HttpPost("{sessionId}/finalize")]
-        public async Task<IActionResult> Finalize(
-            Guid sessionId,
-            [FromBody] FinalizeRequirementsRequest request,
-            CancellationToken cancellationToken)
-        {
-            try
-            {
-                var response = await _finalizationService.FinalizeRequirementsAsync(sessionId, request, cancellationToken);
-                return Ok(response);
-            }
-            catch (TaskPilot.Services.Exceptions.SessionAlreadyFinalizedException ex)
-            {
-                return Conflict(new { message = ex.Message, projectId = ex.ProjectId });
-            }
-            catch (ArgumentException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
-            catch (TaskPilot.Services.Exceptions.UnprocessableEntityException ex)
-            {
-                return UnprocessableEntity(new { message = ex.Message });
-            }
         }
     }
 }

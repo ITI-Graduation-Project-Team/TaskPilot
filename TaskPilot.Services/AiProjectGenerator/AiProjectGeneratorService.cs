@@ -151,7 +151,8 @@ namespace TaskPilot.Services.AiProjectGenerator
                 if (string.IsNullOrWhiteSpace(_assistantId))
                 {
                     return Result.Failure<GeneratedProjectDTO>(
-                        AiErrors.ServerError);
+                        CommonErrors.OperationFailed(
+                            "The OpenAI Assistant ID is not configured. Please create an assistant at platform.openai.com and add its ID to 'OpenAI:AssistantId' in appsettings.json."));
                 }
 
                 // ── Run the assistant and wait for completion ────────────────────
@@ -179,7 +180,8 @@ namespace TaskPilot.Services.AiProjectGenerator
 
                 if (status != RunStatus.Completed)
                     return Result.Failure<GeneratedProjectDTO>(
-                        AiErrors.ServerError);
+                        CommonErrors.OperationFailed(
+                            $"AI run ended with status '{status}'. Please try again."));
 
                 // ── Read the latest assistant message ────────────────────────────
                 var messages = _assistantClient.GetMessagesAsync(
@@ -197,7 +199,7 @@ namespace TaskPilot.Services.AiProjectGenerator
 
                 if (inner is null)
                     return Result.Failure<GeneratedProjectDTO>(
-                        AiErrors.AiResponseUnreadable);
+                        CommonErrors.OperationFailed("AI returned an unreadable response. Please try again."));
 
                 // Attach thread ID and entity IDs
                 inner.ChatId    = threadId;
@@ -209,12 +211,12 @@ namespace TaskPilot.Services.AiProjectGenerator
             catch (JsonException)
             {
                 return Result.Failure<GeneratedProjectDTO>(
-                    AiErrors.ParsingFailed);
+                    CommonErrors.OperationFailed("AI response could not be parsed. Please try again."));
             }
             catch (Exception ex)
             {
                 return Result.Failure<GeneratedProjectDTO>(
-                    AiErrors.ServerError);
+                    CommonErrors.ServerError($"OpenAI call failed: {ex.Message}"));
             }
         }
 
@@ -224,11 +226,11 @@ namespace TaskPilot.Services.AiProjectGenerator
         public async Task<Result<Guid>> ConfirmProjectAsync(GeneratedProjectDTO dto)
         {
             if (string.IsNullOrWhiteSpace(dto.NameEn))
-                return Result.Failure<Guid>(AiErrors.ProjectNameRequired);
+                return Result.Failure<Guid>(CommonErrors.InvalidInput("Project name (English) is required."));
 
             var companyExists = await _companyRepo.AnyAsync(c => c.Id == dto.CompanyId);
             if (!companyExists)
-                return Result.Failure<Guid>(CompanyErrors.NotFound);
+                return Result.Failure<Guid>(CommonErrors.NotFound("Company"));
 
             var managerError = await ValidateProjectManagerAsync(dto.ManagerId);
             if (managerError is not null)
@@ -266,12 +268,12 @@ namespace TaskPilot.Services.AiProjectGenerator
             var user = await _userManager.FindByIdAsync(managerId.ToString());
 
             if (user is null)
-                return UserErrors.ProjectManagerNotFound;
+                return CommonErrors.NotFound("Project Manager");
 
             var isManager = await _userManager.IsInRoleAsync(user, "ProjectManager");
 
             if (!isManager)
-                return UserErrors.NotProjectManager;
+                return CommonErrors.Forbidden("The specified user is not a Project Manager.");
 
             return null;
         }

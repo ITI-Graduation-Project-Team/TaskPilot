@@ -1,13 +1,9 @@
 using Microsoft.AspNetCore.Http;
 using TaskPilot.AI.Agents.Ingestion;
-using TaskPilot.AI.Enums;
 using TaskPilot.AI.Helpers;
 using TaskPilot.AI.Models.Ingestion;
-using TaskPilot.AI.Models.Session;
 using TaskPilot.AI.Persistence.Interfaces;
 using TaskPilot.AI.Services.Interfaces;
-using TaskPilot.AI.Agents.Requirements;
-using Microsoft.Extensions.Logging;
 
 namespace TaskPilot.AI.Orchestrators
 {
@@ -18,37 +14,27 @@ namespace TaskPilot.AI.Orchestrators
         private readonly ChunkingAgent _chunkingAgent;
         private readonly IDocumentStore _documentStore;
         private readonly IRequirementSessionStore _sessionStore;
-        private readonly DocumentQuestionResolutionAgent _documentQuestionResolutionAgent;
-        private readonly CompletenessEvaluatorAgent _completenessEvaluatorAgent;
-        private readonly IVectorStore _vectorStore;
-        private readonly ILogger<DocumentIngestionOrchestrator> _logger;
 
         public DocumentIngestionOrchestrator(
             IEnumerable<IDocumentTextExtractor> extractors,
             DocumentCategorizationAgent categorizationAgent,
             ChunkingAgent chunkingAgent,
             IDocumentStore documentStore,
-            IRequirementSessionStore sessionStore,
-            DocumentQuestionResolutionAgent documentQuestionResolutionAgent,
-            CompletenessEvaluatorAgent completenessEvaluatorAgent,
-            IVectorStore vectorStore,
-            ILogger<DocumentIngestionOrchestrator> logger)
+            IRequirementSessionStore sessionStore)
         {
             _extractors = extractors;
             _categorizationAgent = categorizationAgent;
             _chunkingAgent = chunkingAgent;
             _documentStore = documentStore;
             _sessionStore = sessionStore;
-            _documentQuestionResolutionAgent = documentQuestionResolutionAgent;
-            _completenessEvaluatorAgent = completenessEvaluatorAgent;
-            _vectorStore = vectorStore;
-            _logger = logger;
         }
 
         public async Task<DocumentIngestionResult> IngestAsync(
             Guid sessionId,
             IFormFile file,
-            CancellationToken cancellationToken)
+            Guid? projectId = null,
+            bool isAvailableToContextSummarizer = true,
+            CancellationToken cancellationToken = default)
         {
             var session = await _sessionStore.GetAsync(sessionId, cancellationToken);
             if (session == null)
@@ -60,10 +46,62 @@ namespace TaskPilot.AI.Orchestrators
                 };
             }
 
+            var result =
+                await IngestCoreAsync(
+                    file,
+                    projectId,
+                    isAvailableToContextSummarizer,
+                    cancellationToken);
+
+            if (!result.Success || result.DocumentId == Guid.Empty)
+            {
+                return result;
+            }
+
+            var document =
+                await _documentStore
+                    .GetDocumentAsync(result.DocumentId, cancellationToken);
+
+            if (document is not null)
+            {
+                session.Knowledge.Documents.Add(document);
+                session.Knowledge.DocumentIds.Add(document.Id);
+            }
+
+            session.AddDecision(
+                nameof(DocumentIngestionOrchestrator),
+                "Document ingested successfully");
+
+            await _sessionStore.SaveAsync(session, cancellationToken);
+
+            return result;
+        }
+
+        public Task<DocumentIngestionResult> IngestProjectKnowledgeAsync(
+            IFormFile file,
+            Guid? projectId = null,
+            bool isAvailableToContextSummarizer = true,
+            CancellationToken cancellationToken = default)
+        {
+            return IngestCoreAsync(
+                file,
+                projectId,
+                isAvailableToContextSummarizer,
+                cancellationToken);
+        }
+
+        private async Task<DocumentIngestionResult> IngestCoreAsync(
+            IFormFile file,
+            Guid? projectId,
+            bool isAvailableToContextSummarizer,
+            CancellationToken cancellationToken)
+        {
             try
             {
-                // 1. Find matched extractor
-                var extractor = _extractors.FirstOrDefault(e => e.CanHandle(file.ContentType, file.FileName));
+                var extractor =
+                    _extractors
+                        .FirstOrDefault(e => e.CanHandle(file.ContentType, file.FileName));
+
                 if (extractor == null)
                 {
                     return new DocumentIngestionResult
@@ -73,125 +111,48 @@ namespace TaskPilot.AI.Orchestrators
                     };
                 }
 
-                // 2. Extract Text
                 string extractedText;
+
                 using (var stream = file.OpenReadStream())
                 {
-                    extractedText = await extractor.ExtractTextAsync(stream, cancellationToken);
+                    extractedText =
+                        await extractor
+                            .ExtractTextAsync(stream, cancellationToken);
                 }
 
-                _logger.LogInformation("Extracted Text Preview: {Preview}", extractedText.Length > 200 ? extractedText.Substring(0, 200) : extractedText);
+                var category =
+                    await _categorizationAgent
+                        .CategorizeAsync(file.FileName, extractedText, cancellationToken);
 
-                // 3. Categorize Document
-                var category = await _categorizationAgent.CategorizeAsync(file.FileName, extractedText, cancellationToken);
-
-                // 4. Create Ingested Document
                 var documentId = Guid.NewGuid();
-                var document = new IngestedDocument
-                {
-                    Id = documentId,
-                    FileName = file.FileName,
-                    Category = category,
-                    ContentType = file.ContentType,
-                    FileSize = file.Length,
-                    ExtractedText = extractedText,
-                    UploadedAt = DateTime.UtcNow,
-                    CloudinaryUrl = string.Empty
-                };
-
-                // 5. Chunk Content
-                var chunks = await _chunkingAgent.ChunkContentAsync(documentId, extractedText, cancellationToken: cancellationToken);
-
-                _logger.LogInformation(
-                    "Chunk generation completed. Total chunks: {Count}",
-                    chunks.Count);
-
-                foreach (var chunk in chunks)
-                {
-                    _logger.LogInformation(
-                        "Chunk {Index}: {Preview}",
-                        chunk.ChunkIndex,
-                        chunk.Content[..Math.Min(chunk.Content.Length, 150)]);
-                }
-
-                // 6. Save document and chunks to document store
-                await _documentStore.SaveDocumentAsync(document, cancellationToken);
-                await _documentStore.SaveChunksAsync(chunks, cancellationToken);
-
-                // 6.5 Vector Store Upsert
-                foreach (var chunk in chunks)
-                {
-                    chunk.SessionId = sessionId;
-                    chunk.Category = category;
-                }
-                
-                _logger.LogInformation("Preparing to store {Count} chunks in vector store", chunks.Count);
-                await _vectorStore.UpsertAsync(chunks, cancellationToken);
-                _logger.LogInformation("Successfully stored {Count} chunks in vector store", chunks.Count);
-
-                session.AddDecision(
-                    "QdrantVectorStore",
-                    $"Stored {chunks.Count} chunks in vector store for document {documentId}");
-
-                // 7. Update Session Knowledge Context
-                session.Knowledge.Documents.Add(document);
-                session.Knowledge.DocumentIds.Add(document.Id);
-
-                // 8. Record audit entry
-                session.AddDecision(
-                    nameof(DocumentIngestionOrchestrator),
-                    "Document ingested successfully");
-
-                session.UpdatedAt = DateTime.UtcNow;
-
-                // Save session changes
-                await _sessionStore.SaveAsync(session, cancellationToken);
-
-                // 9. Document Question Resolution
-                int questionsAutoResolved = 0;
-                var unansweredQuestions = session.UnansweredQuestions;
-
-                if (unansweredQuestions.Any())
-                {
-                    var resolutions = await _documentQuestionResolutionAgent.ResolveAsync(unansweredQuestions, extractedText);
-
-                    foreach (var resolution in resolutions.Where(r => r.IsAnswered))
+                var document =
+                    new IngestedDocument
                     {
-                        var question = session.QuestionPool.FirstOrDefault(q => q.Id == resolution.QuestionId);
-                        if (question != null && !question.IsAnswered)
-                        {
-                            question.IsAnswered = true;
-                            question.Answer = resolution.ExtractedAnswer;
-                            question.AnsweredAt = DateTime.UtcNow;
-                            question.AnsweredFromSource = "Document";
-                            questionsAutoResolved++;
-                        }
-                    }
+                        Id = documentId,
+                        ProjectId = projectId,
+                        FileName = file.FileName,
+                        Category = category,
+                        ContentType = file.ContentType,
+                        FileSize = file.Length,
+                        ExtractedText = extractedText,
+                        IsAvailableToContextSummarizer = isAvailableToContextSummarizer,
+                        UploadedAt = DateTime.UtcNow,
+                        CloudinaryUrl = string.Empty
+                    };
 
-                    if (questionsAutoResolved > 0)
-                    {
-                        session.AddDecision(
-                            nameof(DocumentIngestionOrchestrator),
-                            $"Auto-resolved {questionsAutoResolved} questions from document.");
+                var chunks =
+                    await _chunkingAgent
+                        .ChunkContentAsync(
+                            documentId,
+                            extractedText,
+                            projectId,
+                            cancellationToken: cancellationToken);
 
-                        // 10. Re-run Completeness Evaluator
-                        session.CompletenessReport = await _completenessEvaluatorAgent.EvaluateAsync(session);
+                await _documentStore
+                    .SaveDocumentAsync(document, cancellationToken);
 
-                        session.AddDecision(
-                            nameof(CompletenessEvaluatorAgent),
-                            $"Re-evaluated completeness after document ingestion. New score: {session.CompletenessReport.Score}");
-
-                        if (session.AllQuestionsAnswered && session.CompletenessReport != null && session.CompletenessReport.ReadyForPlanning)
-                        {
-                            session.Status = RequirementSessionStatus.Planning;
-                        }
-
-                        session.UpdatedAt = DateTime.UtcNow;
-
-                        // Save session changes again
-                        await _sessionStore.SaveAsync(session, cancellationToken);
-                    }
-                }
+                await _documentStore
+                    .SaveChunksAsync(chunks, cancellationToken);
 
                 return new DocumentIngestionResult
                 {
@@ -199,7 +160,7 @@ namespace TaskPilot.AI.Orchestrators
                     DocumentId = document.Id,
                     Category = category,
                     ChunksCreated = chunks.Count,
-                    QuestionsAutoResolved = questionsAutoResolved,
+                    QuestionsAutoResolved = 0,
                     Message = "Document ingested successfully."
                 };
             }

@@ -30,18 +30,9 @@ namespace TaskPilot.AI.Helpers
 
         public static string GetUserMessagesAsText(this RequirementSession session)
         {
-            var userMessages = session.ConversationHistory
+            return string.Join("\n", session.ConversationHistory
                 .Where(m => m.Role.Equals("user", StringComparison.OrdinalIgnoreCase))
-                .Select(m => m.Message)
-                .ToList();
-
-            var documentAnswers = session.QuestionPool
-                .Where(q => q.IsAnswered && q.AnsweredFromSource == "Document")
-                .Select(q => $"Document provided answer to '{q.Question}': {q.Answer}");
-
-            userMessages.AddRange(documentAnswers);
-
-            return string.Join("\n", userMessages);
+                .Select(m => m.Message));
         }
     }
 }
