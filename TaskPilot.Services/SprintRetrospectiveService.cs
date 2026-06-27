@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using TaskPilot.AI.Agents.Planning;
 using TaskPilot.Data.Repositories;
@@ -17,9 +18,10 @@ namespace TaskPilot.Services
     {
         public async Task<Result<SprintRetrospectiveResponseDto>> GenerateRetrospectiveAsync(Guid sprintId, CancellationToken cancellationToken = default)
         {
-            var sprint = await sprintRepository.GetByIdAsync(sprintId, 
-                s => s.Tasks,
-                s => s.Tasks.Select(t => t.Comments));
+            var sprint = await sprintRepository.GetQueryable()
+                .Include(s => s.Tasks)
+                    .ThenInclude(t => t.Comments)
+                .FirstOrDefaultAsync(s => s.Id == sprintId, cancellationToken);
 
             if (sprint is null)
             {
