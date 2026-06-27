@@ -8,6 +8,7 @@ namespace TaskPilot.AI.Models.Planning
         public string ChallengesAr { get; set; } = string.Empty;
         public string ActionItemsEn { get; set; } = string.Empty;
         public string ActionItemsAr { get; set; } = string.Empty;
-        public string TeamSentimentSummary { get; set; } = string.Empty;
+        public string TeamSentimentSummaryEn { get; set; } = string.Empty;
+        public string TeamSentimentSummaryAr { get; set; } = string.Empty;
     }
 }

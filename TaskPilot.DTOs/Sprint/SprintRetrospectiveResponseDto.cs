@@ -12,6 +12,7 @@ namespace TaskPilot.DTOs.Sprint
         public string ActionItemsAr { get; set; } = string.Empty;
         public double CompletionRate { get; set; }
         public decimal EstimationAccuracy { get; set; }
-        public string TeamSentimentSummary { get; set; } = string.Empty;
+        public string TeamSentimentSummaryEn { get; set; } = string.Empty;
+        public string TeamSentimentSummaryAr { get; set; } = string.Empty;
     }
 }

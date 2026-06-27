@@ -25,7 +25,8 @@ template: |
     "challengesAr": "...",
     "actionItemsEn": "...",
     "actionItemsAr": "...",
-    "teamSentimentSummary": "..."
+    "teamSentimentSummaryEn": "...",
+    "teamSentimentSummaryAr": "..."
   }
 input_variables:
   - name: sprintGoal

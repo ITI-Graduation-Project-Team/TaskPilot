@@ -16,7 +16,8 @@ namespace TaskPilot.Models.Configurations
             builder.Property(sr => sr.ChallengesAr).HasMaxLength(4000);
             builder.Property(sr => sr.ActionItemsEn).HasMaxLength(4000);
             builder.Property(sr => sr.ActionItemsAr).HasMaxLength(4000);
-            builder.Property(sr => sr.TeamSentimentSummary).HasMaxLength(1000);
+            builder.Property(sr => sr.TeamSentimentSummaryEn).HasMaxLength(1000);
+            builder.Property(sr => sr.TeamSentimentSummaryAr).HasMaxLength(1000);
 
             builder.HasOne(sr => sr.Sprint)
                 .WithOne()

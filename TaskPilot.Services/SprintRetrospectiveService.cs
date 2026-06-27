@@ -89,7 +89,8 @@ namespace TaskPilot.Services
                 ActionItemsAr = aiResult.ActionItemsAr,
                 CompletionRate = completionRate,
                 EstimationAccuracy = accuracy,
-                TeamSentimentSummary = aiResult.TeamSentimentSummary
+                TeamSentimentSummaryEn = aiResult.TeamSentimentSummaryEn,
+                TeamSentimentSummaryAr = aiResult.TeamSentimentSummaryAr
             };
 
             await retrospectiveRepository.AddAsync(retrospective);
@@ -122,7 +123,8 @@ namespace TaskPilot.Services
             ActionItemsAr = sr.ActionItemsAr,
             CompletionRate = sr.CompletionRate,
             EstimationAccuracy = sr.EstimationAccuracy,
-            TeamSentimentSummary = sr.TeamSentimentSummary
+            TeamSentimentSummaryEn = sr.TeamSentimentSummaryEn,
+            TeamSentimentSummaryAr = sr.TeamSentimentSummaryAr
         };
     }
 }
