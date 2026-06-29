@@ -109,6 +109,10 @@ namespace TaskPilot.AI.Extensions
             // Planning agents
             services.AddScoped<
                 WBSGenerationAgent>();
+            services.AddScoped<
+                SprintSuggestionAgent>();
+            services.AddScoped<
+                TechStackAdvisorAgent>();
 
             return services;
         }
