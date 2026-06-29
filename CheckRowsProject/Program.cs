@@ -12,14 +12,13 @@ namespace CheckRows
             {
                 try {
                     connection.Open();
-                    string query = "SELECT Id, TitleEn, Status FROM Sprints";
+                    string query = "SELECT TOP 5 Id, NameEn, TechStack, PlatformTargets, ProjectType FROM Projects";
                     using (SqlCommand command = new SqlCommand(query, connection))
                     {
                         using (SqlDataReader reader = command.ExecuteReader())
                         {
-                            while (reader.Read())
-                            {
-                                Console.WriteLine($"Sprint ID: {reader["Id"]}, Title: {reader["TitleEn"]}, Status: {reader["Status"]}");
+                            while (reader.Read()) {
+                                Console.WriteLine($"Id: {reader["Id"]}, Name: {reader["NameEn"]}, TechStack: {reader["TechStack"]}, Platforms: {reader["PlatformTargets"]}, Type: {reader["ProjectType"]}");
                             }
                         }
                     }

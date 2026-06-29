@@ -50,8 +50,10 @@ template: |
     mix English words into Arabic fields.
 
   ## Output Rules
-  - Generate between 5 and 15 UserStories depending on project scope.
-  - Each UserStory must have between 2 and 6 Tasks.
+  - Generate between 4 and 8 UserStories depending on project scope.
+  - Each UserStory must contain between 2 and 4 Tasks.
+  - Prefer fewer high-quality UserStories over many repetitive ones.
+  - Never generate unnecessary UserStories just to increase the count.
   - Every Task EffortSize must be exactly one of: Small, Medium, Large
   - Every Task Type must be exactly one of: Technical, NonTechnical
   - Every Task Priority must be exactly one of: Low, Medium, High
@@ -63,8 +65,25 @@ template: |
   - AcceptanceCriteria should be written as numbered lines in a single
     string (e.g. "1. Criteria one\n2. Criteria two") — not as a JSON array.
   - Do NOT group UserStories into Sprints — Sprint assignment happens later.
-  - Return ONLY valid JSON. No markdown, no code fences, no explanation
-    text before or after the JSON.
+  ## Response Size Rules
+  The response must always fit completely within the model output limit.
+  If necessary:
+  - Reduce the number of UserStories.
+  - Reduce the number of Tasks.
+  - Keep the most important business functionality.
+  Never truncate the JSON.
+  Returning valid JSON is more important than returning many stories.
+
+  ## JSON Validity Rules
+  Return exactly one JSON object.
+  Do not wrap JSON in markdown.
+  Do not use ```json.
+  Do not output explanations.
+  Do not output comments.
+  Do not output any text before or after the JSON.
+  Ensure every array and object is completely closed.
+  Ensure every string is properly escaped.
+  The JSON must be parseable by System.Text.Json without any preprocessing.
 
   ## Required JSON Structure
   {
@@ -94,3 +113,11 @@ template: |
       }
     ]
   }
+
+  Before producing the final answer, internally verify that:
+  - Every { has a matching }.
+  - Every [ has a matching ].
+  - Every string is closed.
+  - The JSON is syntactically valid.
+
+  Only after this verification output the JSON.

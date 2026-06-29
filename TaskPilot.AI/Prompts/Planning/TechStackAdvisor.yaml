@@ -1,0 +1,64 @@
+name: TechStackAdvisor
+description: Suggests tech stack, platforms, and project type from requirements
+template_format: semantic-kernel
+execution_settings:
+  default:
+    temperature: 0.2
+    max_tokens: 1500
+input_variables:
+  - name: businessRequirements
+    description: Business requirements from the project snapshot
+  - name: technicalRequirements
+    description: Technical requirements from the project snapshot
+  - name: constraints
+    description: Project constraints (compliance, budget, timeline)
+  - name: integrations
+    description: Required third-party integrations
+  - name: scaleRequirements
+    description: Scale and performance requirements
+template: |
+  You are a senior software architect.
+
+  Analyze the following project requirements and recommend the most
+  appropriate tech stack, target platforms, and project type.
+
+  ## Requirements
+
+  ### Business Requirements
+  {{$businessRequirements}}
+
+  ### Technical Requirements
+  {{$technicalRequirements}}
+
+  ### Constraints
+  {{$constraints}}
+
+  ### Integrations
+  {{$integrations}}
+
+  ### Scale Requirements
+  {{$scaleRequirements}}
+
+  ## Rules
+  - Recommend proven, production-ready technologies.
+  - If requirements mention mobile → include "Mobile" in platformTargets
+    and include a mobile framework in techStack.
+  - If requirements mention HIPAA or GDPR → prefer SQL Server or
+    PostgreSQL over NoSQL for primary data store.
+  - If scale requirements mention 1000+ concurrent users → include a
+    caching layer (Redis) in techStack.
+  - If integrations mention payment gateways → note relevant SDK.
+  - ProjectType must be exactly one of:
+    "ERP" | "SaaS" | "MobileApp" | "API" | "Portal" | "Other"
+  - PlatformTargets values must only be from:
+    "Web" | "Mobile" | "Desktop" | "API"
+  - Reasoning must be 2-4 sentences explaining the key decisions.
+  - Return ONLY valid JSON — no markdown, no code fences, no explanation.
+
+  ## Required JSON Structure
+  {
+    "techStack": ["string"],
+    "platformTargets": ["string"],
+    "projectType": "string",
+    "reasoning": "string"
+  }

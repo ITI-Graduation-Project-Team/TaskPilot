@@ -111,6 +111,9 @@ namespace TaskPilot.AI.Extensions
                 WBSGenerationAgent>();
             services.AddScoped<
                 SprintRetrospectiveAgent>();
+                SprintSuggestionAgent>();
+            services.AddScoped<
+                TechStackAdvisorAgent>();
 
             return services;
         }

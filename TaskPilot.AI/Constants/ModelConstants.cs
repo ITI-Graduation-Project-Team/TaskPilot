@@ -17,6 +17,7 @@ namespace TaskPilot.AI.Constants
         public const string CheapModel =
             "gpt-4o-mini";
 
+
         //gemini
         public const string GeminiFast =
              "gemini-2.5-flash";
