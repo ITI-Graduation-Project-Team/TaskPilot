@@ -86,5 +86,17 @@ namespace TaskPilot.Models.Common
             public const string Generated = "AI_PROJECT_GENERATED";
             public const string Confirmed = "AI_PROJECT_CONFIRMED";
         }
+        public static class Calendar
+        {
+            public const string EventsRetrieved = "CALENDAR_EVENTS_RETRIEVED";
+
+            public const string EventRetrieved = "CALENDAR_EVENT_RETRIEVED";
+
+            public const string EventCreated = "CALENDAR_EVENT_CREATED";
+
+            public const string EventRescheduled = "CALENDAR_EVENT_RESCHEDULED";
+
+            public const string WorkloadRetrieved = "CALENDAR_WORKLOAD_RETRIEVED";
+        }
     }
 }

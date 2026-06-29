@@ -11,7 +11,9 @@ using TaskPilot.Models.Common.Errors;
 using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Enums;
 using TaskPilot.Presentation.Middlewares;
+using TaskPilot.Presentation.Models;
 using TaskPilot.Services;
+using TaskPilot.Services.Interfaces;
 namespace TaskPilot.Presentation
 {
     public class Program
@@ -86,10 +88,12 @@ namespace TaskPilot.Presentation
 
                         context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                         context.Response.ContentType = "application/json";
-
-                        var error =CommonErrors.Unauthorized();
-                        var response = Result.Failure(error);
-
+                        var localizer = context.HttpContext.RequestServices.GetRequiredService<ILocalizationService>();
+                        Error error = CommonErrors.Unauthorized();
+                       var  description = localizer.GetString(error.Code);
+                        var response = ApiResponse.Fail(
+                            error.Code,
+                            description);
                         return context.Response.WriteAsync(JsonSerializer.Serialize(response));
                     }
                 };

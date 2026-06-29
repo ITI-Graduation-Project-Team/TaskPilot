@@ -23,6 +23,7 @@ namespace TaskPilot.Services
             services.AddScoped<IUserSubscriptionService, UserSubscriptionService>();
             services.AddScoped<ILocalizationService, LocalizationService>();
             services.AddScoped<IRequirementFinalizationService, RequirementFinalizationService>();
+            services.AddScoped<ICalenderService, CalenderService>();
             
             // الآن التكوين (configuration) متاح للاستخدام
           

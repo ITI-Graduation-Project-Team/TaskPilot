@@ -40,6 +40,7 @@ namespace TaskPilot.Data.Context
 
         public DbSet<TaskRequiredSkill> TaskRequiredSkills => Set<TaskRequiredSkill>();
         public DbSet<SkillAlias> SkillAliases => Set<SkillAlias>();
+        public DbSet<CalenderEvent>CalenderEvents => Set<CalenderEvent>();
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
