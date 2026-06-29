@@ -12,11 +12,16 @@ namespace CheckRows
             {
                 try {
                     connection.Open();
-                    string query = "SELECT COUNT(*) FROM UserStories";
+                    string query = "SELECT Id, ProjectId, TitleEn, Status FROM Sprints";
                     using (SqlCommand command = new SqlCommand(query, connection))
                     {
-                        int count = (int)command.ExecuteScalar();
-                        Console.WriteLine($"Row count: {count}");
+                        using (SqlDataReader reader = command.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                Console.WriteLine($"Sprint: {reader["Id"]}, Title: {reader["TitleEn"]}, Status: {reader["Status"]}");
+                            }
+                        }
                     }
                 } catch (Exception ex) {
                     Console.WriteLine("Error: " + ex.Message);
