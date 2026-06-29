@@ -7,6 +7,8 @@ namespace TaskPilot.DTOs.AI.Requirements
         public Guid CompanyId { get; set; }
         public string ProjectNameEn { get; set; } = string.Empty;
         public string? ProjectNameAr { get; set; }
+        public int SprintDurationInDays { get; set; } = 14;
+        public decimal TargetSprintHours { get; set; } = 80;
     }
 
     public class FinalizeRequirementsResponse

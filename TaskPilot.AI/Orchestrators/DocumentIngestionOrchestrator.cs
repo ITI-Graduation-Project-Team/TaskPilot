@@ -22,6 +22,7 @@ namespace TaskPilot.AI.Orchestrators
         private readonly CompletenessEvaluatorAgent _completenessEvaluatorAgent;
         private readonly IVectorStore _vectorStore;
         private readonly ILogger<DocumentIngestionOrchestrator> _logger;
+        private readonly RequirementsBuilderAgent _builderAgent;
 
         public DocumentIngestionOrchestrator(
             IEnumerable<IDocumentTextExtractor> extractors,
@@ -32,7 +33,8 @@ namespace TaskPilot.AI.Orchestrators
             DocumentQuestionResolutionAgent documentQuestionResolutionAgent,
             CompletenessEvaluatorAgent completenessEvaluatorAgent,
             IVectorStore vectorStore,
-            ILogger<DocumentIngestionOrchestrator> logger)
+            ILogger<DocumentIngestionOrchestrator> logger,
+            RequirementsBuilderAgent builderAgent)
         {
             _extractors = extractors;
             _categorizationAgent = categorizationAgent;
@@ -43,6 +45,7 @@ namespace TaskPilot.AI.Orchestrators
             _completenessEvaluatorAgent = completenessEvaluatorAgent;
             _vectorStore = vectorStore;
             _logger = logger;
+            _builderAgent = builderAgent;
         }
 
         public async Task<DocumentIngestionResult> IngestAsync(
@@ -181,9 +184,18 @@ namespace TaskPilot.AI.Orchestrators
                             nameof(CompletenessEvaluatorAgent),
                             $"Re-evaluated completeness after document ingestion. New score: {session.CompletenessReport.Score}");
 
-                        if (session.AllQuestionsAnswered && session.CompletenessReport != null && session.CompletenessReport.ReadyForPlanning)
+                        // NEW: if all questions are now answered, complete the workflow
+                        if (session.AllQuestionsAnswered && 
+                            session.CompletenessReport?.ReadyForPlanning == true && 
+                            session.FinalRequirements is null)
                         {
+                            session.FinalRequirements = await _builderAgent.BuildAsync(session, cancellationToken);
+
                             session.Status = RequirementSessionStatus.Planning;
+
+                            session.AddDecision(
+                                nameof(RequirementsBuilderAgent),
+                                "Final requirements built after document resolved all pending questions.");
                         }
 
                         session.UpdatedAt = DateTime.UtcNow;

@@ -58,6 +58,19 @@ namespace TaskPilot.Models.Configurations
             builder.HasIndex(p => p.ManagerId);
             builder.HasIndex(p => new { p.CompanyId, p.NameEn })
                 .IsUnique();
+
+            builder.Property(x => x.TechStack)
+                .HasConversion(
+                    v => System.Text.Json.JsonSerializer.Serialize(v, (System.Text.Json.JsonSerializerOptions?)null),
+                    v => System.Text.Json.JsonSerializer.Deserialize<List<string>>(v, (System.Text.Json.JsonSerializerOptions?)null) ?? new())
+                .HasColumnType("nvarchar(max)");
+
+            builder.Property(x => x.PlatformTargets)
+                .HasConversion(
+                    v => System.Text.Json.JsonSerializer.Serialize(v, (System.Text.Json.JsonSerializerOptions?)null),
+                    v => System.Text.Json.JsonSerializer.Deserialize<List<string>>(v, (System.Text.Json.JsonSerializerOptions?)null) ?? new())
+                .HasColumnType("nvarchar(max)");
+
             builder.HasIndex(p => new { p.CompanyId, p.ManagerId });
         }
     }

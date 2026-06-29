@@ -12,13 +12,13 @@ namespace CheckRows
             {
                 try {
                     connection.Open();
-                    string query = "SELECT Id FROM Projects WHERE RequirementsSnapshot IS NOT NULL";
+                    string query = "SELECT TOP 5 Id, NameEn, TechStack, PlatformTargets, ProjectType FROM Projects";
                     using (SqlCommand command = new SqlCommand(query, connection))
                     {
                         using (SqlDataReader reader = command.ExecuteReader())
                         {
                             while (reader.Read()) {
-                                Console.WriteLine($"Project ID: {reader["Id"]}");
+                                Console.WriteLine($"Id: {reader["Id"]}, Name: {reader["NameEn"]}, TechStack: {reader["TechStack"]}, Platforms: {reader["PlatformTargets"]}, Type: {reader["ProjectType"]}");
                             }
                         }
                     }

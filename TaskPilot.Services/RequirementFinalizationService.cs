@@ -90,11 +90,11 @@ namespace TaskPilot.Services
             // Create Requirements Snapshot
             var snapshot = new RequirementsSnapshot
             {
-                BusinessRequirements = session.Requirements.BusinessRequirements.ToList(),
-                TechnicalRequirements = session.Requirements.TechnicalRequirements.ToList(),
-                Constraints = session.Requirements.Constraints.ToList(),
-                Integrations = session.Requirements.Integrations.ToList(),
-                ScaleRequirements = session.Requirements.ScaleRequirements.ToList()
+                BusinessRequirements = session.FinalRequirements?.BusinessRequirements ?? new(),
+                TechnicalRequirements = session.FinalRequirements?.TechnicalRequirements ?? new(),
+                Constraints = session.FinalRequirements?.Constraints ?? new(),
+                Integrations = session.FinalRequirements?.Integrations ?? new(),
+                ScaleRequirements = session.FinalRequirements?.ScaleRequirements ?? new()
             };
             
             _logger.LogInformation("Requirements snapshot created successfully.");
@@ -107,6 +107,8 @@ namespace TaskPilot.Services
                 NameEn = request.ProjectNameEn,
                 NameAr = request.ProjectNameAr ?? string.Empty,
                 Status = ProjectStatus.Draft,
+                SprintDurationInDays = request.SprintDurationInDays,
+                TargetSprintHours = request.TargetSprintHours,
                 RequirementsSnapshot = snapshot,
                 DocumentIds = session.Knowledge.DocumentIds.ToList()
             };

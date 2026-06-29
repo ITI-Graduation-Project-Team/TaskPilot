@@ -10,14 +10,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Remove="Prompts\CV\ParseCvPrompt.txt" />
     <None Remove="Prompts\Requirements\Clarification.yaml" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Content Include="Prompts\CV\ParseCvPrompt.txt">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
   </ItemGroup>
 
   <ItemGroup>
