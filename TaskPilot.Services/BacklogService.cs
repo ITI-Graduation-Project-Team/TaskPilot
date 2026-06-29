@@ -35,7 +35,7 @@ namespace TaskPilot.Services
             var project = await _projectRepository.GetByIdAsync(projectId, p => p.UserStories);
             if (project == null)
             {
-                return Result<BacklogDto>.Failure(new Error("Project.NotFound", "Project not found.", ErrorType.NotFound));
+                return Result<BacklogDto>.Failure(new Error("Project.NotFound",ErrorType.NotFound, "Project not found."));
             }
 
             var storyIds = project.UserStories.Select(s => s.Id).ToList();
@@ -84,7 +84,7 @@ namespace TaskPilot.Services
         {
             var project = await _projectRepository.GetByIdAsync(projectId);
             if (project == null)
-                return Result<UserStoryDto>.Failure(new Error("Project.NotFound", "Project not found.", ErrorType.NotFound));
+                return Result<UserStoryDto>.Failure(new Error("Project.NotFound", ErrorType.NotFound, "Project not found."));
 
             var story = new UserStory
             {
@@ -124,7 +124,7 @@ namespace TaskPilot.Services
         {
             var story = await _userStoryRepository.GetByIdAsync(storyId);
             if (story == null)
-                return Result.Failure(new Error("UserStory.NotFound", "User story not found.", ErrorType.NotFound));
+                return Result.Failure(new Error("UserStory.NotFound", ErrorType.NotFound, "User story not found."));
 
             story.TitleEn = request.TitleEn;
             story.TitleAr = request.TitleAr ?? string.Empty;
@@ -144,7 +144,7 @@ namespace TaskPilot.Services
         {
             var story = await _userStoryRepository.GetByIdAsync(storyId);
             if (story == null)
-                return Result.Failure(new Error("UserStory.NotFound", "User story not found.", ErrorType.NotFound));
+                return Result.Failure(new Error("UserStory.NotFound", ErrorType.NotFound, "User story not found."));
 
             var tasks = await _taskRepository.FindAsync(t => t.UserStoryId == storyId);
             foreach (var task in tasks)
@@ -162,7 +162,7 @@ namespace TaskPilot.Services
         {
             var story = await _userStoryRepository.GetByIdAsync(storyId);
             if (story == null)
-                return Result<TaskItemDto>.Failure(new Error("UserStory.NotFound", "User story not found.", ErrorType.NotFound));
+                return Result<TaskItemDto>.Failure(new Error("UserStory.NotFound", ErrorType.NotFound, "User story not found."));
 
             var task = new TaskItem
             {
@@ -204,7 +204,7 @@ namespace TaskPilot.Services
         {
             var task = await _taskRepository.GetByIdAsync(taskId);
             if (task == null)
-                return Result.Failure(new Error("TaskItem.NotFound", "Task not found.", ErrorType.NotFound));
+                return Result.Failure(new Error("TaskItem.NotFound", ErrorType.NotFound, "Task not found."));
 
             task.TitleEn = request.TitleEn;
             task.TitleAr = request.TitleAr ?? string.Empty;
@@ -229,7 +229,7 @@ namespace TaskPilot.Services
         {
             var task = await _taskRepository.GetByIdAsync(taskId);
             if (task == null)
-                return Result.Failure(new Error("TaskItem.NotFound", "Task not found.", ErrorType.NotFound));
+                return Result.Failure(new Error("TaskItem.NotFound", ErrorType.NotFound, "Task not found."));
 
             _taskRepository.Delete(task);
             await _unitOfWork.SaveChangesAsync();
