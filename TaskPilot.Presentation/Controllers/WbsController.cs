@@ -19,20 +19,14 @@ namespace TaskPilot.Presentation.Controllers
     [Route("api/projects/{projectId}/wbs")]
     public class WbsController : ApiControllerBase
     {
-        private readonly IRepository<Project> _projectRepository;
-        private readonly WBSGenerationAgent _wbsAgent;
-        private readonly IWbsPersistenceService _wbsPersistenceService;
+        private readonly IWbsGenerationService _wbsGenerationService;
         private readonly IUserStoryRepository _userStoryRepository;
 
         public WbsController(
-            IRepository<Project> projectRepository,
-            WBSGenerationAgent wbsAgent,
-            IWbsPersistenceService wbsPersistenceService,
+            IWbsGenerationService wbsGenerationService,
             IUserStoryRepository userStoryRepository)
         {
-            _projectRepository = projectRepository;
-            _wbsAgent = wbsAgent;
-            _wbsPersistenceService = wbsPersistenceService;
+            _wbsGenerationService = wbsGenerationService;
             _userStoryRepository = userStoryRepository;
         }
 
@@ -41,26 +35,7 @@ namespace TaskPilot.Presentation.Controllers
             Guid projectId,
             CancellationToken cancellationToken)
         {
-            var project = await _projectRepository.GetByIdAsync(projectId);
-
-            if (project is null)
-                return HandleResult(Result.Failure<WbsPersistenceResult>(CommonErrors.NotFound("Project")));
-
-            if (project.RequirementsSnapshot is null)
-                return HandleResult(Result.Failure<WbsPersistenceResult>(
-                    CommonErrors.InvalidInput("Project has no RequirementsSnapshot. Complete requirement finalization first.")));
-
-            // Generate
-            var wbs = await _wbsAgent.GenerateAsync(
-                project.RequirementsSnapshot,
-                cancellationToken);
-
-            // Persist
-            var result = await _wbsPersistenceService.PersistAsync(
-                projectId,
-                wbs,
-                cancellationToken);
-
+            var result = await _wbsGenerationService.GenerateAsync(projectId, cancellationToken);
             return HandleResult(result);
         }
 

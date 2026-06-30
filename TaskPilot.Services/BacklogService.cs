@@ -32,13 +32,16 @@ namespace TaskPilot.Services
 
         public async Task<Result<BacklogDto>> GetBacklogAsync(Guid projectId)
         {
-            var project = await _projectRepository.GetByIdAsync(projectId, p => p.UserStories);
+            var project = await _projectRepository.GetByIdAsync(projectId);
             if (project == null)
             {
                 return Result<BacklogDto>.Failure(new Error("Project.NotFound",ErrorType.NotFound, "Project not found."));
             }
 
-            var storyIds = project.UserStories.Select(s => s.Id).ToList();
+            // Fetch only unassigned stories from the database
+            var unassignedStories = (await _userStoryRepository.FindAsync(s => s.ProjectId == projectId && s.SprintId == null)).ToList();
+            
+            var storyIds = unassignedStories.Select(s => s.Id).ToList();
             var tasks = await _taskRepository.FindAsync(t => t.UserStoryId.HasValue && storyIds.Contains(t.UserStoryId.Value));
 
             var dto = new BacklogDto
@@ -46,7 +49,7 @@ namespace TaskPilot.Services
                 ProjectId = project.Id,
                 ProjectNameEn = project.NameEn,
                 ProjectNameAr = project.NameAr,
-                UserStories = project.UserStories.Select(s => new UserStoryDto
+                UserStories = unassignedStories.Select(s => new UserStoryDto
                 {
                     Id = s.Id,
                     ProjectId = s.ProjectId,

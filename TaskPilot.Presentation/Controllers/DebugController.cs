@@ -119,7 +119,11 @@ namespace TaskPilot.Presentation.Controllers
 
             try
             {
-                var wbs = await wbsAgent.GenerateAsync(snapshot);
+                var wbs = await wbsAgent.GenerateAsync(
+                    snapshot,
+                    new System.Collections.Generic.List<string>(),
+                    new System.Collections.Generic.List<string>(),
+                    string.Empty);
                 return Ok(wbs);
             }
             catch (Exception ex)
