@@ -6,6 +6,8 @@ using TaskPilot.DTOs.Auth;
 using TaskPilot.Models.Common;
 using TaskPilot.Models.Enums;
 using TaskPilot.Services.Interfaces;
+using TaskPilot.Models.Common.Results;
+using TaskPilot.Models.Common.Errors;
 
 namespace TaskPilot.Presentation.Controllers
 {

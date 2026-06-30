@@ -8,6 +8,7 @@ using TaskPilot.Presentation.Contracts;
 using TaskPilot.Presentation.Controllers;
 using TaskPilot.Services.Interfaces;
 using TaskPilot.Services.Interfaces.CVExtractorInterfaces;
+using TaskPilot.DTOs.CV;
 
 [Authorize]
 [Route("api/employees")]
