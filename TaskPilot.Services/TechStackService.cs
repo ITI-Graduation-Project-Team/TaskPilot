@@ -8,6 +8,8 @@ using TaskPilot.Data.Repositories;
 using TaskPilot.DTOs.Projects;
 using TaskPilot.Models.Entities;
 using TaskPilot.Services.Interfaces;
+using TaskPilot.Models.Common.Results;
+using TaskPilot.Models.Common.Errors;
 
 namespace TaskPilot.Services
 {
@@ -30,35 +32,37 @@ namespace TaskPilot.Services
             _skillRepository = skillRepository;
         }
 
-        public async Task<TechStackSuggestion> SuggestAsync(
+        public async Task<Result<TechStackSuggestion>> SuggestAsync(
             Guid projectId,
             CancellationToken cancellationToken = default)
         {
             var project = await _projectRepository.GetByIdAsync(projectId);
             if (project is null)
-                throw new KeyNotFoundException("Project not found.");
+                return Result.Failure<TechStackSuggestion>(CommonErrors.NotFound("Project"));
 
             if (project.RequirementsSnapshot is null)
-                throw new InvalidOperationException("RequirementsSnapshot is missing.");
+                return Result.Failure<TechStackSuggestion>(CommonErrors.InvalidInput("RequirementsSnapshot is missing."));
 
             // 2. Load company employee skills
             var skills = await _skillRepository.GetCompanySkillSummaryAsync(project.CompanyId, cancellationToken);
 
             // 3. Call agent with both inputs
-            return await _techStackAdvisorAgent.SuggestAsync(
+            var suggestion = await _techStackAdvisorAgent.SuggestAsync(
                 project.RequirementsSnapshot,
                 skills,
                 cancellationToken);
+
+            return Result.Success(suggestion);
         }
 
-        public async Task ConfirmAsync(
+        public async Task<Result> ConfirmAsync(
             Guid projectId,
             ConfirmTechStackRequest request,
             CancellationToken cancellationToken = default)
         {
             var project = await _projectRepository.GetByIdAsync(projectId);
             if (project is null)
-                throw new KeyNotFoundException("Project not found.");
+                return Result.Failure(CommonErrors.NotFound("Project"));
 
             project.TechStack = request.TechStack;
             project.PlatformTargets = request.PlatformTargets;
@@ -66,6 +70,8 @@ namespace TaskPilot.Services
 
             _projectRepository.Update(project);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return Result.Success();
         }
     }
 }

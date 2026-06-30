@@ -4,12 +4,13 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using TaskPilot.DTOs.Sprints;
 using TaskPilot.Services.Interfaces;
+using TaskPilot.Models.Common.Results;
 
 namespace TaskPilot.Presentation.Controllers
 {
     [ApiController]
     [Route("api/projects/{projectId}/sprints")]
-    public class SprintsController : ControllerBase
+    public class SprintsController : ApiControllerBase
     {
         private readonly ISprintConfirmationService _sprintConfirmationService;
 
@@ -19,26 +20,15 @@ namespace TaskPilot.Presentation.Controllers
         }
 
         [HttpPost("confirm")]
-        public async Task<IActionResult> Confirm(
+        public async Task<ActionResult> Confirm(
             Guid projectId,
             [FromBody] ConfirmSprintRequest request,
             CancellationToken cancellationToken)
         {
-            try
-            {
-                var result = await _sprintConfirmationService
-                    .ConfirmAsync(projectId, request, cancellationToken);
+            var result = await _sprintConfirmationService
+                .ConfirmAsync(projectId, request, cancellationToken);
 
-                return Ok(result);
-            }
-            catch (ArgumentException ex)
-            {
-                return BadRequest(ex.Message);
-            }
-            catch (System.Collections.Generic.KeyNotFoundException ex)
-            {
-                return NotFound(ex.Message);
-            }
+            return HandleResult(result);
         }
     }
 }

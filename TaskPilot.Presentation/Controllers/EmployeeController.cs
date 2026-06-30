@@ -8,6 +8,7 @@ using TaskPilot.Presentation.Contracts;
 using TaskPilot.Presentation.Controllers;
 using TaskPilot.Services.Interfaces;
 using TaskPilot.Services.Interfaces.CVExtractorInterfaces;
+using TaskPilot.DTOs.CV;
 
 [Authorize]
 [Route("api/employees")]
@@ -32,19 +33,19 @@ public class EmployeeController : ApiControllerBase
     // Current logged-in employee uploads CV
     [HttpPost("cv")]
     [HttpPost("{userId:guid}/cv")]
-    public async Task<IActionResult> UploadCv(
+    public async Task<ActionResult> UploadCv(
         Guid? userId,
         [FromForm] UploadCvRequest request)
     {
         if (request.File == null || request.File.Length == 0)
         {
-            return HandleResult(Result.Failure(CvErrors.InvalidFile));
+            return HandleResult(Result.Failure<ParsedCvDto>(CvErrors.InvalidFile));
         }
         const long maxFileSize = 5 * 1024 * 1024;
 
         if (request.File.Length > maxFileSize)
         {
-            return HandleResult(Result.Failure(CvErrors.FileTooLarge));
+            return HandleResult(Result.Failure<ParsedCvDto>(CvErrors.FileTooLarge));
         }
         var allowedExtensions = new[] { ".pdf", ".docx" };
 
@@ -54,7 +55,7 @@ public class EmployeeController : ApiControllerBase
 
         if (!allowedExtensions.Contains(extension))
         {
-            return HandleResult(Result.Failure(CvErrors.UnsupportedFormat));
+            return HandleResult(Result.Failure<ParsedCvDto>(CvErrors.UnsupportedFormat));
         }
 
         Guid finalUserId;
@@ -65,7 +66,7 @@ public class EmployeeController : ApiControllerBase
             if (!User.IsInRole("Admin") &&
                 !User.IsInRole("ProjectManager"))
             {
-                return Forbid();
+                return HandleResult(Result.Failure<ParsedCvDto>(CommonErrors.Forbidden()));
             }
 
             finalUserId = userId.Value;
@@ -73,7 +74,7 @@ public class EmployeeController : ApiControllerBase
         else
         {
             if (_currentUser.UserId == null)
-                return Unauthorized();
+                return HandleResult(Result.Failure<ParsedCvDto>(CommonErrors.Unauthorized()));
 
             finalUserId = _currentUser.UserId.Value;
         }

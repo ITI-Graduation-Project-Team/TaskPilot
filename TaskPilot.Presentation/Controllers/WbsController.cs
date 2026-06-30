@@ -68,7 +68,7 @@ namespace TaskPilot.Presentation.Controllers
                 })
             };
 
-            return Ok(result);
+            return HandleResult(Result.Success<object>(result));
         }
     }
 }

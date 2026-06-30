@@ -82,6 +82,10 @@ namespace TaskPilot.Presentation.Controllers
         private ActionResult MapError(Error error)
         {
             var description = Localizer.GetString(error.Code);
+            if (description == error.Code && !string.IsNullOrEmpty(error.Description))
+            {
+                description = error.Description;
+            }
             var response = ApiResponse.Fail(error.Code, description);
 
             return error.Type switch
@@ -102,10 +106,17 @@ namespace TaskPilot.Presentation.Controllers
         /// </summary>
         private ActionResult MapErrors(IReadOnlyList<Error> errors)
         {
-            var errorDetails = errors.Select(e => new ErrorDetail
-            {
-                Code = e.Code,
-                Description = Localizer.GetString(e.Code)
+            var errorDetails = errors.Select(e => {
+                var desc = Localizer.GetString(e.Code);
+                if (desc == e.Code && !string.IsNullOrEmpty(e.Description))
+                {
+                    desc = e.Description;
+                }
+                return new ErrorDetail
+                {
+                    Code = e.Code,
+                    Description = desc
+                };
             });
             var response = ApiResponse.Fail(errorDetails);
             var primaryType = errors[0].Type;

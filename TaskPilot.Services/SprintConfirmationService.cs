@@ -9,6 +9,8 @@ using TaskPilot.DTOs.Sprints;
 using TaskPilot.Models.Entities;
 using TaskPilot.Models.Enums;
 using TaskPilot.Services.Interfaces;
+using TaskPilot.Models.Common.Results;
+using TaskPilot.Models.Common.Errors;
 
 namespace TaskPilot.Services
 {
@@ -34,23 +36,21 @@ namespace TaskPilot.Services
             _unitOfWork = unitOfWork;
         }
 
-        public async Task<ConfirmSprintResult> ConfirmAsync(
+        public async Task<Result<ConfirmSprintResult>> ConfirmAsync(
             Guid projectId,
             ConfirmSprintRequest request,
             CancellationToken cancellationToken = default)
         {
             // 1. Validate
             if (request.UserStoryIds is null || !request.UserStoryIds.Any())
-                throw new ArgumentException("At least one UserStory must be selected for the sprint.");
+                return Result.Failure<ConfirmSprintResult>(SprintErrors.NoUserStoriesSelected);
 
             var project = await _projectRepository.GetByIdAsync(projectId);
             if (project is null)
-                throw new KeyNotFoundException("Project not found.");
+                return Result.Failure<ConfirmSprintResult>(CommonErrors.NotFound("Project"));
 
             // 2. Load the selected UserStories and validate they belong to
             //    this project AND are currently unassigned (SprintId == null).
-            //    This prevents accidentally re-assigning a story that already
-            //    belongs to a different sprint.
             var userStories = await _userStoryRepository
                 .GetByIdsAsync(request.UserStoryIds, cancellationToken);
 
@@ -59,13 +59,13 @@ namespace TaskPilot.Services
                 .ToList();
 
             if (invalidStories.Any())
-                throw new ArgumentException(
+                return Result.Failure<ConfirmSprintResult>(CommonErrors.InvalidInput(
                     $"{invalidStories.Count} of the selected UserStories are " +
                     $"invalid — they either don't belong to this project or " +
-                    $"are already assigned to another Sprint.");
+                    $"are already assigned to another Sprint."));
 
             if (userStories.Count != request.UserStoryIds.Count)
-                throw new ArgumentException("One or more UserStory IDs were not found.");
+                return Result.Failure<ConfirmSprintResult>(CommonErrors.NotFound("UserStory", "One or more UserStory IDs were not found."));
 
             // 3. Resolve dates
             var startDate = request.StartDate ?? DateTime.UtcNow.Date;
@@ -111,7 +111,7 @@ namespace TaskPilot.Services
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
                 await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
-                return new ConfirmSprintResult
+                var confirmResult = new ConfirmSprintResult
                 {
                     SprintId = sprint.Id,
                     ProjectId = projectId,
@@ -121,11 +121,12 @@ namespace TaskPilot.Services
                     UserStoriesAssigned = userStories.Count,
                     TasksAssigned = taskCount
                 };
+                return Result.Success(confirmResult);
             }
-            catch
+            catch (Exception ex)
             {
                 await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-                throw;
+                return Result.Failure<ConfirmSprintResult>(CommonErrors.ServerError(ex.Message));
             }
         }
     }
