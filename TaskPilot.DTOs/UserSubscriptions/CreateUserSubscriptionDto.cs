@@ -16,5 +16,8 @@ namespace TaskPilot.DTOs.UserSubscriptions
         public TaskPilot.Models.Enums.PaymentGateway Gateway { get; set; }
         
         public string? PaymentMethodId { get; set; }
+        
+        public string? ReturnUrl { get; set; }
+        public string? CancelUrl { get; set; }
     }
 }

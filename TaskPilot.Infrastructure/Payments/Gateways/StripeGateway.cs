@@ -9,16 +9,19 @@ using TaskPilot.Infrastructure.Options.Payments;
 using TaskPilot.Models.Gateways;
 using TaskPilot.Models.Enums;
 using TaskPilot.Services.Interfaces.Payments;
+using Microsoft.Extensions.Logging;
 
 namespace TaskPilot.Infrastructure.Payments.Gateways
 {
     public class StripeGateway : IPaymentGateway
     {
         private readonly StripeOptions _options;
+        private readonly ILogger<StripeGateway> _logger;
 
-        public StripeGateway(IOptions<StripeOptions> options)
+        public StripeGateway(IOptions<StripeOptions> options, ILogger<StripeGateway> logger)
         {
             _options = options.Value;
+            _logger = logger;
             StripeConfiguration.ApiKey = _options.SecretKey;
         }
 
@@ -27,7 +30,8 @@ namespace TaskPilot.Infrastructure.Payments.Gateways
 
         public async Task<GatewaySubscriptionResult> CreateSubscriptionAsync(
             string customerId, string planId, BillingCycle interval, 
-            string paymentMethodId, string idempotencyKey, CancellationToken ct)
+            string paymentMethodId, string idempotencyKey, 
+            string? returnUrl, string? cancelUrl, CancellationToken ct)
         {
             if (!_options.PlanMappings.TryGetValue(planId, out var mapping))
             {
@@ -40,34 +44,46 @@ namespace TaskPilot.Infrastructure.Payments.Gateways
                 return new GatewaySubscriptionResult { Status = "Failed", ErrorMessage = $"No Stripe price ID configured for plan '{planId}' ({interval})." };
             }
 
-            var options = new SubscriptionCreateOptions
+            try
             {
-                Customer = customerId,
-                Items = new System.Collections.Generic.List<SubscriptionItemOptions>
+                var options = new SubscriptionCreateOptions
                 {
-                    new SubscriptionItemOptions
+                    Customer = customerId,
+                    Items = new System.Collections.Generic.List<SubscriptionItemOptions>
                     {
-                        Price = priceId 
-                    }
-                },
-                PaymentSettings = new SubscriptionPaymentSettingsOptions
+                        new SubscriptionItemOptions
+                        {
+                            Price = priceId 
+                        }
+                    },
+                    PaymentSettings = new SubscriptionPaymentSettingsOptions
+                    {
+                        PaymentMethodTypes = new System.Collections.Generic.List<string> { "card" },
+                        SaveDefaultPaymentMethod = "on_subscription"
+                    },
+                    Expand = new System.Collections.Generic.List<string> { "latest_invoice.payment_intent" }
+                };
+
+                var requestOptions = new RequestOptions { IdempotencyKey = idempotencyKey };
+                var service = new SubscriptionService();
+                var subscription = await service.CreateAsync(options, requestOptions, ct);
+
+                return new GatewaySubscriptionResult
                 {
-                    PaymentMethodTypes = new System.Collections.Generic.List<string> { "card" },
-                    SaveDefaultPaymentMethod = "on_subscription"
-                },
-                Expand = new System.Collections.Generic.List<string> { "latest_invoice.payment_intent" }
-            };
-
-            var requestOptions = new RequestOptions { IdempotencyKey = idempotencyKey };
-            var service = new SubscriptionService();
-            var subscription = await service.CreateAsync(options, requestOptions, ct);
-
-            return new GatewaySubscriptionResult
+                    SubscriptionId = subscription.Id,
+                    Status = subscription.Status,
+                    ClientSecret = subscription.LatestInvoice?.PaymentIntent?.ClientSecret
+                };
+            }
+            catch (StripeException ex)
             {
-                SubscriptionId = subscription.Id,
-                Status = subscription.Status,
-                ClientSecret = subscription.LatestInvoice?.PaymentIntent?.ClientSecret
-            };
+                _logger.LogError(ex, "Stripe API error during CreateSubscriptionAsync: {Message}", ex.StripeError?.Message ?? ex.Message);
+                return new GatewaySubscriptionResult 
+                { 
+                    Status = "Failed", 
+                    ErrorMessage = ex.StripeError?.Message ?? ex.Message 
+                };
+            }
         }
 
         public async Task<GatewayCancelResult> CancelSubscriptionAsync(
@@ -89,31 +105,39 @@ namespace TaskPilot.Infrastructure.Payments.Gateways
 
         public async Task<string> CreateOrGetCustomerAsync(string userId, string email, CancellationToken ct)
         {
-            var service = new CustomerService();
-            
-            // Search for existing
-            var searchOptions = new CustomerSearchOptions
+            try
             {
-                Query = $"metadata['user_id']:'{userId}'"
-            };
-            var existing = await service.SearchAsync(searchOptions, null, ct);
-            
-            if (existing.Data.Count > 0)
-            {
-                return existing.Data[0].Id;
-            }
-
-            // Create new
-            var createOptions = new CustomerCreateOptions
-            {
-                Email = email,
-                Metadata = new System.Collections.Generic.Dictionary<string, string>
+                var service = new CustomerService();
+                
+                // Search for existing
+                var searchOptions = new CustomerSearchOptions
                 {
-                    { "user_id", userId }
+                    Query = $"metadata['user_id']:'{userId}'"
+                };
+                var existing = await service.SearchAsync(searchOptions, null, ct);
+                
+                if (existing.Data.Count > 0)
+                {
+                    return existing.Data[0].Id;
                 }
-            };
-            var customer = await service.CreateAsync(createOptions, null, ct);
-            return customer.Id;
+
+                // Create new
+                var createOptions = new CustomerCreateOptions
+                {
+                    Email = email,
+                    Metadata = new System.Collections.Generic.Dictionary<string, string>
+                    {
+                        { "user_id", userId }
+                    }
+                };
+                var customer = await service.CreateAsync(createOptions, null, ct);
+                return customer.Id;
+            }
+            catch (StripeException ex)
+            {
+                _logger.LogError(ex, "Stripe API error during CreateOrGetCustomerAsync: {Message}", ex.StripeError?.Message ?? ex.Message);
+                throw; // Rethrowing because the interface requires returning a string (customer ID). We log it at least.
+            }
         }
 
         public async Task<WebhookParseResult> ParseAndVerifyWebhookAsync(

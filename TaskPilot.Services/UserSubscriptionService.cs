@@ -62,9 +62,10 @@ namespace TaskPilot.Services
                 return Result.Failure<UserSubscriptionDto>(CommonErrors.NotFound("ProjectManager"));
 
             var activeSub = (await _subscriptionRepo.FindAsync(
-                s => s.ProjectManagerId == projectManagerId && s.Status == SubscriptionStatus.Active, 
+                s => s.ProjectManagerId == projectManagerId && 
+                     (s.Status == SubscriptionStatus.Active || s.Status == SubscriptionStatus.Pending || s.Status == SubscriptionStatus.Trialing), 
                 s => s.Plan))
-                .OrderByDescending(s => s.EndDate)
+                .OrderByDescending(s => s.StartDate)
                 .FirstOrDefault();
 
             // Check if subscription has ended
@@ -156,7 +157,7 @@ namespace TaskPilot.Services
                 return Result.Failure<UserSubscriptionDto>(CommonErrors.InvalidInput("Invalid BillingCycle. Must be Monthly or Annually."));
 
             // Expire current active subscriptions
-            var activeSubs = await _subscriptionRepo.FindAsync(s => s.ProjectManagerId == projectManagerId && s.Status == SubscriptionStatus.Active);
+            var activeSubs = await _subscriptionRepo.FindAsync(s => s.ProjectManagerId == projectManagerId && (s.Status == SubscriptionStatus.Active || s.Status == SubscriptionStatus.Pending));
             foreach (var sub in activeSubs)
             {
                 sub.Status = SubscriptionStatus.Expired;
@@ -175,9 +176,10 @@ namespace TaskPilot.Services
                 var gateway = _gatewayFactory.GetGateway(dto.Gateway);
                 var customerId = await gateway.CreateOrGetCustomerAsync(pm.Id.ToString(), pm.Email ?? string.Empty, default);
                 
-                var idempotencyKey = Guid.NewGuid().ToString();
+                // Deterministic idempotency key to prevent duplicate charges on retry
+                var idempotencyKey = $"sub_{projectManagerId}_{plan.Id}_{billingCycle}_{DateTime.UtcNow:yyyyMMddHHmm}";
                 var subResult = await gateway.CreateSubscriptionAsync(
-                    customerId, plan.Name, billingCycle, dto.PaymentMethodId ?? string.Empty, idempotencyKey, default);
+                    customerId, plan.Name, billingCycle, dto.PaymentMethodId ?? string.Empty, idempotencyKey, dto.ReturnUrl, dto.CancelUrl, default);
 
                 if (subResult.Status.Equals("failed", StringComparison.OrdinalIgnoreCase))
                 {
@@ -189,6 +191,9 @@ namespace TaskPilot.Services
                 clientSecret = subResult.ClientSecret;
             }
 
+            // Paid plans start as Pending awaiting webhook confirmation. Free plans are active immediately since there's no payment to collect.
+            var initialStatus = plan.Name != "Free" ? SubscriptionStatus.Pending : SubscriptionStatus.Active;
+
             var newSubscription = new UserSubscription
             {
                 ProjectManagerId = projectManagerId,
@@ -196,7 +201,7 @@ namespace TaskPilot.Services
                 StartDate = DateTime.UtcNow,
                 EndDate = endDate,
                 BillingCycle = billingCycle,
-                Status = SubscriptionStatus.Active,
+                Status = initialStatus,
                 AutoRenew = dto.AutoRenew,
                 IsTrial = false,
                 GatewaySubscriptionId = gatewaySubId,

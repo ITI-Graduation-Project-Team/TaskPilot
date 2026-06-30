@@ -1,12 +1,14 @@
 using Microsoft.AspNetCore.Mvc;
 using System.IO;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using TaskPilot.Services.Interfaces.Payments;
 
 namespace TaskPilot.Presentation.Controllers
 {
     [ApiController]
     [Route("api/webhooks")]
+    [AllowAnonymous]
     public class WebhooksController : ControllerBase
     {
         private readonly IWebhookService _webhookService;

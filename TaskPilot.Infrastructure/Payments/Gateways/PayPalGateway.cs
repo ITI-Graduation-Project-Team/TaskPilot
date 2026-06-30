@@ -33,7 +33,8 @@ namespace TaskPilot.Infrastructure.Payments.Gateways
 
         public async Task<GatewaySubscriptionResult> CreateSubscriptionAsync(
             string customerId, string planId, BillingCycle interval, 
-            string paymentMethodId, string idempotencyKey, CancellationToken ct)
+            string paymentMethodId, string idempotencyKey, 
+            string? returnUrl, string? cancelUrl, CancellationToken ct)
         {
             if (!_options.PlanMappings.TryGetValue(planId, out var mapping))
             {
@@ -56,6 +57,11 @@ namespace TaskPilot.Infrastructure.Payments.Gateways
                 subscriber = new
                 {
                     custom_id = customerId
+                },
+                application_context = new
+                {
+                    return_url = returnUrl,
+                    cancel_url = cancelUrl
                 }
             };
 
@@ -126,14 +132,39 @@ namespace TaskPilot.Infrastructure.Payments.Gateways
         public async Task<WebhookParseResult> ParseAndVerifyWebhookAsync(
             string payload, IHeaderDictionary headers, CancellationToken ct)
         {
-            // Simplified verification for demo purposes
-            if (!headers.TryGetValue("paypal-transmission-id", out _))
+            if (!headers.TryGetValue("paypal-transmission-id", out var transmissionId) ||
+                !headers.TryGetValue("paypal-transmission-time", out var transmissionTime) ||
+                !headers.TryGetValue("paypal-cert-url", out var certUrl) ||
+                !headers.TryGetValue("paypal-auth-algo", out var authAlgo) ||
+                !headers.TryGetValue("paypal-transmission-sig", out var transmissionSig))
             {
                 return new WebhookParseResult { IsValid = false };
             }
 
             try
             {
+                var request = new PayPalHttp.HttpRequest("/v1/notifications/verify-webhook-signature", HttpMethod.Post, typeof(object));
+                request.Body = new
+                {
+                    auth_algo = authAlgo.ToString(),
+                    cert_url = certUrl.ToString(),
+                    transmission_id = transmissionId.ToString(),
+                    transmission_sig = transmissionSig.ToString(),
+                    transmission_time = transmissionTime.ToString(),
+                    webhook_id = _options.WebhookId,
+                    webhook_event = JsonSerializer.Deserialize<object>(payload)
+                };
+
+                var response = await _client.Execute(request);
+                var json = JsonSerializer.Serialize(response.Result<object>());
+                using var verifyDoc = JsonDocument.Parse(json);
+                var verificationStatus = verifyDoc.RootElement.GetProperty("verification_status").GetString();
+                
+                if (verificationStatus != "SUCCESS")
+                {
+                    return new WebhookParseResult { IsValid = false };
+                }
+
                 using var doc = JsonDocument.Parse(payload);
                 var root = doc.RootElement;
                 var eventType = root.GetProperty("event_type").GetString();

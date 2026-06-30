@@ -63,7 +63,7 @@ namespace TaskPilot.Presentation
             })
            .AddJwtBearer(o =>
            {
-               o.RequireHttpsMetadata = false;
+               o.RequireHttpsMetadata = false;//TODO change to true in production
                o.SaveToken = false;
                o.TokenValidationParameters = new TokenValidationParameters
                {

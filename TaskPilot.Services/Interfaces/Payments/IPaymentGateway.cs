@@ -12,7 +12,8 @@ namespace TaskPilot.Services.Interfaces.Payments
         TaskPilot.Models.Enums.PaymentGateway GatewayType { get; }
         Task<GatewaySubscriptionResult> CreateSubscriptionAsync(
             string customerId, string planId, BillingCycle interval, 
-            string paymentMethodId, string idempotencyKey, CancellationToken ct);
+            string paymentMethodId, string idempotencyKey, 
+            string? returnUrl, string? cancelUrl, CancellationToken ct);
         Task<GatewayCancelResult> CancelSubscriptionAsync(
             string gatewaySubscriptionId, string idempotencyKey, CancellationToken ct);
         Task<string> CreateOrGetCustomerAsync(

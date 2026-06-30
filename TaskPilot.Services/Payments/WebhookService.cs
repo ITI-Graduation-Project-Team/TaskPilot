@@ -16,15 +16,18 @@ namespace TaskPilot.Services.Payments
         private readonly IPaymentGatewayFactory _gatewayFactory;
         private readonly IRepository<UserSubscription> _subRepo;
         private readonly IRepository<Payment> _paymentRepo;
+        private readonly IUnitOfWork _unitOfWork;
 
         public WebhookService(
             IPaymentGatewayFactory gatewayFactory,
             IRepository<UserSubscription> subRepo,
-            IRepository<Payment> paymentRepo)
+            IRepository<Payment> paymentRepo,
+            IUnitOfWork unitOfWork)
         {
             _gatewayFactory = gatewayFactory;
             _subRepo = subRepo;
             _paymentRepo = paymentRepo;
+            _unitOfWork = unitOfWork;
         }
 
         public async Task<Result> HandleWebhookAsync(string gatewayName, string payload, IHeaderDictionary headers)
@@ -50,8 +53,21 @@ namespace TaskPilot.Services.Payments
                         sub.CanceledAt = DateTime.UtcNow;
                         _subRepo.Update(sub);
                     }
+                    else if (result.EventType == "invoice.payment_failed" || result.EventType == "PAYMENT.SALE.DENIED")
+                    {
+                        sub.Status = SubscriptionStatus.Canceled;
+                        sub.CanceledAt = DateTime.UtcNow;
+                        _subRepo.Update(sub);
+                    }
                     else if (result.EventType == "invoice.payment_succeeded" || result.EventType == "PAYMENT.SALE.COMPLETED")
                     {
+                        if (!string.IsNullOrEmpty(result.PaymentId))
+                        {
+                            var existingPayment = await _paymentRepo.FindSingleAsync(p => p.GatewayTransactionId == result.PaymentId);
+                            if (existingPayment != null)
+                                return Result.Success(); // Idempotency check: already processed
+                        }
+
                         sub.Status = SubscriptionStatus.Active;
                         _subRepo.Update(sub);
                         
@@ -64,13 +80,15 @@ namespace TaskPilot.Services.Payments
                             Currency = result.Currency,
                             Status = PaymentStatus.Completed,
                             PaymentGateway = gatewayType,
-                            PaymentMethod = PaymentMethod.CreditCard,
+                            PaymentMethod = gatewayType == PaymentGateway.Stripe ? PaymentMethod.CreditCard : PaymentMethod.Wallet,
                             PaidAt = DateTime.UtcNow
                         };
                         await _paymentRepo.AddAsync(payment);
                     }
                 }
             }
+
+            await _unitOfWork.SaveChangesAsync(default);
 
             return Result.Success();
         }
