@@ -1,69 +1,43 @@
 name: RequirementsBuilder
-description: Builds structured requirements from all available sources
-template_format: semantic-kernel
-model:
-  api: chat
-  configuration:
-    temperature: 0.1
-    max_tokens: 3000
-input_variables:
-  - name: conversationHistory
-    description: Full PM conversation with timestamps
-  - name: answeredQuestions
-    description: All answered clarification questions with sources and timestamps
-  - name: documentContext
-    description: Extracted text from uploaded documents with upload timestamps
+
 template: |
-  You are an expert requirements analyst.
+  Convert the following project requirements into structured JSON.
 
-  Build a complete, structured requirements model by reading ALL three
-  sources below. Extract every requirement mentioned — do not skip any.
+  Responsibilities:
+    - Build structured project requirements
+    - Merge all PM responses
+    - Normalize requirement structure
+    - Infer obvious missing details carefully
+    - Preserve ALL business requirements
 
-  ## Source 1: Conversation History (LOWEST priority)
-  {{$conversationHistory}}
+  Rules:
+    - Return ONLY valid JSON
+    - Do NOT explain
+    - Do NOT wrap JSON in markdown
 
-  ## Source 2: Answered Clarification Questions (MEDIUM priority)
-  {{$answeredQuestions}}
+  JSON FORMAT:
 
-  ## Source 3: Uploaded Documents (HIGHEST priority)
-  {{$documentContext}}
-
-  ## Priority Rules
-  1. Documents are the highest-trust source. Specific values from documents
-     (numbers, names, standards, system names, deadlines) MUST appear in
-     the output — never ignore them.
-  2. QuestionPool answers are the second source. If a question was answered
-     from a document (AnsweredFromSource = "Document"), treat it as document
-     priority. If answered by PM (AnsweredFromSource = "PM"), treat as
-     conversation priority.
-  3. Conversation messages are the lowest-trust source — they may contain
-     rough estimates or informal statements.
-  4. Conflict resolution: if two sources disagree on the same topic,
-     use the value from the HIGHER priority source. Exception: if the
-     lower-priority source has a LATER timestamp than the higher-priority
-     source, the later timestamp wins (PM deliberately overriding a document).
-
-  ## Extraction Rules
-  - Extract ALL integrations mentioned anywhere (Stripe, HL7, FHIR, etc.)
-  - Extract ALL scale requirements (user counts, record counts, performance)
-  - Extract ALL compliance requirements (HIPAA, GDPR, etc.)
-  - Extract ALL business goals
-  - Extract ALL technical requirements
-  - If documentContext is empty, build from conversation and questions only.
-  - Do NOT invent requirements not present in any source.
-  - Do NOT leave any array empty if relevant content exists in the sources.
-  - Merge and deduplicate overlapping information across sources.
-
-  ## Output Rules
-  - Return ONLY valid JSON — no markdown, no code fences, no explanation.
-  - Every list must be a flat array of plain strings.
-  - Each string must be a single, specific, actionable requirement.
-
-  ## Required JSON Structure
   {
-    "businessRequirements": ["string"],
-    "technicalRequirements": ["string"],
-    "constraints": ["string"],
-    "integrations": ["string"],
-    "scaleRequirements": ["string"]
+    "projectType": "",
+    "summary": "",
+    "estimatedUsers": 0,
+    "needsMobileApp": false,
+    "needsRealtimeFeatures": false,
+    "preferredSprintCount": 0,
+    "deadlineMonths": 0,
+    "coreModules": [],
+    "constraints": [],
+    "requirementsCompleted": true,
+    "missingRequirements": []
   }
+
+  REQUIREMENTS:
+  {{$requirements}}
+
+  PM RESPONSES:
+  {{$responses}}
+
+  AMBIGUITIES:
+  {{$ambiguities}}
+
+template_format: semantic-kernel

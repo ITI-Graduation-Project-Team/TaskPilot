@@ -35,7 +35,7 @@ namespace TaskPilot.Services
         {
             var sub = await _subscriptionRepo.GetByIdAsync(id, s => s.Plan);
             if (sub == null)
-                return Result.Failure<UserSubscriptionDto>(UserSubscriptionErrors.NotFound);
+                return Result.Failure<UserSubscriptionDto>(CommonErrors.NotFound("UserSubscription"));
 
             return Result.Success(MapToDto(sub));
         }
@@ -59,7 +59,7 @@ namespace TaskPilot.Services
         {
             var pmExists = await _pmRepo.AnyAsync(pm => pm.Id == projectManagerId);
             if (!pmExists)
-                return Result.Failure<UserSubscriptionDto>(UserErrors.ProjectManagerNotFound);
+                return Result.Failure<UserSubscriptionDto>(CommonErrors.NotFound("ProjectManager"));
 
             var activeSub = (await _subscriptionRepo.FindAsync(
                 s => s.ProjectManagerId == projectManagerId && 
@@ -137,7 +137,7 @@ namespace TaskPilot.Services
                         BillingCycle = "Monthly"
                     });
                 }
-                return Result.Failure<UserSubscriptionDto>(UserSubscriptionErrors.ActiveSubscriptionNotFound);
+                return Result.Failure<UserSubscriptionDto>(CommonErrors.NotFound("Active Subscription"));
             }
 
             return Result.Success(MapToDto(activeSub));
@@ -151,10 +151,10 @@ namespace TaskPilot.Services
 
             var plan = await _planRepo.FindSingleAsync(p => p.Id == dto.SubscriptionPlanId);
             if (plan == null)
-                return Result.Failure<UserSubscriptionDto>(SubscriptionPlanErrors.NotFound);
+                return Result.Failure<UserSubscriptionDto>(CommonErrors.NotFound("SubscriptionPlan"));
 
             if (!Enum.TryParse<BillingCycle>(dto.BillingCycle, out var billingCycle))
-                return Result.Failure<UserSubscriptionDto>(UserSubscriptionErrors.InvalidBillingCycle);
+                return Result.Failure<UserSubscriptionDto>(CommonErrors.InvalidInput("Invalid BillingCycle. Must be Monthly or Annually."));
 
             // Expire current active subscriptions
             var activeSubs = await _subscriptionRepo.FindAsync(s => s.ProjectManagerId == projectManagerId && (s.Status == SubscriptionStatus.Active || s.Status == SubscriptionStatus.Pending));
@@ -233,10 +233,10 @@ namespace TaskPilot.Services
         {
             var sub = await _subscriptionRepo.GetByIdAsync(id);
             if (sub == null)
-                return Result.Failure(UserSubscriptionErrors.NotFound);
+                return Result.Failure(CommonErrors.NotFound("UserSubscription"));
 
             if (!Enum.TryParse<SubscriptionStatus>(dto.Status, out var status))
-                return Result.Failure(UserSubscriptionErrors.InvalidStatus);
+                return Result.Failure(CommonErrors.InvalidInput("Invalid Status."));
 
             sub.Status = status;
             sub.AutoRenew = dto.AutoRenew;
@@ -250,7 +250,7 @@ namespace TaskPilot.Services
         {
             var sub = await _subscriptionRepo.GetByIdAsync(id);
             if (sub == null)
-                return Result.Failure(UserSubscriptionErrors.NotFound);
+                return Result.Failure(CommonErrors.NotFound("UserSubscription"));
 
             if (!string.IsNullOrEmpty(sub.GatewaySubscriptionId))
             {

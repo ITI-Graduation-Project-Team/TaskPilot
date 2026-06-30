@@ -43,17 +43,6 @@ namespace TaskPilot.Models.Configurations
                     .HasConversion<int>()
                      .HasDefaultValue(StoryStatus.ToDo);
 
-            builder.HasOne(x => x.Project)
-                .WithMany(x => x.UserStories)
-                .HasForeignKey(x => x.ProjectId)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            builder.HasOne(x => x.Sprint)
-                .WithMany(x => x.UserStories)
-                .HasForeignKey(x => x.SprintId)
-                .OnDelete(DeleteBehavior.SetNull)
-                .IsRequired(false);
-
             builder.HasIndex(us => us.SprintId);
             builder.HasIndex(us => new { us.SprintId, us.Status });
             builder.HasIndex(us => new { us.SprintId, us.TitleEn })

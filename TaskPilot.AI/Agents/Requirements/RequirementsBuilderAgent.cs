@@ -29,64 +29,59 @@ namespace TaskPilot.AI.Agents.Requirements
 
         public async Task<StructuredRequirements>
             BuildAsync(
-                RequirementSession session,
-                CancellationToken cancellationToken = default)
+                RequirementSession session)
         {
             var kernel =
                 _kernelService
                     .CreateKernel(
                         ModelConstants
-                            .PowerfulModel);
+                            .FastModel);
 
+            // Load YAML prompt
             var prompt =
                 await _promptLoader
                     .LoadAsync(
                         "Requirements/Builder.yaml");
 
+            // Create YAML function
             var function =
                 KernelFunctionYaml
                     .FromPromptYaml(
                         prompt);
 
-            var conversationText = string.Join("\n", session
-                .ConversationHistory
-                .Select(m => $"[{m.Timestamp:yyyy-MM-dd HH:mm}] {m.Role}: {m.Message}"));
+            // Create deterministic arguments
+            var arguments =
+                KernelArgumentsFactory
+                    .CreateDeterministicArguments();
 
-            var answeredQuestions = string.Join("\n", session
-                .QuestionPool
-                .Where(q => q.IsAnswered && !string.IsNullOrWhiteSpace(q.Answer))
-                .Select(q =>
-                    $"Category: {q.Category}\n" +
-                    $"Q: {q.Question}\n" +
-                    $"A: {q.Answer}\n" +
-                    $"Source: {q.AnsweredFromSource ?? "PM"}\n" +
-                    $"AnsweredAt: {q.AnsweredAt:yyyy-MM-dd HH:mm}"));
+            arguments["requirements"] =
+                session
+                    .Requirements
+                    .ToPromptText();
 
-            var documentContext = string.Empty;
+            arguments["responses"] =
+                session
+                    .GetUserMessagesAsText();
 
-            if (session.Knowledge?.Documents != null
-                && session.Knowledge.Documents.Any())
-            {
-                var documentTexts = session.Knowledge.Documents
-                    .Where(d => !string.IsNullOrWhiteSpace(d.ExtractedText))
-                    .Select(d =>
-                        $"[Document: {d.FileName} | " +
-                        $"Category: {d.Category} | " +
-                        $"Uploaded: {d.UploadedAt:yyyy-MM-dd HH:mm}]\n" +
-                        $"{d.ExtractedText}");
+            arguments["ambiguities"] =
+                string.Join(
+                    "\n",
+                    session
+                        .DetectedAmbiguities);
 
-                documentContext = string.Join("\n\n", documentTexts);
-            }
+            arguments["conversationHistory"] =
+                string.Join(
+                    "\n",
+                    session
+                        .ConversationHistory
+                        .Select(x =>
+                            $"{x.Role}: {x.Message}"));
 
-            var result = await kernel.InvokeAsync(
-                function,
-                new KernelArguments
-                {
-                    ["conversationHistory"] = conversationText,
-                    ["answeredQuestions"]   = answeredQuestions,
-                    ["documentContext"]     = documentContext
-                },
-                cancellationToken: cancellationToken);
+            // Invoke AI
+            var result =
+                await kernel.InvokeAsync(
+                    function,
+                    arguments);
 
             var json =
                 result.ToString()

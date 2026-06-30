@@ -29,13 +29,13 @@ namespace TaskPilot.Services.AiProjectGenerator
         public async Task<Result<string>> TranscribeAsync(IFormFile audioFile)
         {
             if (audioFile is null || audioFile.Length == 0)
-                return Result.Failure<string>(AiErrors.EmptyAudio);
+                return Result.Failure<string>(CommonErrors.InvalidInput("Audio file is empty."));
 
             var extension = Path.GetExtension(audioFile.FileName);
 
             if (!_supportedExtensions.Contains(extension))
                 return Result.Failure<string>(
-                    AiErrors.InvalidAudioFormat);
+                    CommonErrors.InvalidInput($"Unsupported audio format '{extension}'. Supported: .mp3, .wav, .m4a, .webm."));
 
             using var stream = audioFile.OpenReadStream();
 
@@ -46,7 +46,7 @@ namespace TaskPilot.Services.AiProjectGenerator
             var transcript = response.Value.Text;
 
             if (string.IsNullOrWhiteSpace(transcript))
-                return Result.Failure<string>(AiErrors.EmptyTranscription);
+                return Result.Failure<string>(CommonErrors.InvalidInput("Whisper returned an empty transcription."));
 
             return Result.Success(transcript);
         }

@@ -4,14 +4,13 @@ using Microsoft.OpenApi;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using TaskPilot.AI.Extensions;
 using TaskPilot.Data;
-using TaskPilot.Infrastructure.Extensions;
 using TaskPilot.Models.Common.Errors;
 using TaskPilot.Models.Common.Results;
-using TaskPilot.Models.Enums;
-using TaskPilot.Presentation.Middlewares;
 using TaskPilot.Services;
+using TaskPilot.Presentation.Middlewares;
+using TaskPilot.AI.Extensions;
+using TaskPilot.Infrastructure.Extensions;
 namespace TaskPilot.Presentation
 {
     public class Program
@@ -21,7 +20,7 @@ namespace TaskPilot.Presentation
             var builder = WebApplication.CreateBuilder(args);
             builder.Services.AddData(builder.Configuration);
             builder.Services.AddServices(builder.Configuration);
-            builder.Services.AddAiLayer(builder.Configuration);
+            builder.Services.AddAiLayer();
             builder.Services.AddInfrastructure(
     builder.Configuration);
             builder.Services.AddPaymentLayer(builder.Configuration);
@@ -95,20 +94,14 @@ namespace TaskPilot.Presentation
                     }
                 };
             });
-            builder.Services.AddAuthorization(options =>
-            {
-                options.AddPolicy("ProfileComplete", policy =>
-                    policy.RequireAssertion(context =>
-                        context.User.IsInRole(nameof(UserRole.ProjectManager)) ||
-                        context.User.HasClaim("ProfileCompleted", "True")
-                    ));
-            });
+
             var app = builder.Build();
 
-            
+            if (app.Environment.IsDevelopment())
+            {
                 app.UseSwagger();
                 app.UseSwaggerUI();
-            
+            }
             app.UseCors("AllowAll");
             app.UseHttpsRedirection();
 

@@ -1,27 +1,25 @@
-using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace TaskPilot.Models.Common.Errors
+﻿namespace TaskPilot.Models.Common.Errors
 {
-    public class CompanyErrors
+    public static class CompanyErrors
     {
         public static readonly Error CompanyAlreadyExists =
-            new("COMPANY_ALREADY_EXISTS", ErrorType.Conflict);
+            CommonErrors.Conflict(
+                "Company already exists.");
 
         public static readonly Error InvalidOwner =
-            new("INVALID_OWNER", ErrorType.Forbidden);
+            CommonErrors.Forbidden(
+                "Invalid company owner.");
 
         public static readonly Error InvalidInvitation =
-            new("INVALID_INVITATION", ErrorType.Validation);
+            CommonErrors.InvalidInput(
+                "Invitation is invalid.");
 
         public static readonly Error InvitationExpired =
-            new("INVITATION_EXPIRED", ErrorType.Validation);
+            CommonErrors.InvalidInput(
+                "Invitation has expired.");
 
         public static readonly Error InvitationAlreadyAccepted =
-            new("INVITATION_ALREADY_ACCEPTED", ErrorType.Conflict);
-
-        public static readonly Error NotFound = 
-            new("COMPANY_NOT_FOUND", ErrorType.NotFound);
+            CommonErrors.Conflict(
+                "Invitation already accepted.");
     }
 }

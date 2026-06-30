@@ -5,7 +5,6 @@ using Microsoft.Extensions.DependencyInjection;
 using TaskPilot.Data.Context;
 using TaskPilot.Data.Identity;
 using TaskPilot.Data.Repositories;
-using TaskPilot.Data.Repositories.Interfaces;
 using TaskPilot.Models.Common;
 using TaskPilot.Models.Entities;
 using TaskPilot.Services.Interfaces;
@@ -46,9 +45,6 @@ namespace TaskPilot.Data
             services.AddScoped<IUnitOfWork>(sp =>
                         sp.GetRequiredService<ApplicationDbContext>());
             services.AddScoped<ICurrentUserService, CurrentUserService>();
-
-            services.AddScoped<IUserStoryRepository, UserStoryRepository>();
-            services.AddScoped<ITaskRepository, TaskRepository>();
 
             return services;
         }
