@@ -15,7 +15,5 @@ namespace TaskPilot.DTOs.UserSubscriptions
         public bool AutoRenew { get; set; }
         public bool IsTrial { get; set; }
         public DateTime? TrialEndDate { get; set; }
-        
-        public string? ClientSecret { get; set; }
     }
 }

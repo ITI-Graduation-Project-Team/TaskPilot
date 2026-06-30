@@ -17,25 +17,22 @@ namespace TaskPilot.Services
         private readonly IRepository<UserSubscription> _subscriptionRepo;
         private readonly IRepository<SubscriptionPlan> _planRepo;
         private readonly IRepository<ProjectManager> _pmRepo;
-        private readonly TaskPilot.Services.Interfaces.Payments.IPaymentGatewayFactory _gatewayFactory;
 
         public UserSubscriptionService(
             IRepository<UserSubscription> subscriptionRepo,
             IRepository<SubscriptionPlan> planRepo,
-            IRepository<ProjectManager> pmRepo,
-            TaskPilot.Services.Interfaces.Payments.IPaymentGatewayFactory gatewayFactory)
+            IRepository<ProjectManager> pmRepo)
         {
             _subscriptionRepo = subscriptionRepo;
             _planRepo = planRepo;
             _pmRepo = pmRepo;
-            _gatewayFactory = gatewayFactory;
         }
 
         public async Task<Result<UserSubscriptionDto>> GetByIdAsync(Guid id)
         {
             var sub = await _subscriptionRepo.GetByIdAsync(id, s => s.Plan);
             if (sub == null)
-                return Result.Failure<UserSubscriptionDto>(CommonErrors.NotFound("UserSubscription"));
+                return Result.Failure<UserSubscriptionDto>(UserSubscriptionErrors.NotFound);
 
             return Result.Success(MapToDto(sub));
         }
@@ -59,13 +56,12 @@ namespace TaskPilot.Services
         {
             var pmExists = await _pmRepo.AnyAsync(pm => pm.Id == projectManagerId);
             if (!pmExists)
-                return Result.Failure<UserSubscriptionDto>(CommonErrors.NotFound("ProjectManager"));
+                return Result.Failure<UserSubscriptionDto>(UserErrors.ProjectManagerNotFound);
 
             var activeSub = (await _subscriptionRepo.FindAsync(
-                s => s.ProjectManagerId == projectManagerId && 
-                     (s.Status == SubscriptionStatus.Active || s.Status == SubscriptionStatus.Pending || s.Status == SubscriptionStatus.Trialing), 
+                s => s.ProjectManagerId == projectManagerId && s.Status == SubscriptionStatus.Active, 
                 s => s.Plan))
-                .OrderByDescending(s => s.StartDate)
+                .OrderByDescending(s => s.EndDate)
                 .FirstOrDefault();
 
             // Check if subscription has ended
@@ -137,7 +133,7 @@ namespace TaskPilot.Services
                         BillingCycle = "Monthly"
                     });
                 }
-                return Result.Failure<UserSubscriptionDto>(CommonErrors.NotFound("Active Subscription"));
+                return Result.Failure<UserSubscriptionDto>(UserSubscriptionErrors.ActiveSubscriptionNotFound);
             }
 
             return Result.Success(MapToDto(activeSub));
@@ -145,19 +141,19 @@ namespace TaskPilot.Services
 
         public async Task<Result<UserSubscriptionDto>> CreateAsync(Guid projectManagerId, CreateUserSubscriptionDto dto)
         {
-            var pm = await _pmRepo.GetByIdAsync(projectManagerId);
-            if (pm == null)
-                return Result.Failure<UserSubscriptionDto>(CommonErrors.NotFound("ProjectManager"));
+            var pmExists = await _pmRepo.AnyAsync(pm => pm.Id == projectManagerId);
+            if (!pmExists)
+                return Result.Failure<UserSubscriptionDto>(UserErrors.ProjectManagerNotFound);
 
             var plan = await _planRepo.FindSingleAsync(p => p.Id == dto.SubscriptionPlanId);
             if (plan == null)
-                return Result.Failure<UserSubscriptionDto>(CommonErrors.NotFound("SubscriptionPlan"));
+                return Result.Failure<UserSubscriptionDto>(SubscriptionPlanErrors.NotFound);
 
             if (!Enum.TryParse<BillingCycle>(dto.BillingCycle, out var billingCycle))
-                return Result.Failure<UserSubscriptionDto>(CommonErrors.InvalidInput("Invalid BillingCycle. Must be Monthly or Annually."));
+                return Result.Failure<UserSubscriptionDto>(UserSubscriptionErrors.InvalidBillingCycle);
 
             // Expire current active subscriptions
-            var activeSubs = await _subscriptionRepo.FindAsync(s => s.ProjectManagerId == projectManagerId && (s.Status == SubscriptionStatus.Active || s.Status == SubscriptionStatus.Pending));
+            var activeSubs = await _subscriptionRepo.FindAsync(s => s.ProjectManagerId == projectManagerId && s.Status == SubscriptionStatus.Active);
             foreach (var sub in activeSubs)
             {
                 sub.Status = SubscriptionStatus.Expired;
@@ -166,34 +162,6 @@ namespace TaskPilot.Services
 
             var endDate = billingCycle == BillingCycle.Monthly ? DateTime.UtcNow.AddMonths(1) : DateTime.UtcNow.AddYears(1);
 
-            // Integrate with Payment Gateway
-            string? gatewaySubId = null;
-            string? gatewayCustId = null;
-            string? clientSecret = null;
-            
-            if (plan.Name != "Free")
-            {
-                var gateway = _gatewayFactory.GetGateway(dto.Gateway);
-                var customerId = await gateway.CreateOrGetCustomerAsync(pm.Id.ToString(), pm.Email ?? string.Empty, default);
-                
-                // Deterministic idempotency key to prevent duplicate charges on retry
-                var idempotencyKey = $"sub_{projectManagerId}_{plan.Id}_{billingCycle}_{DateTime.UtcNow:yyyyMMddHHmm}";
-                var subResult = await gateway.CreateSubscriptionAsync(
-                    customerId, plan.Name, billingCycle, dto.PaymentMethodId ?? string.Empty, idempotencyKey, dto.ReturnUrl, dto.CancelUrl, default);
-
-                if (subResult.Status.Equals("failed", StringComparison.OrdinalIgnoreCase))
-                {
-                    return Result.Failure<UserSubscriptionDto>(CommonErrors.OperationFailed(subResult.ErrorMessage ?? "Payment gateway declined the subscription request."));
-                }
-
-                gatewaySubId = subResult.SubscriptionId;
-                gatewayCustId = customerId;
-                clientSecret = subResult.ClientSecret;
-            }
-
-            // Paid plans start as Pending awaiting webhook confirmation. Free plans are active immediately since there's no payment to collect.
-            var initialStatus = plan.Name != "Free" ? SubscriptionStatus.Pending : SubscriptionStatus.Active;
-
             var newSubscription = new UserSubscription
             {
                 ProjectManagerId = projectManagerId,
@@ -201,19 +169,15 @@ namespace TaskPilot.Services
                 StartDate = DateTime.UtcNow,
                 EndDate = endDate,
                 BillingCycle = billingCycle,
-                Status = initialStatus,
+                Status = SubscriptionStatus.Active,
                 AutoRenew = dto.AutoRenew,
-                IsTrial = false,
-                GatewaySubscriptionId = gatewaySubId,
-                GatewayCustomerId = gatewayCustId,
-                Gateway = dto.Gateway
+                IsTrial = false
             };
 
             await _subscriptionRepo.AddAsync(newSubscription);
 
             var resultDto = new UserSubscriptionDto
             {
-                Id = newSubscription.Id,
                 ProjectManagerId = projectManagerId,
                 SubscriptionPlanId = plan.Id,
                 PlanName = plan.Name,
@@ -222,8 +186,7 @@ namespace TaskPilot.Services
                 BillingCycle = newSubscription.BillingCycle.ToString(),
                 Status = newSubscription.Status.ToString(),
                 AutoRenew = newSubscription.AutoRenew,
-                IsTrial = newSubscription.IsTrial,
-                ClientSecret = clientSecret
+                IsTrial = newSubscription.IsTrial
             };
 
             return Result.Success(resultDto);
@@ -233,10 +196,10 @@ namespace TaskPilot.Services
         {
             var sub = await _subscriptionRepo.GetByIdAsync(id);
             if (sub == null)
-                return Result.Failure(CommonErrors.NotFound("UserSubscription"));
+                return Result.Failure(UserSubscriptionErrors.NotFound);
 
             if (!Enum.TryParse<SubscriptionStatus>(dto.Status, out var status))
-                return Result.Failure(CommonErrors.InvalidInput("Invalid Status."));
+                return Result.Failure(UserSubscriptionErrors.InvalidStatus);
 
             sub.Status = status;
             sub.AutoRenew = dto.AutoRenew;
@@ -250,23 +213,8 @@ namespace TaskPilot.Services
         {
             var sub = await _subscriptionRepo.GetByIdAsync(id);
             if (sub == null)
-                return Result.Failure(CommonErrors.NotFound("UserSubscription"));
+                return Result.Failure(UserSubscriptionErrors.NotFound);
 
-            if (!string.IsNullOrEmpty(sub.GatewaySubscriptionId))
-            {
-                try
-                {
-                    var gateway = _gatewayFactory.GetGateway(sub.Gateway);
-                    await gateway.CancelSubscriptionAsync(sub.GatewaySubscriptionId, Guid.NewGuid().ToString(), default);
-                }
-                catch
-                {
-                    // Log error but proceed to cancel locally
-                }
-            }
-
-            sub.Status = SubscriptionStatus.Canceled;
-            sub.CanceledAt = DateTime.UtcNow;
             sub.IsDeleted = true;
             _subscriptionRepo.Update(sub);
             return Result.Success();

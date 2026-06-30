@@ -12,12 +12,5 @@ namespace TaskPilot.DTOs.UserSubscriptions
         public string BillingCycle { get; set; } = "Monthly";
 
         public bool AutoRenew { get; set; } = true;
-        
-        public TaskPilot.Models.Enums.PaymentGateway Gateway { get; set; }
-        
-        public string? PaymentMethodId { get; set; }
-        
-        public string? ReturnUrl { get; set; }
-        public string? CancelUrl { get; set; }
     }
 }

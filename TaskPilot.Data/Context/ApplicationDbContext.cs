@@ -11,6 +11,7 @@ namespace TaskPilot.Data.Context
     public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, Guid>, IUnitOfWork
     {
         private readonly ICurrentUserService _currentUserService;
+        private Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction? _currentTransaction;
 
         public ApplicationDbContext(
             DbContextOptions<ApplicationDbContext> options,
@@ -40,6 +41,7 @@ namespace TaskPilot.Data.Context
 
         public DbSet<TaskRequiredSkill> TaskRequiredSkills => Set<TaskRequiredSkill>();
         public DbSet<SkillAlias> SkillAliases => Set<SkillAlias>();
+        public DbSet<SprintRetrospective> SprintRetrospectives => Set<SprintRetrospective>();
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -67,6 +69,48 @@ namespace TaskPilot.Data.Context
             }
 
             return await base.SaveChangesAsync(cancellationToken);
+        }
+
+        public async Task BeginTransactionAsync(CancellationToken cancellationToken = default)
+        {
+            if (_currentTransaction != null)
+                throw new InvalidOperationException("A database transaction is already active.");
+
+            _currentTransaction = await Database.BeginTransactionAsync(cancellationToken);
+        }
+
+        public async Task CommitTransactionAsync(CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                if (_currentTransaction != null)
+                    await _currentTransaction.CommitAsync(cancellationToken);
+            }
+            finally
+            {
+                if (_currentTransaction != null)
+                {
+                    await _currentTransaction.DisposeAsync();
+                    _currentTransaction = null;
+                }
+            }
+        }
+
+        public async Task RollbackTransactionAsync(CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                if (_currentTransaction != null)
+                    await _currentTransaction.RollbackAsync(cancellationToken);
+            }
+            finally
+            {
+                if (_currentTransaction != null)
+                {
+                    await _currentTransaction.DisposeAsync();
+                    _currentTransaction = null;
+                }
+            }
         }
     }
 }

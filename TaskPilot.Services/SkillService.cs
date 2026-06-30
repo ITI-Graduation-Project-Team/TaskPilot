@@ -1,4 +1,4 @@
-﻿using TaskPilot.Data.Repositories;
+using TaskPilot.Data.Repositories;
 using TaskPilot.Models.Common.Errors;
 using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Entities;
@@ -27,9 +27,7 @@ namespace TaskPilot.Services
         {
             if (string.IsNullOrWhiteSpace(name))
             {
-                return Result.Failure<Skill>(
-                    CommonErrors.InvalidInput(
-                        "Skill name is required"));
+                return Result.Failure<Skill>(SkillErrors.InvalidName);
             }
 
             var normalizedName =
@@ -46,9 +44,7 @@ namespace TaskPilot.Services
             if (existingSkill != null &&
                 !existingSkill.IsDeleted)
             {
-                return Result.Failure<Skill>(
-                    CommonErrors.Conflict(
-                        "Skill already exists"));
+                return Result.Failure<Skill>(SkillErrors.NameAlreadyExists);
             }
 
             // Restore soft deleted skill
@@ -87,15 +83,12 @@ namespace TaskPilot.Services
 
             if (skill == null)
             {
-                return Result.Failure(
-                    CommonErrors.NotFound("Skill"));
+                return Result.Failure(SkillErrors.NotFound);
             }
 
             if (skill.IsDeleted)
             {
-                return Result.Failure(
-                    CommonErrors.Conflict(
-                        "Skill already deleted"));
+                return Result.Failure(SkillErrors.NotFound);
             }
 
             skill.IsDeleted = true;
@@ -112,9 +105,7 @@ namespace TaskPilot.Services
         {
             if (names == null || names.Count == 0)
             {
-                return Result.Failure<List<Skill>>(
-                    CommonErrors.InvalidInput(
-                        "Skills list is empty"));
+                return Result.Failure<List<Skill>>(SkillErrors.EmptyList);
             }
 
             var normalizedInput = names

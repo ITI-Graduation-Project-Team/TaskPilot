@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http;
 using TaskPilot.Data.Repositories;
 using TaskPilot.DTOs.CV;
 using TaskPilot.Models.Common.Errors;
@@ -72,8 +72,7 @@ namespace TaskPilot.Services
             {
                 return Result
                     .Failure<ParsedCvDto>(
-                        CommonErrors
-                            .NotFound("User"));
+                        UserErrors.NotFound);
             }
 
             // Extract Text
@@ -86,9 +85,7 @@ namespace TaskPilot.Services
             {
                 return Result
                     .Failure<ParsedCvDto>(
-                        CommonErrors
-                            .InvalidInput(
-                                "CV is empty"));
+                        CvErrors.InvalidFile);
             }
 
             // Get Employee
@@ -102,8 +99,7 @@ namespace TaskPilot.Services
             {
                 return Result
                     .Failure<ParsedCvDto>(
-                        CommonErrors
-                            .NotFound("Employee"));
+                        UserErrors.NotFound);
             }
 
             employee.CvProcessingStatus =
@@ -267,9 +263,7 @@ namespace TaskPilot.Services
 
                 return Result
                     .Failure<ParsedCvDto>(
-                        CommonErrors
-                            .OperationFailed(
-                                "Failed to process CV."));
+                        CvErrors.ExtractionFailed);
             }
         }
     }

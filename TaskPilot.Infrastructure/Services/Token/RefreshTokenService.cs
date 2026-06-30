@@ -80,7 +80,7 @@ namespace TaskPilot.Infrastructure.Services.Token
 
         public async Task RevokeAllAsync(Guid userId)
         {
-            var tokens = await _refreshTokenRepository.FindAsync(rt => rt.UserId == userId && !rt.IsRevoked);
+            var tokens = await _refreshTokenRepository.FindAsync(r => r.UserId == userId && r.RevokedAt == null);
             foreach (var token in tokens)
                 token.RevokedAt = DateTime.UtcNow;
 

@@ -1,3 +1,6 @@
+using System;
+using TaskPilot.Models.Common;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TaskPilot.Data.Repositories;
@@ -15,7 +18,7 @@ namespace TaskPilot.Presentation.Controllers
         private readonly ICurrentUserService _currentUserService;
 
         public UserSubscriptionsController(
-            IUserSubscriptionService userSubscriptionService,
+            IUserSubscriptionService userSubscriptionService, 
             IUnitOfWork unitOfWork,
             ICurrentUserService currentUserService)
         {
@@ -29,17 +32,17 @@ namespace TaskPilot.Presentation.Controllers
         public async Task<ActionResult> GetCurrentSubscription([FromQuery] Guid? projectManagerId = null)
         {
             // If PM, they can only view their own. Admin can view anyone's by passing the ID.
-            var pmId = User.IsInRole("Admin") && projectManagerId.HasValue
-                ? projectManagerId.Value
+            var pmId = User.IsInRole("Admin") && projectManagerId.HasValue 
+                ? projectManagerId.Value 
                 : _currentUserService.UserId ?? Guid.Empty;
 
             var result = await _userSubscriptionService.GetCurrentSubscriptionAsync(pmId);
-
+            
             // GetCurrentSubscriptionAsync might mutate state (auto-fallback to free), so we save changes just in case.
             if (result.IsSuccess)
                 await _unitOfWork.SaveChangesAsync();
 
-            return HandleResult(result);
+            return HandleResult(result, SuccessCodes.UserSubscription.Retrieved);
         }
 
         [HttpGet]
@@ -47,7 +50,7 @@ namespace TaskPilot.Presentation.Controllers
         public async Task<ActionResult> GetAll([FromQuery] Guid? projectManagerId = null)
         {
             var result = await _userSubscriptionService.GetAllAsync(projectManagerId);
-            return HandleResult(result);
+            return HandleResult(result, SuccessCodes.UserSubscription.Retrieved);
         }
 
         [HttpGet("{id:guid}")]
@@ -55,7 +58,7 @@ namespace TaskPilot.Presentation.Controllers
         public async Task<ActionResult> GetById(Guid id)
         {
             var result = await _userSubscriptionService.GetByIdAsync(id);
-            return HandleResult(result);
+            return HandleResult(result, SuccessCodes.UserSubscription.Retrieved);
         }
 
         [HttpPost]
@@ -64,11 +67,11 @@ namespace TaskPilot.Presentation.Controllers
         {
             var pmId = _currentUserService.UserId ?? Guid.Empty;
             var result = await _userSubscriptionService.CreateAsync(pmId, request);
-
+            
             if (result.IsSuccess)
                 await _unitOfWork.SaveChangesAsync();
 
-            return HandleCreated(result, "Subscribed successfully.");
+            return HandleCreated(result, SuccessCodes.UserSubscription.Created);
         }
 
         [HttpPut("{id:guid}")]
@@ -79,7 +82,7 @@ namespace TaskPilot.Presentation.Controllers
             if (result.IsSuccess)
                 await _unitOfWork.SaveChangesAsync();
 
-            return HandleResult(result, "Subscription updated successfully.");
+            return HandleResult(result, SuccessCodes.UserSubscription.Updated);
         }
 
         [HttpDelete("{id:guid}")]
@@ -90,28 +93,7 @@ namespace TaskPilot.Presentation.Controllers
             if (result.IsSuccess)
                 await _unitOfWork.SaveChangesAsync();
 
-            return HandleResult(result, "Subscription deleted successfully.");
-        }
-
-        [HttpPost("{id:guid}/cancel")]
-        [Authorize(Roles = "ProjectManager")]
-        public async Task<ActionResult> Cancel(Guid id)
-        {
-            // First check if the subscription belongs to the current user
-            var pmId = _currentUserService.UserId ?? Guid.Empty;
-            var subResult = await _userSubscriptionService.GetByIdAsync(id);
-
-            if (!subResult.IsSuccess)
-                return HandleResult(subResult);
-
-            if (subResult.Value.ProjectManagerId != pmId)
-                return Forbid();
-
-            var result = await _userSubscriptionService.DeleteAsync(id);
-            if (result.IsSuccess)
-                await _unitOfWork.SaveChangesAsync();
-
-            return HandleResult(result, "Subscription cancelled successfully.");
+            return HandleResult(result, SuccessCodes.UserSubscription.Deleted);
         }
     }
 }

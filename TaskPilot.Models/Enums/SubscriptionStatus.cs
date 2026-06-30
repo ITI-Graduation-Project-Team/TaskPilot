@@ -9,7 +9,6 @@ namespace TaskPilot.Models.Enums
         Active,
         Expired,
         Canceled,
-        Trialing,
-        Pending
+        Trialing
     }
 }
