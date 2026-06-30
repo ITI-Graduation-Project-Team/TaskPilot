@@ -94,10 +94,12 @@ namespace TaskPilot.Services
                 // Step 5: Persist newly generated backlog
                 var persistenceResult = await _wbsPersistenceService.PersistAsync(projectId, generatedWbs, cancellationToken);
 
-                if (!persistenceResult.Success)
+                if (persistenceResult.IsFailure)
                 {
-                    return Result.Failure<RegenerationSummaryDto>(CommonErrors.OperationFailed($"WBS persistence failed: {persistenceResult.Error}"));
+                    return Result.Failure<RegenerationSummaryDto>(persistenceResult.Error);
                 }
+
+                var persistenceVal = persistenceResult.Value;
 
                 // Explicitly save all changes made by the persistence service
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -109,7 +111,7 @@ namespace TaskPilot.Services
                     "Deleted UserStories: {DeletedUS}, Deleted Tasks: {DeletedTasks}. " +
                     "Generated UserStories: {GeneratedUS}, Generated Tasks: {GeneratedTasks}. Execution Time: {ExecutionTimeMs}ms",
                     projectId, deletedUserStoriesCount, deletedTasksCount, 
-                    persistenceResult.UserStoriesCreated, persistenceResult.TasksCreated, stopwatch.ElapsedMilliseconds);
+                    persistenceVal.UserStoriesCreated, persistenceVal.TasksCreated, stopwatch.ElapsedMilliseconds);
 
                 // Step 6: Return summary
                 var summary = new RegenerationSummaryDto
@@ -117,8 +119,8 @@ namespace TaskPilot.Services
                     ProjectId = projectId,
                     DeletedUserStories = deletedUserStoriesCount,
                     DeletedTasks = deletedTasksCount,
-                    GeneratedUserStories = persistenceResult.UserStoriesCreated,
-                    GeneratedTasks = persistenceResult.TasksCreated,
+                    GeneratedUserStories = persistenceVal.UserStoriesCreated,
+                    GeneratedTasks = persistenceVal.TasksCreated,
                     Message = "Backlog regenerated successfully."
                 };
                 return Result.Success(summary);

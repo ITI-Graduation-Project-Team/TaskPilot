@@ -9,11 +9,15 @@ using TaskPilot.Data.Repositories.Interfaces;
 using TaskPilot.Models.Entities;
 using TaskPilot.Services.Interfaces;
 
+using TaskPilot.Models.Common.Results;
+using TaskPilot.Models.Common.Errors;
+using TaskPilot.Services.DTOs;
+
 namespace TaskPilot.Presentation.Controllers
 {
     [ApiController]
     [Route("api/projects/{projectId}/wbs")]
-    public class WbsController : ControllerBase
+    public class WbsController : ApiControllerBase
     {
         private readonly IRepository<Project> _projectRepository;
         private readonly WBSGenerationAgent _wbsAgent;
@@ -33,19 +37,18 @@ namespace TaskPilot.Presentation.Controllers
         }
 
         [HttpPost("generate")]
-        public async Task<IActionResult> Generate(
+        public async Task<ActionResult> Generate(
             Guid projectId,
             CancellationToken cancellationToken)
         {
             var project = await _projectRepository.GetByIdAsync(projectId);
 
             if (project is null)
-                return NotFound("Project not found.");
+                return HandleResult(Result.Failure<WbsPersistenceResult>(CommonErrors.NotFound("Project")));
 
             if (project.RequirementsSnapshot is null)
-                return BadRequest(
-                    "Project has no RequirementsSnapshot. " +
-                    "Complete requirement finalization first.");
+                return HandleResult(Result.Failure<WbsPersistenceResult>(
+                    CommonErrors.InvalidInput("Project has no RequirementsSnapshot. Complete requirement finalization first.")));
 
             // Generate
             var wbs = await _wbsAgent.GenerateAsync(
@@ -58,14 +61,11 @@ namespace TaskPilot.Presentation.Controllers
                 wbs,
                 cancellationToken);
 
-            if (!result.Success)
-                return StatusCode(500, result.Error);
-
-            return Ok(result);
+            return HandleResult(result);
         }
 
         [HttpGet]
-        public async Task<IActionResult> Get(
+        public async Task<ActionResult> Get(
             Guid projectId,
             CancellationToken cancellationToken)
         {

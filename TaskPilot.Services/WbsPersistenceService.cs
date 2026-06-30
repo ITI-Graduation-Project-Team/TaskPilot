@@ -9,6 +9,8 @@ using TaskPilot.Models.Entities;
 using TaskPilot.Models.Enums;
 using TaskPilot.Services.DTOs;
 using TaskPilot.Services.Interfaces;
+using TaskPilot.Models.Common.Results;
+using TaskPilot.Models.Common.Errors;
 
 namespace TaskPilot.Services
 {
@@ -28,7 +30,7 @@ namespace TaskPilot.Services
             _unitOfWork = unitOfWork;
         }
 
-        public async Task<WbsPersistenceResult> PersistAsync(
+        public async Task<Result<WbsPersistenceResult>> PersistAsync(
             Guid projectId,
             GeneratedWbs wbs,
             CancellationToken cancellationToken = default)
@@ -83,22 +85,17 @@ namespace TaskPilot.Services
 
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-                return new WbsPersistenceResult
+                var wbsResult = new WbsPersistenceResult
                 {
                     ProjectId = projectId,
                     UserStoriesCreated = userStories.Count,
-                    TasksCreated = tasks.Count,
-                    Success = true
+                    TasksCreated = tasks.Count
                 };
+                return Result.Success(wbsResult);
             }
             catch (Exception ex)
             {
-                return new WbsPersistenceResult
-                {
-                    ProjectId = projectId,
-                    Success = false,
-                    Error = ex.Message
-                };
+                return Result.Failure<WbsPersistenceResult>(CommonErrors.OperationFailed(ex.Message));
             }
         }
 
