@@ -9,11 +9,13 @@ namespace TaskPilot.Presentation.Controllers
     public class ProjectsController : ApiControllerBase
     {
         private readonly IProjectService _projectService;
+        private readonly IProjectTeamService _projectTeamService;
         private readonly IUnitOfWork _unitOfWork;
 
-        public ProjectsController(IProjectService projectService, IUnitOfWork unitOfWork)
+        public ProjectsController(IProjectService projectService, IProjectTeamService projectTeamService, IUnitOfWork unitOfWork)
         {
             _projectService = projectService;
+            _projectTeamService = projectTeamService;
             _unitOfWork = unitOfWork;
         }
 
@@ -69,6 +71,35 @@ namespace TaskPilot.Presentation.Controllers
                 await _unitOfWork.SaveChangesAsync();
 
             return HandleResult(result, SuccessCodes.Project.Deleted);
+        }
+
+        [HttpGet("{projectId:guid}/employees")]
+        public async Task<ActionResult> GetProjectEmployees(
+            [FromRoute] Guid projectId,
+            CancellationToken cancellationToken)
+        {
+            var result = await _projectTeamService.GetProjectEmployeesAsync(projectId, cancellationToken);
+            return HandleResult(result);
+        }
+
+        [HttpPost("{projectId:guid}/employees")]
+        public async Task<ActionResult> AssignProjectEmployees(
+            [FromRoute] Guid projectId,
+            [FromBody] AssignProjectEmployeesRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _projectTeamService.AssignEmployeesAsync(projectId, request, cancellationToken);
+            return HandleResult(result);
+        }
+
+        [HttpDelete("{projectId:guid}/employees/{employeeId:guid}")]
+        public async Task<ActionResult> RemoveProjectEmployee(
+            [FromRoute] Guid projectId,
+            [FromRoute] Guid employeeId,
+            CancellationToken cancellationToken)
+        {
+            var result = await _projectTeamService.RemoveEmployeeAsync(projectId, employeeId, cancellationToken);
+            return HandleResult(result);
         }
     }
 }

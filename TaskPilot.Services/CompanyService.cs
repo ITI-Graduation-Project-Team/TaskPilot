@@ -1,4 +1,5 @@
-﻿using TaskPilot.Data.Repositories;
+using Microsoft.EntityFrameworkCore;
+using TaskPilot.Data.Repositories;
 using TaskPilot.DTOs;
 using TaskPilot.DTOs.Company;
 using TaskPilot.Models.Common.Errors;
@@ -364,6 +365,42 @@ namespace TaskPilot.Services
                     .ToList();
 
             return result;
+        }
+
+        public async Task<Result<List<CompanyEmployeeDto>>> GetCompanyEmployeesAsync(
+            Guid companyId,
+            CancellationToken cancellationToken = default)
+        {
+            var companyExists = await _companyRepository.AnyAsync(c => c.Id == companyId);
+            if (!companyExists)
+                return Result<List<CompanyEmployeeDto>>.Failure(new Error("Company.NotFound", ErrorType.NotFound, "Company not found."));
+
+            var employees = await _employeeRepository.GetQueryable()
+                .Include(e => e.UserSkills)
+                    .ThenInclude(us => us.Skill)
+                .Include(e => e.ProjectEmployees)
+                    .ThenInclude(pe => pe.Project)
+                .Include(e => e.AssignedTasks)
+                    .ThenInclude(t => t.Sprint)
+                .Where(e => e.CompanyId == companyId)
+                .ToListAsync(cancellationToken);
+
+            var dtos = employees.Select(e => {
+                var activeProjectsCount = e.ProjectEmployees.Count(pe => pe.Project != null && pe.Project.Status != ProjectStatus.Completed);
+                return new CompanyEmployeeDto
+                {
+                    EmployeeId = e.Id,
+                    FullName = $"{e.FirstNameEn} {e.LastNameEn}".Trim(),
+                    JobTitle = e.JobTitle ?? string.Empty,
+                    SeniorityLevel = e.SeniorityLevel?.ToString() ?? string.Empty,
+                    ActiveProjectsCount = activeProjectsCount,
+                    CurrentAssignedTasksCount = e.AssignedTasks.Count(t => t.SprintId != null && t.Status != TaskItemStatus.Done && (t.Sprint == null || t.Sprint.Status == SprintStatus.Active)),
+                    AvailabilityStatus = EmployeeAvailabilityHelper.ComputeAvailabilityStatus(activeProjectsCount),
+                    Skills = e.UserSkills.Select(us => us.Skill.Name).ToList()
+                };
+            }).ToList();
+
+            return Result<List<CompanyEmployeeDto>>.Success(dtos);
         }
     }
 }
