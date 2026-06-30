@@ -12,6 +12,8 @@ using TaskPilot.Models.Entities;
 using TaskPilot.Models.Enums;
 using TaskPilot.Services.Exceptions;
 using TaskPilot.Services.Interfaces;
+using TaskPilot.Models.Common.Results;
+using TaskPilot.Models.Common.Errors;
 
 namespace TaskPilot.Services
 {
@@ -40,51 +42,51 @@ namespace TaskPilot.Services
             _logger = logger;
         }
 
-        public async Task<FinalizeRequirementsResponse> FinalizeRequirementsAsync(Guid sessionId, FinalizeRequirementsRequest request, CancellationToken cancellationToken = default)
+        public async Task<Result<FinalizeRequirementsResponse>> FinalizeRequirementsAsync(Guid sessionId, FinalizeRequirementsRequest request, CancellationToken cancellationToken = default)
         {
             var session = await _sessionStore.GetAsync(sessionId, cancellationToken);
             
             if (session == null)
             {
-                throw new ArgumentException("Requirement session was not found.");
+                return Result.Failure<FinalizeRequirementsResponse>(CommonErrors.NotFound("Requirement session"));
             }
 
             if (session.Status == RequirementSessionStatus.Completed)
             {
-                throw new SessionAlreadyFinalizedException(session.ProjectId);
+                return Result.Failure<FinalizeRequirementsResponse>(new Error("SESSION_ALREADY_FINALIZED", ErrorType.Conflict, $"This session has already been finalized. ProjectId: {session.ProjectId}"));
             }
 
             if (session.Status != RequirementSessionStatus.Planning)
             {
-                throw new InvalidOperationException("Session must be in Planning status before finalization.");
+                return Result.Failure<FinalizeRequirementsResponse>(RequirementErrors.SessionNotPlanning);
             }
 
             var company = await _companyRepository.GetByIdAsync(request.CompanyId);
             if (company is null)
             {
-                throw new ArgumentException("Company was not found.");
+                return Result.Failure<FinalizeRequirementsResponse>(CommonErrors.NotFound("Company"));
             }
 
             var ownerExists = company.OwnerId != Guid.Empty && 
-                              (await _userManager.FindByIdAsync(company.OwnerId.ToString())) != null;
+                               (await _userManager.FindByIdAsync(company.OwnerId.ToString())) != null;
             if (!ownerExists)
             {
-                throw new UnprocessableEntityException("Company owner is missing or invalid. Cannot assign a project manager.");
+                return Result.Failure<FinalizeRequirementsResponse>(CommonErrors.InvalidInput("Company owner is missing or invalid. Cannot assign a project manager."));
             }
 
             if (session.CompletenessReport == null)
             {
-                throw new InvalidOperationException("Requirements have not been evaluated yet.");
+                return Result.Failure<FinalizeRequirementsResponse>(CommonErrors.InvalidInput("Requirements have not been evaluated yet."));
             }
 
             if (!session.AllQuestionsAnswered)
             {
-                throw new InvalidOperationException("Some clarification questions remain unanswered.");
+                return Result.Failure<FinalizeRequirementsResponse>(CommonErrors.InvalidInput("Some clarification questions remain unanswered."));
             }
 
             if (!session.CompletenessReport.ReadyForPlanning)
             {
-                throw new InvalidOperationException("Session is not ready for planning yet.");
+                return Result.Failure<FinalizeRequirementsResponse>(CommonErrors.InvalidInput("Session is not ready for planning yet."));
             }
 
             // Create Requirements Snapshot
@@ -128,16 +130,16 @@ namespace TaskPilot.Services
                 _logger.LogInformation("Requirement session finalized successfully.\nSessionId: {SessionId}\nProjectId: {ProjectId}\nCompanyId: {CompanyId}\nDocumentIds transferred: {Count}", 
                     sessionId, project.Id, request.CompanyId, project.DocumentIds.Count);
             }
-            catch
+            catch (Exception ex)
             {
                 // Revert session if EF fails
                 session.Status = RequirementSessionStatus.Planning;
                 session.ProjectId = null;
                 await _sessionStore.SaveAsync(session, cancellationToken);
-                throw;
+                return Result.Failure<FinalizeRequirementsResponse>(CommonErrors.ServerError(ex.Message));
             }
 
-            return new FinalizeRequirementsResponse
+            var response = new FinalizeRequirementsResponse
             {
                 ProjectId = project.Id,
                 CompanyId = project.CompanyId,
@@ -145,6 +147,7 @@ namespace TaskPilot.Services
                 Status = project.Status.ToString(),
                 RequirementsFinalized = true
             };
+            return Result.Success(response);
         }
     }
 }

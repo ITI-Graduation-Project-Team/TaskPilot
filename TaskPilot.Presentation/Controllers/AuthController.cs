@@ -123,7 +123,7 @@ namespace TaskPilot.Presentation.Controllers
                     userId,
                     out Guid currentUserId))
             {
-                return Unauthorized();
+                return HandleResult(Result.Failure(CommonErrors.Unauthorized()));
             }
 
             var result =

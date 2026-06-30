@@ -1,16 +1,16 @@
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using TaskPilot.DTOs.Projects;
 using TaskPilot.Services.Interfaces;
+using TaskPilot.Models.Common.Results;
 
 namespace TaskPilot.Presentation.Controllers
 {
     [ApiController]
     [Route("api/projects/{projectId}/tech-stack")]
-    public class TechStackController : ControllerBase
+    public class TechStackController : ApiControllerBase
     {
         private readonly ITechStackService _techStackService;
 
@@ -20,42 +20,24 @@ namespace TaskPilot.Presentation.Controllers
         }
 
         [HttpGet("suggest")]
-        public async Task<IActionResult> Suggest(
+        public async Task<ActionResult> Suggest(
             Guid projectId,
             CancellationToken cancellationToken)
         {
-            try
-            {
-                var suggestion = await _techStackService
-                    .SuggestAsync(projectId, cancellationToken);
-                return Ok(suggestion);
-            }
-            catch (KeyNotFoundException ex)
-            {
-                return NotFound(ex.Message);
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(ex.Message);
-            }
+            var result = await _techStackService
+                .SuggestAsync(projectId, cancellationToken);
+            return HandleResult(result);
         }
 
         [HttpPost("confirm")]
-        public async Task<IActionResult> Confirm(
+        public async Task<ActionResult> Confirm(
             Guid projectId,
             [FromBody] ConfirmTechStackRequest request,
             CancellationToken cancellationToken)
         {
-            try
-            {
-                await _techStackService
-                    .ConfirmAsync(projectId, request, cancellationToken);
-                return Ok(new { message = "Tech stack confirmed successfully." });
-            }
-            catch (KeyNotFoundException ex)
-            {
-                return NotFound(ex.Message);
-            }
+            var result = await _techStackService
+                .ConfirmAsync(projectId, request, cancellationToken);
+            return HandleResult(result, "Tech stack confirmed successfully.");
         }
     }
 }

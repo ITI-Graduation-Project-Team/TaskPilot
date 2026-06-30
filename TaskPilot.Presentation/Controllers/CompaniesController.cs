@@ -44,7 +44,7 @@ namespace TaskPilot.Presentation.Controllers
                     userId,
                     out Guid ownerId))
             {
-                return Unauthorized();
+                return HandleResult(Result.Failure<CompanyResponse>(CommonErrors.Unauthorized()));
             }
 
             var result =
