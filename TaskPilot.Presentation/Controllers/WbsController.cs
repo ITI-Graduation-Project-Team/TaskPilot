@@ -9,6 +9,10 @@ using TaskPilot.Data.Repositories.Interfaces;
 using TaskPilot.Models.Entities;
 using TaskPilot.Services.Interfaces;
 
+using TaskPilot.Models.Common.Results;
+using TaskPilot.Models.Common.Errors;
+using TaskPilot.Services.DTOs;
+
 namespace TaskPilot.Presentation.Controllers
 {
     [ApiController]
@@ -27,28 +31,16 @@ namespace TaskPilot.Presentation.Controllers
         }
 
         [HttpPost("generate")]
-        public async Task<IActionResult> Generate(
+        public async Task<ActionResult> Generate(
             Guid projectId,
             CancellationToken cancellationToken)
         {
             var result = await _wbsGenerationService.GenerateAsync(projectId, cancellationToken);
-
-            if (!result.IsSuccess)
-            {
-                if (result.Error.Type == TaskPilot.Models.Common.Errors.ErrorType.NotFound)
-                    return NotFound(result.Error.Description);
-
-                if (result.Error.Type == TaskPilot.Models.Common.Errors.ErrorType.Conflict)
-                    return Conflict(new { code = result.Error.Code, description = result.Error.Description });
-
-                return BadRequest(result.Error.Description);
-            }
-
-            return Ok(result.Value);
+            return HandleResult(result);
         }
 
         [HttpGet]
-        public async Task<IActionResult> Get(
+        public async Task<ActionResult> Get(
             Guid projectId,
             CancellationToken cancellationToken)
         {

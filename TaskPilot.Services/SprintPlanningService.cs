@@ -11,6 +11,8 @@ using TaskPilot.Data.Repositories.Interfaces;
 using TaskPilot.DTOs.Planning;
 using TaskPilot.Models.Entities;
 using TaskPilot.Services.Interfaces;
+using TaskPilot.Models.Common.Results;
+using TaskPilot.Models.Common.Errors;
 
 namespace TaskPilot.Services
 {
@@ -33,24 +35,24 @@ namespace TaskPilot.Services
             _logger = logger;
         }
 
-        public async Task<SprintSuggestionDto> GenerateSprintSuggestionAsync(Guid projectId, CancellationToken cancellationToken = default)
+        public async Task<Result<SprintSuggestionDto>> GenerateSprintSuggestionAsync(Guid projectId, CancellationToken cancellationToken = default)
         {
             var project = await _projectRepository.GetByIdAsync(projectId);
             if (project == null)
             {
-                throw new KeyNotFoundException($"Project with ID {projectId} not found.");
+                return Result.Failure<SprintSuggestionDto>(CommonErrors.NotFound("Project"));
             }
 
             var userStories = await _userStoryRepository.GetByProjectIdAsync(projectId, cancellationToken);
             if (!userStories.Any())
             {
-                throw new InvalidOperationException("Project contains no backlog.");
+                return Result.Failure<SprintSuggestionDto>(CommonErrors.InvalidInput("Project contains no backlog."));
             }
 
             var unassignedStories = userStories.Where(us => us.SprintId == null).ToList();
             if (!unassignedStories.Any())
             {
-                throw new InvalidOperationException("Every UserStory already belongs to a Sprint.");
+                return Result.Failure<SprintSuggestionDto>(CommonErrors.InvalidInput("Every UserStory already belongs to a Sprint."));
             }
 
             var backlogData = unassignedStories.Select(us => new
@@ -91,7 +93,7 @@ namespace TaskPilot.Services
                 backlogJson,
                 cancellationToken);
 
-            return suggestion;
+            return Result.Success(suggestion);
         }
     }
 }

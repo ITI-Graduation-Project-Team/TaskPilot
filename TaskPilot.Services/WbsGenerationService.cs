@@ -58,12 +58,7 @@ namespace TaskPilot.Services
                 project.ProjectType,
                 cancellationToken);
 
-            var result = await _wbsPersistenceService.PersistAsync(projectId, wbs, cancellationToken);
-
-            if (!result.Success)
-                return Result<WbsPersistenceResult>.Failure(CommonErrors.OperationFailed(result.Error));
-
-            return Result<WbsPersistenceResult>.Success(result);
+            return await _wbsPersistenceService.PersistAsync(projectId, wbs, cancellationToken);
         }
     }
 }
