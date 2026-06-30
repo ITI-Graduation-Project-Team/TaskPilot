@@ -50,14 +50,15 @@ namespace TaskPilot.Infrastructure.Services.Token
             if (refreshToken.IsRevoked)
             {
                 await RevokeAllAsync(refreshToken.UserId);
-                return CommonErrors.InvalidRefreshToken("Token reuse detected. All sessions have been revoked for your security.");
+        
+            return AuthErrors.TokenReuseDetected;
             }
 
             if (refreshToken.IsInactive)
-                return Result.Failure<User>(CommonErrors.Unauthorized("Session expired due to inactivity. Please log in again."));
+                return AuthErrors.SessionExpiredInactive;
 
             if (refreshToken.IsExpired)
-                return Result.Failure<User>(CommonErrors.Unauthorized("Session expired. Please log in again."));
+                return AuthErrors.SessionExpired;
 
             // rotation — revoke old token
             refreshToken.RevokedAt = DateTime.UtcNow;
@@ -71,7 +72,7 @@ namespace TaskPilot.Infrastructure.Services.Token
             if (refreshToken is null)
                 return CommonErrors.InvalidRefreshToken();
 
-            if (refreshToken.IsRevoked) return CommonErrors.InvalidRefreshToken("Token is already revoked.");
+            if (refreshToken.IsRevoked) return AuthErrors.InvalidRefreshToken;
 
             refreshToken.RevokedAt = DateTime.UtcNow;
             return Result.Success();
@@ -79,7 +80,7 @@ namespace TaskPilot.Infrastructure.Services.Token
 
         public async Task RevokeAllAsync(Guid userId)
         {
-            var tokens = await _refreshTokenRepository.FindAsync(rt => rt.UserId == userId && !rt.IsRevoked);
+            var tokens = await _refreshTokenRepository.FindAsync(r => r.UserId == userId && r.RevokedAt == null);
             foreach (var token in tokens)
                 token.RevokedAt = DateTime.UtcNow;
 

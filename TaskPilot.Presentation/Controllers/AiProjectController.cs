@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using TaskPilot.Models.Common;
 using Microsoft.AspNetCore.Mvc;
 using TaskPilot.Data.Repositories;
 using TaskPilot.DTOs.AI;
@@ -99,7 +100,7 @@ namespace TaskPilot.Presentation.Controllers
                 request.ManagerId,
                 request.ChatId);   // string? — null on first call, "thread_xxx" on subsequent calls
 
-            return HandleResult(result);
+            return HandleResult(result, SuccessCodes.AiProject.Generated);
         }
 
         // ── Step 2: Confirm (PM approves — project is saved) ─────────────────────────
@@ -115,7 +116,7 @@ namespace TaskPilot.Presentation.Controllers
             if (result.IsSuccess)
                 await _unitOfWork.SaveChangesAsync();
 
-            return HandleCreated(result, "Project created successfully.");
+            return HandleCreated(result, SuccessCodes.AiProject.Confirmed);
         }
     }
 }

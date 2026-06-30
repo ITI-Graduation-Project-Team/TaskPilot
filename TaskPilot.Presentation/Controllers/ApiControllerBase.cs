@@ -1,7 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
-using TaskPilot.Presentation.Models;
 using TaskPilot.Models.Common.Errors;
 using TaskPilot.Models.Common.Results;
+using TaskPilot.Presentation.Models;
+using TaskPilot.Services.Interfaces;
 
 namespace TaskPilot.Presentation.Controllers
 {
@@ -21,10 +22,15 @@ namespace TaskPilot.Presentation.Controllers
         /// Success → 200 OK with data.  Failure → appropriate error status.
         /// Surfaces ALL errors in the response body when there are multiple.
         /// </summary>
-        protected ActionResult HandleResult<T>(Result<T> result)
+        protected ILocalizationService Localizer =>
+     HttpContext.RequestServices.GetRequiredService<ILocalizationService>();
+        protected ActionResult HandleResult<T>(Result<T> result,string? messageKey=null)
         {
             if (result.IsSuccess)
-                return Ok(ApiResponse.Success(result.Value));
+            {
+                var message = messageKey != null ? Localizer.GetString(messageKey) : null;
+                return Ok(ApiResponse.Success(result.Value, message));
+            }
 
             if (result.Errors.Count > 1)
                 return MapErrors(result.Errors);
@@ -35,10 +41,13 @@ namespace TaskPilot.Presentation.Controllers
         /// <summary>
         /// Maps a <see cref="Result{T}"/> to an HTTP 201 Created on success.
         /// </summary>
-        protected ActionResult HandleCreated<T>(Result<T> result, string? message = null)
+        protected ActionResult HandleCreated<T>(Result<T> result, string? messageKey = null)
         {
             if (result.IsSuccess)
-                return StatusCode(201, ApiResponse.Success(result.Value, message ?? "Resource created successfully."));
+            {
+                var message = messageKey != null ? Localizer.GetString(messageKey) : Localizer.GetString("Success");
+                return StatusCode(201, ApiResponse.Success(result.Value, message));
+            }
 
             return MapError(result.Error);
         }
@@ -50,10 +59,13 @@ namespace TaskPilot.Presentation.Controllers
         /// Success → 200 OK with a message.  Failure → appropriate error status.
         /// Surfaces ALL errors in the response body when there are multiple.
         /// </summary>
-        protected ActionResult HandleResult(Result result, string? message = null)
+        protected ActionResult HandleResult(Result result, string? messageKey = null)
         {
             if (result.IsSuccess)
+            {
+                var message = messageKey != null ? Localizer.GetString(messageKey) : null;
                 return Ok(ApiResponse.Success(message));
+            }
 
             if (result.Errors.Count > 1)
                 return MapErrors(result.Errors);
@@ -69,7 +81,8 @@ namespace TaskPilot.Presentation.Controllers
         /// </summary>
         private ActionResult MapError(Error error)
         {
-            var response = ApiResponse.Fail(error.Code, error.Description);
+            var description = Localizer.GetString(error.Code);
+            var response = ApiResponse.Fail(error.Code, description);
 
             return error.Type switch
             {
@@ -89,7 +102,11 @@ namespace TaskPilot.Presentation.Controllers
         /// </summary>
         private ActionResult MapErrors(IReadOnlyList<Error> errors)
         {
-            var errorDetails = errors.Select(e => new ErrorDetail { Code = e.Code, Description = e.Description });
+            var errorDetails = errors.Select(e => new ErrorDetail
+            {
+                Code = e.Code,
+                Description = Localizer.GetString(e.Code)
+            });
             var response = ApiResponse.Fail(errorDetails);
             var primaryType = errors[0].Type;
 

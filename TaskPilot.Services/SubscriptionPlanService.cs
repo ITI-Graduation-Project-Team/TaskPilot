@@ -23,7 +23,7 @@ namespace TaskPilot.Services
         {
             var plan = await _repository.FindSingleAsync(p => p.Id == id);
             if (plan == null)
-                return Result.Failure<SubscriptionPlanDto>(CommonErrors.NotFound("SubscriptionPlan"));
+                return Result.Failure<SubscriptionPlanDto>(SubscriptionPlanErrors.NotFound);
 
             return Result.Success(MapToDto(plan));
         }
@@ -38,7 +38,7 @@ namespace TaskPilot.Services
         {
             var exists = await _repository.AnyAsync(p => p.Name.ToLower() == dto.Name.ToLower());
             if (exists)
-                return Result.Failure<SubscriptionPlanDto>(CommonErrors.Conflict("Subscription plan with the same name already exists."));
+                return Result.Failure<SubscriptionPlanDto>(SubscriptionPlanErrors.NameAlreadyExists);
 
             var plan = new SubscriptionPlan
             {
@@ -64,11 +64,11 @@ namespace TaskPilot.Services
         {
             var existing = await _repository.FindSingleAsync(p => p.Id == id);
             if (existing == null)
-                return Result.Failure(CommonErrors.NotFound("SubscriptionPlan"));
+                return Result.Failure(SubscriptionPlanErrors.NotFound);
 
             var nameExists = await _repository.AnyAsync(p => p.Name.ToLower() == dto.Name.ToLower() && p.Id != id);
             if (nameExists)
-                return Result.Failure(CommonErrors.Conflict("Another subscription plan with the same name already exists."));
+                return Result.Failure(SubscriptionPlanErrors.NameAlreadyExists);
 
             existing.Name = dto.Name;
             existing.MonthlyPrice = dto.MonthlyPrice;
@@ -89,7 +89,7 @@ namespace TaskPilot.Services
         {
             var plan = await _repository.FindSingleAsync(p => p.Id == id);
             if (plan == null)
-                return Result.Failure(CommonErrors.NotFound("SubscriptionPlan"));
+                return Result.Failure(SubscriptionPlanErrors.NotFound);
 
             plan.IsDeleted = true;
             _repository.Update(plan);

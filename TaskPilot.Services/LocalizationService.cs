@@ -17,17 +17,20 @@ namespace TaskPilot.Services
             var baseDir = AppDomain.CurrentDomain.BaseDirectory;
             var enPath = Path.Combine(baseDir, "Resources", "en.json");
             var arPath = Path.Combine(baseDir, "Resources", "ar.json");
-
+            var jsonOptions = new JsonSerializerOptions
+            {
+                ReadCommentHandling = JsonCommentHandling.Skip
+            };
             if (File.Exists(enPath))
             {
                 var enJson = File.ReadAllText(enPath);
-                _enResources = JsonSerializer.Deserialize<Dictionary<string, string>>(enJson) ?? new Dictionary<string, string>();
+                _enResources = JsonSerializer.Deserialize<Dictionary<string, string>>(enJson,jsonOptions) ?? new Dictionary<string, string>();
             }
 
             if (File.Exists(arPath))
             {
                 var arJson = File.ReadAllText(arPath);
-                _arResources = JsonSerializer.Deserialize<Dictionary<string, string>>(arJson) ?? new Dictionary<string, string>();
+                _arResources = JsonSerializer.Deserialize<Dictionary<string, string>>(arJson, jsonOptions) ?? new Dictionary<string, string>();
             }
         }
 

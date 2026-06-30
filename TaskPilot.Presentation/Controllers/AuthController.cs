@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using TaskPilot.Data.Repositories;
 using TaskPilot.DTOs.Auth;
+using TaskPilot.Models.Common;
 using TaskPilot.Models.Enums;
 using TaskPilot.Services.Interfaces;
 
@@ -25,7 +26,7 @@ namespace TaskPilot.Presentation.Controllers
               UserRole Role)
         {
             var result = await _authService.RegisterAsync(request, Role);
-            return HandleResult(result);
+            return HandleResult(result,SuccessCodes.Auth.Register);
         }
 
         [HttpPost("login")]
@@ -33,7 +34,7 @@ namespace TaskPilot.Presentation.Controllers
             [FromBody] LoginDTO request)
         {
             var result = await _authService.LoginAsync(request);
-            return HandleResult(result);
+            return HandleResult(result, SuccessCodes.Auth.Login);
         }
 
         [HttpPost("confirm-email")]
@@ -41,7 +42,7 @@ namespace TaskPilot.Presentation.Controllers
             [FromBody] ConfirmEmailDTO request)
         {
             var result = await _authService.ConfirmEmailAsync(request);
-            return HandleResult(result);
+            return HandleResult(result, SuccessCodes.Auth.EmailConfirmed);
         }
 
         [HttpPost("resend-confirmation")]
@@ -49,7 +50,7 @@ namespace TaskPilot.Presentation.Controllers
             [FromBody] ResendConfirmationDTO request)
         {
             var result = await _authService.ResendConfirmationEmailAsync(request.Email);
-            return HandleResult(result);
+            return HandleResult(result, SuccessCodes.Auth.ResendConfirmation);
         }
 
         [HttpPost("google")]
@@ -57,7 +58,7 @@ namespace TaskPilot.Presentation.Controllers
             [FromBody] GoogleAuthDTO request)
         {
             var result = await _authService.GoogleLoginAsync(request.IdToken);
-            return HandleResult(result);
+            return HandleResult(result, SuccessCodes.Auth.GoogleLogin);
         }
 
         [HttpPost("refresh-token")]
@@ -68,7 +69,7 @@ namespace TaskPilot.Presentation.Controllers
             if (result.IsSuccess)
                 await _unitOfWork.SaveChangesAsync();
 
-            return HandleResult(result);
+            return HandleResult(result,SuccessCodes.Auth.TokenRefreshed);
         }
 
         [Authorize]
@@ -80,21 +81,21 @@ namespace TaskPilot.Presentation.Controllers
             if (result.IsSuccess)
                 await _unitOfWork.SaveChangesAsync();
 
-            return HandleResult(result);
+            return HandleResult(result,SuccessCodes.Auth.Logout);
         }
 
         [HttpPost("forgot-password")]
-        public async Task<ActionResult> ForgotPassword([FromBody] string email)
+        public async Task<ActionResult> ForgotPassword([FromBody] ForgotPasswordDto dto)
         {
-            var result = await _authService.ForgotPasswordAsync(email);
-            return HandleResult(result);
+            var result = await _authService.ForgotPasswordAsync(dto);
+            return HandleResult(result, SuccessCodes.Auth.OtpSent);
         }
 
         [HttpPost("reset-password")]
         public async Task<ActionResult> ResetPassword([FromBody] ResetPasswordDTO request)
         {
             var result = await _authService.ResetPasswordAsync(request);
-            return HandleResult(result);
+            return HandleResult(result, SuccessCodes.Auth.PasswordReset);
         }
 
         [HttpGet("invitation/{token}")]
@@ -137,7 +138,7 @@ namespace TaskPilot.Presentation.Controllers
                     .SaveChangesAsync();
             }
 
-            return HandleResult(result);
+            return HandleResult(result,SuccessCodes.Auth.InvitationCompleted);
         }
     }
 

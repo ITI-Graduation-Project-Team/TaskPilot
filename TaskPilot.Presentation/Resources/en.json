@@ -1,5 +1,139 @@
 {
   "Welcome": "Welcome",
   "Success": "Operation completed successfully.",
-  "Error": "An error occurred."
+
+  // auth 
+  "Error": "An error occurred.",
+  "UNAUTHORIZED": "Authentication is required.",
+  "FORBIDDEN": "You do not have permission to perform this action.",
+  "INVALID_CREDENTIALS": "The email or password is incorrect.",
+  "EMAIL_NOT_CONFIRMED": "The email address has not been confirmed.",
+  "INVALID_REFRESH_TOKEN": "The refresh token is invalid or expired.",
+  "INVALID_INPUT": "One or more input values are invalid.",
+  "USER_NOT_FOUND": "User was not found.",
+  "PROJECT_NOT_FOUND": "Project was not found.",
+  "INVITATION_NOT_FOUND": "Invitation was not found.",
+  "SAVE_FAILED": "Failed to save data.",
+  "CONFLICT": "A conflict occurred.",
+  "EMAIL_ALREADY_REGISTERED": "This email address is already registered.",
+  "EMAIL_ALREADY_VERIFIED": "This email is already verified. Please log in.",
+  "OPERATION_FAILED": "The operation could not be completed.",
+  "SERVER_ERROR": "An unexpected error occurred.",
+  // identity 
+  "ROLE_CREATION_FAILED": "Failed to create role.",
+  "USER_CREATION_FAILED": "Failed to create user.",
+  "USER_DELETION_FAILED": "Failed to delete user.",
+  "ROLE_ASSIGNMENT_FAILED": "Failed to assign role.",
+  "EMAIL_VERIFICATION_FAILED": "Email verification failed.",
+  "ACCOUNT_LOCKED": "Account is temporarily locked due to multiple failed attempts.",
+  "EXTERNAL_LOGIN_FAILED": "External login failed.",
+  "PASSWORD_RESET_FAILED": "Password reset failed.",
+
+  //refresh token
+  "TOKEN_REUSE_DETECTED": "Token reuse detected. All sessions have been revoked for your security.",
+  "SESSION_EXPIRED": "Session expired. Please log in again.",
+  "SESSION_EXPIRED_INACTIVE": "Session expired due to inactivity. Please log in again.",
+  "REFRESH_TOKEN_GENERATION_FAILED": "Failed to generate refresh token.",
+  // google 
+  "EMPTY_GOOGLE_TOKEN": "Google token cannot be empty.",
+  "INVALID_GOOGLE_TOKEN": "Invalid Google token.",
+  "GOOGLE_AUTHENTICATION_FAILED": "Google authentication failed.",
+
+  //success
+  "REGISTER_SUCCESS": "User registered successfully.",
+  "LOGIN_SUCCESS": "Logged in successfully.",
+  "EMAIL_CONFIRMED_SUCCESS": "Email confirmed successfully.",
+  "OTP_SENT_SUCCESS": "OTP sent successfully.",
+  "PASSWORD_RESET_SUCCESS": "Password has been reset successfully.",
+  "TOKEN_REFRESHED_SUCCESS": "Token refreshed successfully.",
+  "LOGOUT_SUCCESS": "Logged out successfully.",
+  "INVITATION_COMPLETED_SUCCESS": "Invitation completed successfully.",
+  
+  // company
+  "COMPANY_NOT_FOUND": "Company was not found.",
+  
+  // skill
+  "SKILL_NOT_FOUND": "Skill was not found.",
+  "SKILL_NAME_REQUIRED": "Skill name is required.",
+  "SKILL_ALREADY_EXISTS": "Skill already exists.",
+  "SKILL_LIST_EMPTY": "Skills list is empty.",
+  
+  // role
+  "ROLE_NOT_FOUND": "Role was not found.",
+  
+  // project
+  "PROJECT_MANAGER_NOT_FOUND": "Project manager was not found.",
+  "NOT_PROJECT_MANAGER": "The user is not a project manager.",
+  
+  // subscription plan
+  "PLAN_NOT_FOUND": "Subscription plan was not found.",
+  "PLAN_NAME_ALREADY_EXISTS": "A subscription plan with this name already exists.",
+  
+  // user subscription
+  "USER_SUBSCRIPTION_NOT_FOUND": "User subscription was not found.",
+  "ACTIVE_SUBSCRIPTION_NOT_FOUND": "Active subscription was not found.",
+  "INVALID_BILLING_CYCLE": "Invalid billing cycle.",
+  "INVALID_SUBSCRIPTION_STATUS": "Invalid subscription status.",
+  
+  // ai
+  "AI_SERVER_ERROR": "An error occurred with the AI service.",
+  "AI_UNREADABLE_RESPONSE": "The AI service returned an unreadable response.",
+  "AI_PARSING_FAILED": "Failed to parse the AI response.",
+  "AI_PROJECT_NAME_REQUIRED": "Project name is required from AI.",
+  "AI_EMPTY_AUDIO": "Audio file is empty.",
+  "AI_INVALID_AUDIO_FORMAT": "Unsupported audio format.",
+  "AI_EMPTY_TRANSCRIPTION": "Transcription returned empty.",
+  
+  // cv
+  "CV_EXTRACTION_FAILED": "Failed to extract text from CV.",
+  "INVALID_CV_FILE": "Invalid CV file.",
+  "CV_FILE_TOO_LARGE": "CV file is too large.",
+  "CV_UNSUPPORTED_FORMAT": "Unsupported CV format.",
+
+  // company success
+  "COMPANY_SETUP_SUCCESS": "Company setup completed successfully.",
+  "COMPANY_EMPLOYEES_SEARCHED": "Employees searched successfully.",
+  
+  // project success
+  "PROJECT_CREATED_SUCCESS": "Project created successfully.",
+  "PROJECT_UPDATED_SUCCESS": "Project updated successfully.",
+  "PROJECT_DELETED_SUCCESS": "Project deleted successfully.",
+  "PROJECT_RETRIEVED_SUCCESS": "Project retrieved successfully.",
+  
+  // skill success
+  "SKILL_CREATED_SUCCESS": "Skill created successfully.",
+  "SKILL_DELETED_SUCCESS": "Skill deleted successfully.",
+  "SKILL_RETRIEVED_SUCCESS": "Skill retrieved successfully.",
+  
+  // role success
+  "ROLE_PERMISSIONS_UPDATED": "Role permissions updated successfully.",
+  "ROLE_RETRIEVED_SUCCESS": "Role retrieved successfully.",
+  
+  // subscription plan success
+  "PLAN_CREATED_SUCCESS": "Subscription plan created successfully.",
+  "PLAN_UPDATED_SUCCESS": "Subscription plan updated successfully.",
+  "PLAN_DELETED_SUCCESS": "Subscription plan deleted successfully.",
+  "PLAN_RETRIEVED_SUCCESS": "Subscription plan retrieved successfully.",
+  
+  // user success
+  "USER_DELETED_SUCCESS": "User deleted successfully.",
+  "USER_RETRIEVED_SUCCESS": "User retrieved successfully.",
+  
+  // user subscription success
+  "SUBSCRIPTION_CREATED_SUCCESS": "Subscribed successfully.",
+  "SUBSCRIPTION_UPDATED_SUCCESS": "Subscription updated successfully.",
+  "SUBSCRIPTION_DELETED_SUCCESS": "Subscription deleted successfully.",
+  "SUBSCRIPTION_RETRIEVED_SUCCESS": "Subscription retrieved successfully.",
+  
+  // employee success
+  "EMPLOYEE_CV_UPLOADED": "CV processed successfully.",
+  
+  // requirement success
+  "REQUIREMENT_DOCUMENT_UPLOADED": "Document uploaded successfully.",
+  "REQUIREMENT_MESSAGE_SENT": "Message sent successfully.",
+  "REQUIREMENT_SESSION_RETRIEVED": "Session retrieved successfully.",
+  
+  // ai project success
+  "AI_PROJECT_GENERATED": "Project draft generated successfully.",
+  "AI_PROJECT_CONFIRMED": "Project confirmed successfully."
 }
