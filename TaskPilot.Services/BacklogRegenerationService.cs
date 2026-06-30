@@ -87,7 +87,12 @@ namespace TaskPilot.Services
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
 
                 // Step 4: Invoke WBSGenerationAgent
-                var generatedWbs = await _wbsGenerationAgent.GenerateAsync(project.RequirementsSnapshot, cancellationToken);
+                var generatedWbs = await _wbsGenerationAgent.GenerateAsync(
+                    project.RequirementsSnapshot,
+                    project.TechStack,
+                    project.PlatformTargets,
+                    project.ProjectType,
+                    cancellationToken);
 
                 // Step 5: Persist newly generated backlog
                 var persistenceResult = await _wbsPersistenceService.PersistAsync(projectId, generatedWbs, cancellationToken);

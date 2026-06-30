@@ -19,5 +19,9 @@ namespace TaskPilot.Data.Repositories.Interfaces
         Task<List<UserStory>> GetUnassignedByProjectIdAsync(
             Guid projectId,
             CancellationToken cancellationToken = default);
+
+        Task<List<UserStory>> GetByIdsAsync(
+            List<Guid> ids,
+            CancellationToken cancellationToken = default);
     }
 }

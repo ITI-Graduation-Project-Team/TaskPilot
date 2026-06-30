@@ -1,32 +1,43 @@
-using System.Collections.Generic;
-
 namespace TaskPilot.AI.Models.Planning
 {
     public class TechStackSuggestion
     {
         /// <summary>
-        /// Recommended technologies.
-        /// Example: ["ASP.NET Core 8", "React 18", "SQL Server", "Redis"]
+        /// Stack recommended based on the actual skills of available
+        /// employees. The PM can start building immediately with this stack.
         /// </summary>
-        public List<string> TechStack { get; set; } = new();
+        public RecommendedStack PrimaryStack { get; set; } = new();
+
+        /// <summary>
+        /// Stack that is optimal for the project requirements regardless
+        /// of current team composition.
+        /// </summary>
+        public RecommendedStack IdealStack { get; set; } = new();
+
+        /// <summary>
+        /// Skills/technologies required by the ideal stack but missing
+        /// from the current team.
+        /// Example: ["Flutter developer needed", "Redis expertise missing"]
+        /// </summary>
+        public System.Collections.Generic.List<string> GapAnalysis { get; set; } = new();
 
         /// <summary>
         /// Target platforms detected from requirements.
-        /// Possible values: "Web", "Mobile", "Desktop", "API"
+        /// Values: "Web" | "Mobile" | "Desktop" | "API"
         /// </summary>
-        public List<string> PlatformTargets { get; set; } = new();
+        public System.Collections.Generic.List<string> PlatformTargets { get; set; } = new();
 
         /// <summary>
         /// High-level project classification.
-        /// Possible values: "ERP", "SaaS", "MobileApp", "API", "Portal", "Other"
+        /// Values: "ERP" | "SaaS" | "MobileApp" | "API" | "Portal" | "Other"
         /// </summary>
         public string ProjectType { get; set; } = string.Empty;
+    }
 
-        /// <summary>
-        /// Short explanation of why this stack was recommended.
-        /// Example: "React chosen for web UI, Flutter for mobile due to
-        /// cross-platform requirement. SQL Server for HIPAA compliance."
-        /// </summary>
+    public class RecommendedStack
+    {
+        public string Description { get; set; } = string.Empty;
+        public System.Collections.Generic.List<string> TechStack { get; set; } = new();
         public string Reasoning { get; set; } = string.Empty;
     }
 }

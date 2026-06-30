@@ -43,7 +43,10 @@ namespace TaskPilot.Services
                     Name = isArabic ? p.NameAr : p.NameEn,
                     Description = isArabic ? p.DescriptionAr : p.DescriptionEn,
                     CompanyId = p.CompanyId,
-                    ManagerId = p.ManagerId
+                    ManagerId = p.ManagerId,
+                    TechStack = p.TechStack,
+                    PlatformTargets = p.PlatformTargets,
+                    ProjectType = p.ProjectType
                 })
                 .FirstOrDefaultAsync();
 

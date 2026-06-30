@@ -13,22 +13,16 @@ namespace TaskPilot.Presentation.Controllers
 {
     [ApiController]
     [Route("api/projects/{projectId}/wbs")]
-    public class WbsController : ControllerBase
+    public class WbsController : ApiControllerBase
     {
-        private readonly IRepository<Project> _projectRepository;
-        private readonly WBSGenerationAgent _wbsAgent;
-        private readonly IWbsPersistenceService _wbsPersistenceService;
+        private readonly IWbsGenerationService _wbsGenerationService;
         private readonly IUserStoryRepository _userStoryRepository;
 
         public WbsController(
-            IRepository<Project> projectRepository,
-            WBSGenerationAgent wbsAgent,
-            IWbsPersistenceService wbsPersistenceService,
+            IWbsGenerationService wbsGenerationService,
             IUserStoryRepository userStoryRepository)
         {
-            _projectRepository = projectRepository;
-            _wbsAgent = wbsAgent;
-            _wbsPersistenceService = wbsPersistenceService;
+            _wbsGenerationService = wbsGenerationService;
             _userStoryRepository = userStoryRepository;
         }
 
@@ -37,31 +31,20 @@ namespace TaskPilot.Presentation.Controllers
             Guid projectId,
             CancellationToken cancellationToken)
         {
-            var project = await _projectRepository.GetByIdAsync(projectId);
+            var result = await _wbsGenerationService.GenerateAsync(projectId, cancellationToken);
 
-            if (project is null)
-                return NotFound("Project not found.");
+            if (!result.IsSuccess)
+            {
+                if (result.Error.Type == TaskPilot.Models.Common.Errors.ErrorType.NotFound)
+                    return NotFound(result.Error.Description);
 
-            if (project.RequirementsSnapshot is null)
-                return BadRequest(
-                    "Project has no RequirementsSnapshot. " +
-                    "Complete requirement finalization first.");
+                if (result.Error.Type == TaskPilot.Models.Common.Errors.ErrorType.Conflict)
+                    return Conflict(new { code = result.Error.Code, description = result.Error.Description });
 
-            // Generate
-            var wbs = await _wbsAgent.GenerateAsync(
-                project.RequirementsSnapshot,
-                cancellationToken);
+                return BadRequest(result.Error.Description);
+            }
 
-            // Persist
-            var result = await _wbsPersistenceService.PersistAsync(
-                projectId,
-                wbs,
-                cancellationToken);
-
-            if (!result.Success)
-                return StatusCode(500, result.Error);
-
-            return Ok(result);
+            return Ok(result.Value);
         }
 
         [HttpGet]
