@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -25,6 +27,7 @@ namespace TaskPilot.AI.Agents.Planning
 
         public async Task<TechStackSuggestion> SuggestAsync(
             RequirementsSnapshot snapshot,
+            List<EmployeeSkillSummary> availableSkills,
             CancellationToken cancellationToken = default)
         {
             var kernel = _kernelService.CreateKernel(
@@ -34,6 +37,14 @@ namespace TaskPilot.AI.Agents.Planning
                 "Planning/TechStackAdvisor.yaml");
 
             var function = KernelFunctionYaml.FromPromptYaml(prompt);
+
+            // Format skills for the prompt
+            var skillsText = availableSkills != null && availableSkills.Any()
+                ? string.Join("\n", availableSkills
+                    .Select(s =>
+                        $"- {s.SkillName}: {s.EmployeeCount} developer(s), " +
+                        $"max level: {s.MaxLevel}"))
+                : "No employee skill data available.";
 
             var result = await kernel.InvokeAsync(
                 function,
@@ -48,7 +59,8 @@ namespace TaskPilot.AI.Agents.Planning
                     ["integrations"] =
                         string.Join("\n", snapshot.Integrations),
                     ["scaleRequirements"] =
-                        string.Join("\n", snapshot.ScaleRequirements)
+                        string.Join("\n", snapshot.ScaleRequirements),
+                    ["availableSkills"] = skillsText
                 },
                 cancellationToken: cancellationToken);
 
