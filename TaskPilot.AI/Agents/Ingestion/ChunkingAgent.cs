@@ -1,3 +1,5 @@
+#pragma warning disable SKEXP0050
+using Microsoft.SemanticKernel.Text;
 using TaskPilot.AI.Models.Ingestion;
 
 namespace TaskPilot.AI.Agents.Ingestion
@@ -7,7 +9,6 @@ namespace TaskPilot.AI.Agents.Ingestion
         public Task<List<KnowledgeChunk>> ChunkContentAsync(
             Guid documentId,
             string text,
-            Guid? projectId = null,
             int chunkSize = 1000,
             int overlap = 200,
             CancellationToken cancellationToken = default)
@@ -18,34 +19,27 @@ namespace TaskPilot.AI.Agents.Ingestion
                 return Task.FromResult(chunks);
             }
 
+            var lines = TextChunker.SplitPlainTextLines(text, 100);
+            var paragraphs = TextChunker.SplitPlainTextParagraphs(lines, chunkSize, overlap);
+
             int index = 0;
-            int startIndex = 0;
-            while (startIndex < text.Length)
+            foreach (var chunkText in paragraphs)
             {
-                int length = Math.Min(chunkSize, text.Length - startIndex);
-                var chunkText = text.Substring(startIndex, length).Trim();
-                if (!string.IsNullOrEmpty(chunkText))
+                if (!string.IsNullOrWhiteSpace(chunkText))
                 {
                     chunks.Add(new KnowledgeChunk
                     {
                         Id = Guid.NewGuid(),
                         DocumentId = documentId,
-                        ProjectId = projectId,
-                        Content = chunkText,
+                        Content = chunkText.Trim(),
                         ChunkIndex = index++,
                         CreatedAt = DateTime.UtcNow
                     });
                 }
-
-                if (startIndex + length >= text.Length)
-                {
-                    break;
-                }
-
-                startIndex += (chunkSize - overlap);
             }
 
             return Task.FromResult(chunks);
         }
     }
 }
+#pragma warning restore SKEXP0050

@@ -362,10 +362,6 @@ namespace TaskPilot.AI.Orchestrators
 
                 workflowResult.CurrentStage = "RequirementValidation";
                 workflowResult.ReadyForNextStage = false;
-                workflowResult.BlockingIssues = session.CompletenessReport?
-                    .CriticalMissingAreas
-                    .ToList()
-                    ?? new List<string>();
             }
 
             return workflowResult;
@@ -414,15 +410,12 @@ namespace TaskPilot.AI.Orchestrators
             session.QuestionPool.AddRange(questions);
 
             // Save AI questions in history
-            foreach (var question in questions)
-            {
-                session.ConversationHistory.Add(
-                    new ConversationMessage
-                    {
-                        Role = "assistant",
-                        Message = question.Question
-                    });
-            }
+            session.ConversationHistory.Add(
+                new ConversationMessage
+                {
+                    Role = "assistant",
+                    Message = $"Generated {questions.Count} clarification question(s). See QuestionPool for details."
+                });
         }
 
         private async Task MoveToPlanningAsync(

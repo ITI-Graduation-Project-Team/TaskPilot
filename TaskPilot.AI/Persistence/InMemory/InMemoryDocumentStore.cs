@@ -36,27 +36,5 @@ namespace TaskPilot.AI.Persistence.InMemory
             _chunks.TryGetValue(documentId, out var chunks);
             return Task.FromResult(chunks ?? new List<KnowledgeChunk>());
         }
-
-        public Task<List<KnowledgeChunk>> GetAvailableChunksAsync(
-            Guid? projectId = null,
-            CancellationToken cancellationToken = default)
-        {
-            var availableDocumentIds =
-                _documents
-                    .Values
-                    .Where(document =>
-                        document.IsAvailableToContextSummarizer
-                        && (projectId is null || document.ProjectId == projectId))
-                    .Select(document => document.Id)
-                    .ToHashSet();
-
-            var chunks =
-                _chunks
-                    .Where(entry => availableDocumentIds.Contains(entry.Key))
-                    .SelectMany(entry => entry.Value)
-                    .ToList();
-
-            return Task.FromResult(chunks);
-        }
     }
 }

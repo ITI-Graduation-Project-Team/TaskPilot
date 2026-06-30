@@ -45,7 +45,7 @@ namespace TaskPilot.Services
             var role = await _roleManager.FindByIdAsync(roleId.ToString());
             if (role == null)
             {
-                return Result<RoleDto>.Failure(new Error("ROLE_NOT_FOUND", ErrorType.NotFound));
+                return Result<RoleDto>.Failure(RoleErrors.NotFound);
             }
 
             var claims = await _roleManager.GetClaimsAsync(role);
@@ -128,7 +128,7 @@ namespace TaskPilot.Services
             var role = await _roleManager.FindByIdAsync(roleId.ToString());
             if (role == null)
             {
-                return Result.Failure(new Error("ROLE_NOT_FOUND", ErrorType.NotFound));
+                return Result.Failure(RoleErrors.NotFound);
             }
 
             var existingClaims = await _roleManager.GetClaimsAsync(role);

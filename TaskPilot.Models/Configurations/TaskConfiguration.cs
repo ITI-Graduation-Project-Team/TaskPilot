@@ -59,7 +59,8 @@ namespace TaskPilot.Models.Configurations
             builder.HasOne(t => t.Sprint)
                 .WithMany(s => s.Tasks)
                 .HasForeignKey(t => t.SprintId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.SetNull)
+                .IsRequired(false);
 
             builder.HasOne(t => t.UserStory)
                 .WithMany(us => us.Tasks)
