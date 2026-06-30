@@ -1,9 +1,7 @@
 using Microsoft.AspNetCore.Http;
 using TaskPilot.AI.Agents.Ingestion;
-using TaskPilot.AI.Enums;
 using TaskPilot.AI.Helpers;
 using TaskPilot.AI.Models.Ingestion;
-using TaskPilot.AI.Models.Session;
 using TaskPilot.AI.Persistence.Interfaces;
 using TaskPilot.AI.Services.Interfaces;
 using TaskPilot.AI.Agents.Requirements;
@@ -51,7 +49,9 @@ namespace TaskPilot.AI.Orchestrators
         public async Task<DocumentIngestionResult> IngestAsync(
             Guid sessionId,
             IFormFile file,
-            CancellationToken cancellationToken)
+            Guid? projectId = null,
+            bool isAvailableToContextSummarizer = true,
+            CancellationToken cancellationToken = default)
         {
             var session = await _sessionStore.GetAsync(sessionId, cancellationToken);
             if (session == null)
@@ -63,10 +63,62 @@ namespace TaskPilot.AI.Orchestrators
                 };
             }
 
+            var result =
+                await IngestCoreAsync(
+                    file,
+                    projectId,
+                    isAvailableToContextSummarizer,
+                    cancellationToken);
+
+            if (!result.Success || result.DocumentId == Guid.Empty)
+            {
+                return result;
+            }
+
+            var document =
+                await _documentStore
+                    .GetDocumentAsync(result.DocumentId, cancellationToken);
+
+            if (document is not null)
+            {
+                session.Knowledge.Documents.Add(document);
+                session.Knowledge.DocumentIds.Add(document.Id);
+            }
+
+            session.AddDecision(
+                nameof(DocumentIngestionOrchestrator),
+                "Document ingested successfully");
+
+            await _sessionStore.SaveAsync(session, cancellationToken);
+
+            return result;
+        }
+
+        public Task<DocumentIngestionResult> IngestProjectKnowledgeAsync(
+            IFormFile file,
+            Guid? projectId = null,
+            bool isAvailableToContextSummarizer = true,
+            CancellationToken cancellationToken = default)
+        {
+            return IngestCoreAsync(
+                file,
+                projectId,
+                isAvailableToContextSummarizer,
+                cancellationToken);
+        }
+
+        private async Task<DocumentIngestionResult> IngestCoreAsync(
+            IFormFile file,
+            Guid? projectId,
+            bool isAvailableToContextSummarizer,
+            CancellationToken cancellationToken)
+        {
             try
             {
-                // 1. Find matched extractor
-                var extractor = _extractors.FirstOrDefault(e => e.CanHandle(file.ContentType, file.FileName));
+                var extractor =
+                    _extractors
+                        .FirstOrDefault(e => e.CanHandle(file.ContentType, file.FileName));
+
                 if (extractor == null)
                 {
                     return new DocumentIngestionResult
@@ -76,11 +128,13 @@ namespace TaskPilot.AI.Orchestrators
                     };
                 }
 
-                // 2. Extract Text
                 string extractedText;
+
                 using (var stream = file.OpenReadStream())
                 {
-                    extractedText = await extractor.ExtractTextAsync(stream, cancellationToken);
+                    extractedText =
+                        await extractor
+                            .ExtractTextAsync(stream, cancellationToken);
                 }
 
                 _logger.LogInformation("Extracted Text Preview: {Preview}", extractedText.Length > 200 ? extractedText.Substring(0, 200) : extractedText);
@@ -88,7 +142,6 @@ namespace TaskPilot.AI.Orchestrators
                 // 3. Categorize Document
                 var category = await _categorizationAgent.CategorizeAsync(file.FileName, extractedText, cancellationToken);
 
-                // 4. Create Ingested Document
                 var documentId = Guid.NewGuid();
                 var document = new IngestedDocument
                 {
@@ -140,10 +193,8 @@ namespace TaskPilot.AI.Orchestrators
                 session.Knowledge.Documents.Add(document);
                 session.Knowledge.DocumentIds.Add(document.Id);
 
-                // 8. Record audit entry
-                session.AddDecision(
-                    nameof(DocumentIngestionOrchestrator),
-                    "Document ingested successfully");
+                await _documentStore
+                    .SaveDocumentAsync(document, cancellationToken);
 
                 session.UpdatedAt = DateTime.UtcNow;
 

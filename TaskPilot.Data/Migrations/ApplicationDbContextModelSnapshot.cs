@@ -1469,6 +1469,9 @@ namespace TaskPilot.Data.Migrations
                     b.Property<int>("BillingCycle")
                         .HasColumnType("int");
 
+                    b.Property<DateTime?>("CanceledAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2")
@@ -1479,6 +1482,17 @@ namespace TaskPilot.Data.Migrations
 
                     b.Property<DateTime>("EndDate")
                         .HasColumnType("datetime2");
+
+                    b.Property<int>("Gateway")
+                        .HasColumnType("int");
+
+                    b.Property<string>("GatewayCustomerId")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("GatewaySubscriptionId")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
 
                     b.Property<bool>("IsDeleted")
                         .ValueGeneratedOnAdd()
@@ -1512,6 +1526,10 @@ namespace TaskPilot.Data.Migrations
                         .HasColumnType("datetime2");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("GatewaySubscriptionId")
+                        .IsUnique()
+                        .HasFilter("[GatewaySubscriptionId] IS NOT NULL");
 
                     b.HasIndex("IsDeleted");
 

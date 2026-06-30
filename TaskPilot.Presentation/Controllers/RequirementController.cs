@@ -69,6 +69,8 @@ namespace TaskPilot.Presentation.Controllers
                     .IngestAsync(
                         request.SessionId,
                         request.File,
+                        request.ProjectId,
+                        request.IsAvailableToContextSummarizer,
                         cancellationToken);
 
             return Ok(result);

@@ -24,6 +24,7 @@ namespace TaskPilot.Presentation
             builder.Services.AddAiLayer(builder.Configuration);
             builder.Services.AddInfrastructure(
     builder.Configuration);
+            builder.Services.AddPaymentLayer(builder.Configuration);
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("AllowAll", policy =>
@@ -63,7 +64,7 @@ namespace TaskPilot.Presentation
             })
            .AddJwtBearer(o =>
            {
-               o.RequireHttpsMetadata = false;
+               o.RequireHttpsMetadata = false;//TODO change to true in production
                o.SaveToken = false;
                o.TokenValidationParameters = new TokenValidationParameters
                {

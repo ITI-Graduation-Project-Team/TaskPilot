@@ -9,6 +9,7 @@ namespace TaskPilot.AI.Agents.Ingestion
         public Task<List<KnowledgeChunk>> ChunkContentAsync(
             Guid documentId,
             string text,
+            Guid? projectId = null,
             int chunkSize = 1000,
             int overlap = 200,
             CancellationToken cancellationToken = default)

@@ -18,7 +18,7 @@ namespace TaskPilot.Presentation.Controllers
         private readonly ICurrentUserService _currentUserService;
 
         public UserSubscriptionsController(
-            IUserSubscriptionService userSubscriptionService, 
+            IUserSubscriptionService userSubscriptionService,
             IUnitOfWork unitOfWork,
             ICurrentUserService currentUserService)
         {
@@ -32,12 +32,12 @@ namespace TaskPilot.Presentation.Controllers
         public async Task<ActionResult> GetCurrentSubscription([FromQuery] Guid? projectManagerId = null)
         {
             // If PM, they can only view their own. Admin can view anyone's by passing the ID.
-            var pmId = User.IsInRole("Admin") && projectManagerId.HasValue 
-                ? projectManagerId.Value 
+            var pmId = User.IsInRole("Admin") && projectManagerId.HasValue
+                ? projectManagerId.Value
                 : _currentUserService.UserId ?? Guid.Empty;
 
             var result = await _userSubscriptionService.GetCurrentSubscriptionAsync(pmId);
-            
+
             // GetCurrentSubscriptionAsync might mutate state (auto-fallback to free), so we save changes just in case.
             if (result.IsSuccess)
                 await _unitOfWork.SaveChangesAsync();
@@ -67,7 +67,7 @@ namespace TaskPilot.Presentation.Controllers
         {
             var pmId = _currentUserService.UserId ?? Guid.Empty;
             var result = await _userSubscriptionService.CreateAsync(pmId, request);
-            
+
             if (result.IsSuccess)
                 await _unitOfWork.SaveChangesAsync();
 
@@ -94,6 +94,27 @@ namespace TaskPilot.Presentation.Controllers
                 await _unitOfWork.SaveChangesAsync();
 
             return HandleResult(result, SuccessCodes.UserSubscription.Deleted);
+        }
+
+        [HttpPost("{id:guid}/cancel")]
+        [Authorize(Roles = "ProjectManager")]
+        public async Task<ActionResult> Cancel(Guid id)
+        {
+            // First check if the subscription belongs to the current user
+            var pmId = _currentUserService.UserId ?? Guid.Empty;
+            var subResult = await _userSubscriptionService.GetByIdAsync(id);
+
+            if (!subResult.IsSuccess)
+                return HandleResult(subResult);
+
+            if (subResult.Value.ProjectManagerId != pmId)
+                return Forbid();
+
+            var result = await _userSubscriptionService.DeleteAsync(id);
+            if (result.IsSuccess)
+                await _unitOfWork.SaveChangesAsync();
+
+            return HandleResult(result, "Subscription cancelled successfully.");
         }
     }
 }

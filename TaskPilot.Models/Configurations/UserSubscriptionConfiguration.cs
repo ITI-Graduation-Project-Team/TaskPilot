@@ -26,6 +26,10 @@ public class UserSubscriptionConfiguration
             .IsRequired()
             .HasConversion<int>();
 
+        builder.Property(s => s.Gateway)
+            .IsRequired()
+            .HasConversion<int>();
+
         builder.Property(s => s.IsTrial)
             .HasDefaultValue(false);
 
@@ -45,5 +49,15 @@ public class UserSubscriptionConfiguration
         builder.HasIndex(s => s.ProjectManagerId);
         builder.HasIndex(s => s.SubscriptionPlanId);
         builder.HasIndex(s => s.Status);
+
+        builder.Property(s => s.GatewaySubscriptionId)
+            .HasMaxLength(255);
+            
+        builder.Property(s => s.GatewayCustomerId)
+            .HasMaxLength(255);
+
+        builder.HasIndex(s => s.GatewaySubscriptionId)
+            .IsUnique()
+            .HasFilter("[GatewaySubscriptionId] IS NOT NULL");
     }
 }

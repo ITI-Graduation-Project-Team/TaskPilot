@@ -5,7 +5,6 @@ using TaskPilot.AI.Enums;
 using TaskPilot.AI.Helpers;
 using TaskPilot.AI.Models.Questions;
 using TaskPilot.AI.Models.Session;
-using TaskPilot.AI.Models.Workflow;
 using TaskPilot.AI.Services.Interfaces;
 
 namespace TaskPilot.AI.Agents.Requirements

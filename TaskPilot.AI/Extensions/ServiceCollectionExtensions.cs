@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.SemanticKernel.Services;
+using TaskPilot.AI.Agents.ContextAdvisor;
 using TaskPilot.AI.Agents.Requirements;
 using TaskPilot.AI.Agents.Ingestion;
 using TaskPilot.AI.Agents.Planning;
@@ -9,6 +10,7 @@ using TaskPilot.AI.Options;
 using TaskPilot.AI.Orchestrators;
 using TaskPilot.AI.Persistence.InMemory;
 using TaskPilot.AI.Persistence.Interfaces;
+using TaskPilot.AI.RAG;
 using TaskPilot.AI.Services;
 using TaskPilot.AI.Services.Extraction;
 using TaskPilot.AI.Services.Interfaces;
@@ -59,6 +61,8 @@ namespace TaskPilot.AI.Extensions
                  DocumentIngestionOrchestrator>();
 
             services.AddScoped<
+                 ContextAdvisorOrchestrator>();
+            services.AddScoped<
                  KnowledgeOrchestrator>();
 
             services.AddSingleton<
@@ -68,6 +72,14 @@ namespace TaskPilot.AI.Extensions
             services.AddSingleton<
                 IDocumentStore,
                 InMemoryDocumentStore>();
+
+            services.AddSingleton<
+                IContextAdvisorConversationStore,
+                InMemoryContextAdvisorConversationStore>();
+
+            services.AddScoped<
+                IProjectKnowledgeSearchService,
+                ProjectKnowledgeSearchService>();
 
             // Ingestion agents
             services.AddScoped<
@@ -100,6 +112,9 @@ namespace TaskPilot.AI.Extensions
             services.AddScoped<
                 QuestionResolutionAgent>();
 
+            // Context advisor agents
+            services.AddScoped<
+                AgileCoachAgent>();
             // RAG agents
             services.AddScoped<
                 KnowledgeRetrievalAgent>();
