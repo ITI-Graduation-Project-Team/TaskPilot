@@ -82,23 +82,8 @@ namespace TaskPilot.Presentation.Controllers
         [HttpPost("~/api/projects/{projectId:guid}/backlog/regenerate")]
         public async Task<ActionResult> RegenerateBacklog(Guid projectId)
         {
-            try
-            {
-                var summary = await _regenerationService.RegenerateBacklogAsync(projectId);
-                return Ok(summary);
-            }
-            catch (InvalidOperationException ex) when (ex.Message.Contains("not found"))
-            {
-                return NotFound(new { error = ex.Message });
-            }
-            catch (InvalidOperationException ex) when (ex.Message.Contains("has no RequirementsSnapshot"))
-            {
-                return BadRequest(new { error = ex.Message });
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { error = ex.Message });
-            }
+            var result = await _regenerationService.RegenerateBacklogAsync(projectId);
+            return HandleResult(result);
         }
     }
 }

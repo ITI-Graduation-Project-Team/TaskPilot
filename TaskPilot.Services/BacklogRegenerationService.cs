@@ -10,6 +10,8 @@ using TaskPilot.Data.Repositories.Interfaces;
 using TaskPilot.DTOs.Backlog;
 using TaskPilot.Models.Entities;
 using TaskPilot.Services.Interfaces;
+using TaskPilot.Models.Common.Results;
+using TaskPilot.Models.Common.Errors;
 
 namespace TaskPilot.Services
 {
@@ -44,7 +46,7 @@ namespace TaskPilot.Services
             _logger = logger;
         }
 
-        public async Task<RegenerationSummaryDto> RegenerateBacklogAsync(Guid projectId, CancellationToken cancellationToken = default)
+        public async Task<Result<RegenerationSummaryDto>> RegenerateBacklogAsync(Guid projectId, CancellationToken cancellationToken = default)
         {
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             _logger.LogInformation("Starting backlog regeneration for ProjectId: {ProjectId}", projectId);
@@ -53,13 +55,13 @@ namespace TaskPilot.Services
             var project = await _projectRepository.GetByIdAsync(projectId, p => p.RequirementsSnapshot);
             if (project == null)
             {
-                throw new InvalidOperationException($"Project with ID {projectId} not found.");
+                return Result.Failure<RegenerationSummaryDto>(CommonErrors.NotFound("Project"));
             }
 
             // Step 2: Validate RequirementsSnapshot
             if (project.RequirementsSnapshot == null)
             {
-                throw new InvalidOperationException("Project has no RequirementsSnapshot.");
+                return Result.Failure<RegenerationSummaryDto>(CommonErrors.InvalidInput("Project has no RequirementsSnapshot."));
             }
 
             await _unitOfWork.BeginTransactionAsync(cancellationToken);
@@ -94,7 +96,7 @@ namespace TaskPilot.Services
 
                 if (!persistenceResult.Success)
                 {
-                    throw new InvalidOperationException($"WBS persistence failed: {persistenceResult.Error}");
+                    return Result.Failure<RegenerationSummaryDto>(CommonErrors.OperationFailed($"WBS persistence failed: {persistenceResult.Error}"));
                 }
 
                 // Explicitly save all changes made by the persistence service
@@ -110,7 +112,7 @@ namespace TaskPilot.Services
                     persistenceResult.UserStoriesCreated, persistenceResult.TasksCreated, stopwatch.ElapsedMilliseconds);
 
                 // Step 6: Return summary
-                return new RegenerationSummaryDto
+                var summary = new RegenerationSummaryDto
                 {
                     ProjectId = projectId,
                     DeletedUserStories = deletedUserStoriesCount,
@@ -119,12 +121,13 @@ namespace TaskPilot.Services
                     GeneratedTasks = persistenceResult.TasksCreated,
                     Message = "Backlog regenerated successfully."
                 };
+                return Result.Success(summary);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to regenerate backlog for ProjectId: {ProjectId}. Rolling back transaction.", projectId);
                 await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-                throw;
+                return Result.Failure<RegenerationSummaryDto>(CommonErrors.ServerError(ex.Message));
             }
         }
     }
