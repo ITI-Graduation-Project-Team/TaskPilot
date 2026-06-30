@@ -520,6 +520,10 @@ namespace TaskPilot.Data.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
 
+                    b.PrimitiveCollection<string>("DocumentIds")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<bool>("IsDeleted")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
@@ -543,6 +547,27 @@ namespace TaskPilot.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("PlatformTargets")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ProjectType")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("SprintDurationInDays")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("TargetSprintHours")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("TechStack")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
@@ -750,6 +775,84 @@ namespace TaskPilot.Data.Migrations
                     b.HasIndex("ProjectId");
 
                     b.ToTable("Sprints", (string)null);
+                });
+
+            modelBuilder.Entity("TaskPilot.Models.Entities.SprintRetrospective", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ActionItemsAr")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<string>("ActionItemsEn")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<string>("ChallengesAr")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<string>("ChallengesEn")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<double>("CompletionRate")
+                        .HasColumnType("float");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("EstimationAccuracy")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ModifiedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("SprintId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("TeamSentimentSummaryAr")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("TeamSentimentSummaryEn")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("WhatWentWellAr")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<string>("WhatWentWellEn")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SprintId")
+                        .IsUnique();
+
+                    b.ToTable("SprintRetrospectives");
                 });
 
             modelBuilder.Entity("TaskPilot.Models.Entities.SubscriptionPlan", b =>
@@ -973,6 +1076,9 @@ namespace TaskPilot.Data.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
 
+                    b.Property<int>("EffortSize")
+                        .HasColumnType("int");
+
                     b.Property<Guid?>("EmployeeId")
                         .HasColumnType("uniqueidentifier");
 
@@ -993,7 +1099,7 @@ namespace TaskPilot.Data.Migrations
                     b.Property<int>("Priority")
                         .HasColumnType("int");
 
-                    b.Property<Guid>("SprintId")
+                    b.Property<Guid?>("SprintId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<int>("Status")
@@ -1016,6 +1122,9 @@ namespace TaskPilot.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
 
                     b.Property<Guid?>("UserStoryId")
                         .HasColumnType("uniqueidentifier");
@@ -1306,7 +1415,10 @@ namespace TaskPilot.Data.Migrations
                     b.Property<int>("Priority")
                         .HasColumnType("int");
 
-                    b.Property<Guid>("SprintId")
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("SprintId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<int>("Status")
@@ -1330,12 +1442,15 @@ namespace TaskPilot.Data.Migrations
 
                     b.HasIndex("Priority");
 
+                    b.HasIndex("ProjectId");
+
                     b.HasIndex("SprintId");
 
                     b.HasIndex("SprintId", "Status");
 
                     b.HasIndex("SprintId", "TitleEn")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("[SprintId] IS NOT NULL");
 
                     b.ToTable("UserStories", (string)null);
                 });
@@ -1621,9 +1736,42 @@ namespace TaskPilot.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.OwnsOne("TaskPilot.Models.Entities.RequirementsSnapshot", "RequirementsSnapshot", b1 =>
+                        {
+                            b1.Property<Guid>("ProjectId");
+
+                            b1.PrimitiveCollection<string>("BusinessRequirements")
+                                .IsRequired();
+
+                            b1.PrimitiveCollection<string>("Constraints")
+                                .IsRequired();
+
+                            b1.PrimitiveCollection<string>("Integrations")
+                                .IsRequired();
+
+                            b1.PrimitiveCollection<string>("ScaleRequirements")
+                                .IsRequired();
+
+                            b1.PrimitiveCollection<string>("TechnicalRequirements")
+                                .IsRequired();
+
+                            b1.HasKey("ProjectId");
+
+                            b1.ToTable("Projects");
+
+                            b1
+                                .ToJson("RequirementsSnapshot")
+                                .HasColumnType("nvarchar(max)");
+
+                            b1.WithOwner()
+                                .HasForeignKey("ProjectId");
+                        });
+
                     b.Navigation("Company");
 
                     b.Navigation("Manager");
+
+                    b.Navigation("RequirementsSnapshot");
                 });
 
             modelBuilder.Entity("TaskPilot.Models.Entities.ProjectEmployee", b =>
@@ -1677,6 +1825,17 @@ namespace TaskPilot.Data.Migrations
                     b.Navigation("Project");
                 });
 
+            modelBuilder.Entity("TaskPilot.Models.Entities.SprintRetrospective", b =>
+                {
+                    b.HasOne("TaskPilot.Models.Entities.Sprint", "Sprint")
+                        .WithOne()
+                        .HasForeignKey("TaskPilot.Models.Entities.SprintRetrospective", "SprintId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Sprint");
+                });
+
             modelBuilder.Entity("TaskPilot.Models.Entities.TaskAttachment", b =>
                 {
                     b.HasOne("TaskPilot.Models.Entities.TaskItem", "Task")
@@ -1715,8 +1874,7 @@ namespace TaskPilot.Data.Migrations
                     b.HasOne("TaskPilot.Models.Entities.Sprint", "Sprint")
                         .WithMany("Tasks")
                         .HasForeignKey("SprintId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("TaskPilot.Models.Entities.UserStory", "UserStory")
                         .WithMany("Tasks")
@@ -1780,11 +1938,18 @@ namespace TaskPilot.Data.Migrations
 
             modelBuilder.Entity("TaskPilot.Models.Entities.UserStory", b =>
                 {
+                    b.HasOne("TaskPilot.Models.Entities.Project", "Project")
+                        .WithMany("UserStories")
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("TaskPilot.Models.Entities.Sprint", "Sprint")
                         .WithMany("UserStories")
                         .HasForeignKey("SprintId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Project");
 
                     b.Navigation("Sprint");
                 });
@@ -1826,6 +1991,8 @@ namespace TaskPilot.Data.Migrations
                     b.Navigation("ProjectEmployees");
 
                     b.Navigation("Sprints");
+
+                    b.Navigation("UserStories");
                 });
 
             modelBuilder.Entity("TaskPilot.Models.Entities.Skill", b =>

@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
+using TaskPilot.Models.Common;
 using Microsoft.AspNetCore.Mvc;
 using TaskPilot.Data.Repositories;
 using TaskPilot.Services.Interfaces;
@@ -23,7 +24,7 @@ namespace TaskPilot.Presentation.Controllers
         public async Task<IActionResult> GetAll()
         {
             var result = await _skillService.GetAllAsync();
-            return HandleResult(result);
+            return HandleResult(result, SuccessCodes.Skill.Retrieved);
         }
 
         [HttpPost]
@@ -34,7 +35,7 @@ namespace TaskPilot.Presentation.Controllers
             if (result.IsSuccess)
                 await _unitOfWork.SaveChangesAsync();
 
-            return HandleResult(result);
+            return HandleResult(result, SuccessCodes.Skill.Created);
         }
 
         [HttpDelete("{id:int}")]
@@ -45,7 +46,7 @@ namespace TaskPilot.Presentation.Controllers
             if (result.IsSuccess)
                 await _unitOfWork.SaveChangesAsync();
 
-            return HandleResult(result);
+            return HandleResult(result, SuccessCodes.Skill.Deleted);
         }
         [HttpPost("bulk")]
         public async Task<IActionResult> CreateBulk([FromBody] List<string> names)
@@ -55,7 +56,7 @@ namespace TaskPilot.Presentation.Controllers
             if (result.IsSuccess)
                 await _unitOfWork.SaveChangesAsync();
 
-            return HandleResult(result, "Skills added successfully.");
+            return HandleResult(result, SuccessCodes.Skill.Created);
         }
     }
 }

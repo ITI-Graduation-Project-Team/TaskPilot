@@ -35,7 +35,7 @@ namespace TaskPilot.AI.Agents.Requirements
                 _kernelService
                     .CreateKernel(
                         ModelConstants
-                            .FastModel);
+                            .CheapModel);
 
             // Load YAML prompt
             var prompt =
