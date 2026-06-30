@@ -21,28 +21,28 @@ namespace TaskPilot.Presentation.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAllRoles()
+        public async Task<ActionResult> GetAllRoles()
         {
             var result = await _roleService.GetAllRolesAsync();
             return HandleResult(result, SuccessCodes.Role.Retrieved);
         }
 
         [HttpGet("{id}")]
-        public async Task<IActionResult> GetRoleById(Guid id)
+        public async Task<ActionResult> GetRoleById(Guid id)
         {
             var result = await _roleService.GetRoleByIdAsync(id);
             return HandleResult(result, SuccessCodes.Role.Retrieved);
         }
 
         [HttpGet("permissions-matrix")]
-        public async Task<IActionResult> GetPermissionMatrix()
+        public async Task<ActionResult> GetPermissionMatrix()
         {
             var result = await _roleService.GetPermissionMatrixAsync();
             return HandleResult(result, SuccessCodes.Role.Retrieved);
         }
 
         [HttpPut("{id}/permissions")]
-        public async Task<IActionResult> UpdateRolePermissions(Guid id, [FromBody] UpdateRolePermissionsDto request)
+        public async Task<ActionResult> UpdateRolePermissions(Guid id, [FromBody] UpdateRolePermissionsDto request)
         {
             var result = await _roleService.UpdateRolePermissionsAsync(id, request);
             return HandleResult(result, SuccessCodes.Role.PermissionsUpdated);

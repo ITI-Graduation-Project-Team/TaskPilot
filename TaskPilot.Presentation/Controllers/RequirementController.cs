@@ -1,3 +1,6 @@
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using TaskPilot.AI.Models.Session;
 using TaskPilot.AI.Orchestrators;
@@ -6,33 +9,20 @@ using TaskPilot.DTOs.AI.Requirements;
 using TaskPilot.AI.Models.Ingestion;
 using TaskPilot.AI.Services.Interfaces;
 using TaskPilot.Services.Interfaces;
+using TaskPilot.Models.Common.Results;
+using TaskPilot.Models.Common.Errors;
 
 namespace TaskPilot.Presentation.Controllers
 {
     [ApiController]
     [Route("api/requirements")]
-    public class RequirementController
-        : ApiControllerBase
+    public class RequirementController : ApiControllerBase
     {
-        private readonly
-            RequirementsOrchestrator
-                _orchestrator;
-
-        private readonly
-            DocumentIngestionOrchestrator
-                _documentIngestionOrchestrator;
-
-        private readonly
-            IRequirementSessionStore
-                _sessionStore;
-
-        private readonly
-            IVectorStore
-                _vectorStore;
-
-        private readonly
-            IRequirementFinalizationService
-                _finalizationService;
+        private readonly RequirementsOrchestrator _orchestrator;
+        private readonly DocumentIngestionOrchestrator _documentIngestionOrchestrator;
+        private readonly IRequirementSessionStore _sessionStore;
+        private readonly IVectorStore _vectorStore;
+        private readonly IRequirementFinalizationService _finalizationService;
 
         public RequirementController(
             RequirementsOrchestrator orchestrator,
@@ -41,126 +31,95 @@ namespace TaskPilot.Presentation.Controllers
             IVectorStore vectorStore,
             IRequirementFinalizationService finalizationService)
         {
-            _orchestrator =
-                orchestrator;
-
-            _documentIngestionOrchestrator =
-                documentIngestionOrchestrator;
-
-            _sessionStore =
-                sessionStore;
-                
-            _vectorStore =
-                vectorStore;
-                
-            _finalizationService =
-                finalizationService;
+            _orchestrator = orchestrator;
+            _documentIngestionOrchestrator = documentIngestionOrchestrator;
+            _sessionStore = sessionStore;
+            _vectorStore = vectorStore;
+            _finalizationService = finalizationService;
         }
 
         [HttpPost("document")]
-        public async Task<IActionResult>
-            Document(
-                [FromForm]
-                DocumentUploadRequest request,
-                CancellationToken cancellationToken)
+        public async Task<ActionResult> Document(
+            [FromForm] DocumentUploadRequest request,
+            CancellationToken cancellationToken)
         {
-            var result =
-                await _documentIngestionOrchestrator
-                    .IngestAsync(
-                        request.SessionId,
-                        request.File,
-                        cancellationToken);
+            var result = await _documentIngestionOrchestrator
+                .IngestAsync(
+                    request.SessionId,
+                    request.File,
+                    cancellationToken);
 
-            return Ok(result);
+            if (!result.Success)
+            {
+                return HandleResult(Result.Failure<DocumentIngestionResult>(
+                    new Error("DOCUMENT_INGESTION_FAILED", ErrorType.Failure, result.Message)));
+            }
+
+            return HandleResult(Result.Success(result));
         }
 
         [HttpPost("message")]
-        public async Task<IActionResult>
-    Message(
-        [FromBody]
-        RequirementMessageRequest request,
-        CancellationToken cancellationToken)
+        public async Task<ActionResult> Message(
+            [FromBody] RequirementMessageRequest request,
+            CancellationToken cancellationToken)
         {
-            RequirementSession result;
+            RequirementSession session;
 
-            if (request.SessionId
-                is null)
+            if (request.SessionId is null)
             {
-                result =
-                    await _orchestrator
-                        .StartAsync(
-                            request.Message,
-                            cancellationToken);
+                session = await _orchestrator
+                    .StartAsync(
+                        request.Message,
+                        cancellationToken);
             }
             else
             {
-                result =
-                    await _orchestrator
-                        .ProcessPMResponseAsync(
-                            request.SessionId.Value,
-                            request.Message,
-                            cancellationToken);
+                session = await _orchestrator
+                    .ProcessPMResponseAsync(
+                        request.SessionId.Value,
+                        request.Message,
+                        cancellationToken);
             }
 
-            return Ok(result);
+            return HandleResult(Result.Success(session));
         }
+
         [HttpGet("{sessionId}")]
-        public async Task<IActionResult>
-            Get(
-                Guid sessionId,
-                CancellationToken cancellationToken)
+        public async Task<ActionResult> Get(
+            Guid sessionId,
+            CancellationToken cancellationToken)
         {
-            var session =
-                await _sessionStore
-                    .GetAsync(
-                        sessionId,
-                        cancellationToken);
+            var session = await _sessionStore
+                .GetAsync(
+                    sessionId,
+                    cancellationToken);
 
             if (session is null)
             {
-                return NotFound();
+                return HandleResult(Result.Failure<RequirementSession>(CommonErrors.NotFound("Requirement session")));
             }
 
-            return Ok(session);
+            return HandleResult(Result.Success(session));
         }
 
         [HttpGet("search")]
-        public async Task<IActionResult> Search(
+        public async Task<ActionResult> Search(
             [FromQuery] Guid sessionId,
             [FromQuery] string query,
             CancellationToken cancellationToken)
         {
             var results = await _vectorStore.SearchAsync(sessionId, query, cancellationToken: cancellationToken);
-            return Ok(results);
+            return HandleResult(Result.Success(results));
         }
 
         [HttpPost("{sessionId}/finalize")]
-        public async Task<IActionResult> Finalize(
+        public async Task<ActionResult> Finalize(
             Guid sessionId,
             [FromBody] FinalizeRequirementsRequest request,
             CancellationToken cancellationToken)
         {
-            try
-            {
-                var response = await _finalizationService.FinalizeRequirementsAsync(sessionId, request, cancellationToken);
-                return Ok(response);
-            }
-            catch (TaskPilot.Services.Exceptions.SessionAlreadyFinalizedException ex)
-            {
-                return Conflict(new { message = ex.Message, projectId = ex.ProjectId });
-            }
-            catch (ArgumentException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
-            catch (TaskPilot.Services.Exceptions.UnprocessableEntityException ex)
-            {
-                return UnprocessableEntity(new { message = ex.Message });
-            }
+            var result = await _finalizationService.FinalizeRequirementsAsync(sessionId, request, cancellationToken);
+            return HandleResult(result);
         }
     }
 }

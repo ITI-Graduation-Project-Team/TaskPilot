@@ -4,12 +4,15 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using TaskPilot.AI.Orchestrators;
 using TaskPilot.DTOs.AI.Knowledge;
+using TaskPilot.Models.Common.Results;
+using TaskPilot.Models.Common.Errors;
+using TaskPilot.AI.Models.RAG;
 
 namespace TaskPilot.Presentation.Controllers
 {
     [ApiController]
     [Route("api/knowledge")]
-    public class KnowledgeController : ControllerBase
+    public class KnowledgeController : ApiControllerBase
     {
         private readonly KnowledgeOrchestrator _orchestrator;
 
@@ -19,13 +22,13 @@ namespace TaskPilot.Presentation.Controllers
         }
 
         [HttpPost("ask")]
-        public async Task<IActionResult> AskAsync(
+        public async Task<ActionResult> AskAsync(
             [FromBody] KnowledgeAskRequest request,
             CancellationToken cancellationToken)
         {
             if (request.SessionId == Guid.Empty)
             {
-                return BadRequest("SessionId cannot be empty.");
+                return HandleResult(Result.Failure<KnowledgeAnswerResult>(KnowledgeErrors.EmptySessionId));
             }
 
             var result = await _orchestrator.AskAsync(
@@ -35,7 +38,7 @@ namespace TaskPilot.Presentation.Controllers
                 category: null,
                 cancellationToken: cancellationToken);
 
-            return Ok(result);
+            return HandleResult(Result.Success(result));
         }
     }
 }
