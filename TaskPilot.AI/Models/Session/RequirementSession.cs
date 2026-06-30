@@ -21,12 +21,6 @@ namespace TaskPilot.AI.Models.Session
             set;
         }
 
-        public Guid? ProjectId
-        {
-            get;
-            set;
-        }
-
         // Requirements
         public ExtractedRequirements
             Requirements

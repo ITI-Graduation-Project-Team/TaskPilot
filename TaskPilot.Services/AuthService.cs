@@ -8,7 +8,6 @@ using TaskPilot.Models.Entities;
 using TaskPilot.Models.Enums;
 using TaskPilot.Services.Interfaces.External;
 using TaskPilot.Services.Interfaces;
-using Microsoft.AspNetCore.Identity.Data;
 
 namespace TaskPilot.Services
 {
@@ -200,7 +199,6 @@ namespace TaskPilot.Services
                 RefreshToken = refreshToken.Value,
                 UserId = user.Id,
                 Roles = roles,
-                IsProfileCompleted = user is Employee emp ? emp.IsProfileCompleted : true
             };
             return response;
         }
@@ -304,9 +302,9 @@ namespace TaskPilot.Services
 
         }
 
-        public async Task<Result> ForgotPasswordAsync(ForgotPasswordDto dto)
+        public async Task<Result> ForgotPasswordAsync(string email)
         {
-            var userResult = await _identityService.FindByEmailAsync(dto.Email);
+            var userResult = await _identityService.FindByEmailAsync(email);
             if (userResult.IsFailure)
             {
                 return Result.Success();

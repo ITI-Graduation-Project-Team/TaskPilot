@@ -43,15 +43,12 @@ namespace TaskPilot.Services
                     Name = isArabic ? p.NameAr : p.NameEn,
                     Description = isArabic ? p.DescriptionAr : p.DescriptionEn,
                     CompanyId = p.CompanyId,
-                    ManagerId = p.ManagerId,
-                    TechStack = p.TechStack,
-                    PlatformTargets = p.PlatformTargets,
-                    ProjectType = p.ProjectType
+                    ManagerId = p.ManagerId
                 })
                 .FirstOrDefaultAsync();
 
             if (project is null)
-                return Result.Failure<ProjectDto>(ProjectErrors.NotFound);
+                return Result.Failure<ProjectDto>(CommonErrors.NotFound("Project"));
 
             return Result.Success(project);
         }
@@ -80,7 +77,7 @@ namespace TaskPilot.Services
             var companyExists = await _companyRepo.AnyAsync(c => c.Id == companyId);
 
             if (!companyExists)
-                return Result.Failure<IEnumerable<ProjectDto>>(CompanyErrors.NotFound);
+                return Result.Failure<IEnumerable<ProjectDto>>(CommonErrors.NotFound("Company"));
 
             bool isArabic = _localizationService.CurrentLanguage == "ar";
 
@@ -104,12 +101,12 @@ namespace TaskPilot.Services
             var managerExists = await _managerRepo.AnyAsync(pm => pm.Id == dto.ManagerId);
 
             if (!managerExists)
-                return Result.Failure<ProjectDto>(UserErrors.ProjectManagerNotFound);
+                return Result.Failure<ProjectDto>(CommonErrors.NotFound("Project Manager"));
 
             var companyExists = await _companyRepo.AnyAsync(c => c.Id == dto.CompanyId);
 
             if (!companyExists)
-                return Result.Failure<ProjectDto>(CompanyErrors.NotFound);
+                return Result.Failure<ProjectDto>(CommonErrors.NotFound("Company"));
 
             var project = new Project
             {
@@ -141,7 +138,7 @@ namespace TaskPilot.Services
             var existing = await _projectRepo.GetByIdAsync(dto.Id);
 
             if (existing is null)
-                return Result.Failure(ProjectErrors.NotFound);
+                return Result.Failure(CommonErrors.NotFound("Project"));
 
             existing.NameEn = dto.NameEn;
             existing.NameAr = dto.NameAr;
@@ -158,7 +155,7 @@ namespace TaskPilot.Services
             var project = await _projectRepo.GetByIdAsync(id);
 
             if (project is null)
-                return Result.Failure(ProjectErrors.NotFound);
+                return Result.Failure(CommonErrors.NotFound("Project"));
 
             project.IsDeleted = true;
             _projectRepo.Update(project);

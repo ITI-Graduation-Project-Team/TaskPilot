@@ -1,4 +1,4 @@
-using Microsoft.SemanticKernel;
+﻿using Microsoft.SemanticKernel;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using TaskPilot.AI.Constants;
@@ -49,18 +49,19 @@ namespace TaskPilot.AI.Services
         {
             var prompt =
                 await _promptLoaderService.LoadAsync(
-                    "CV/ParseCvPrompt.yaml");
+                    "Prompts/Cv/ParseCvPrompt.txt");
 
-            var function =
-                KernelFunctionYaml.FromPromptYaml(prompt);
+            var arguments =
+                new KernelArguments
+                {
+                    ["cvText"] = text
+                };
 
             var result =
-                await _kernel.InvokeAsync(
-                    function,
-                    new KernelArguments
-                    {
-                        ["cvText"] = text
-                    });
+                await _kernel
+                    .InvokePromptAsync(
+                        prompt,
+                        arguments);
 
             var content =
                 result.ToString();

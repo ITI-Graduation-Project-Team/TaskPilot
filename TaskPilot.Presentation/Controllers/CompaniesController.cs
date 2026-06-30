@@ -1,5 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
-using TaskPilot.Models.Common;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using TaskPilot.Data.Repositories;
@@ -59,7 +58,9 @@ namespace TaskPilot.Presentation.Controllers
                     .SaveChangesAsync();
             }
 
-            return HandleCreated(result, SuccessCodes.Company.Setup);
+            return HandleCreated(
+                result,
+                "Company setup completed successfully.");
         }
         [Authorize(Roles = "ProjectManager")]
         [HttpGet("employees/search")]
@@ -72,7 +73,7 @@ namespace TaskPilot.Presentation.Controllers
                     .SearchEmployeesAsync(
                         query);
 
-            return HandleResult(result, SuccessCodes.Company.EmployeesSearched);
+            return HandleResult(result);
         }
     }
 }

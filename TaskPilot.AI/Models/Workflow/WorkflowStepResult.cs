@@ -1,4 +1,4 @@
-namespace TaskPilot.AI.Models.Workflow
+﻿namespace TaskPilot.AI.Models.Workflow
 {
     public class WorkflowStepResult
     {
@@ -24,6 +24,15 @@ namespace TaskPilot.AI.Models.Workflow
 
         public List<string>
             ActionsExecuted
+        {
+            get;
+            set;
+        }
+        =
+            new();
+
+        public List<string>
+            BlockingIssues
         {
             get;
             set;

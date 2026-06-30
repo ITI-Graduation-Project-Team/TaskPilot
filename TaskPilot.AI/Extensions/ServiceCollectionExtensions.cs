@@ -1,12 +1,8 @@
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.SemanticKernel.Services;
 using TaskPilot.AI.Agents.ContextAdvisor;
 using TaskPilot.AI.Agents.Requirements;
 using TaskPilot.AI.Agents.Ingestion;
-using TaskPilot.AI.Agents.Planning;
-using TaskPilot.AI.Agents.RAG;
-using TaskPilot.AI.Options;
 using TaskPilot.AI.Orchestrators;
 using TaskPilot.AI.Persistence.InMemory;
 using TaskPilot.AI.Persistence.Interfaces;
@@ -22,11 +18,8 @@ namespace TaskPilot.AI.Extensions
     {
         public static IServiceCollection
             AddAiLayer(
-                this IServiceCollection services,
-                IConfiguration configuration)
+                this IServiceCollection services)
         {
-            services.Configure<QdrantOptions>(configuration.GetSection("Qdrant"));
-
             services.AddSingleton<
                 IAiKernelService,
                 KernelService>();
@@ -37,16 +30,6 @@ namespace TaskPilot.AI.Extensions
             services.AddScoped<
                 IPromptLoaderService,
                 PromptLoaderService>();
-
-            services.AddScoped<
-                IEmbeddingService,
-                EmbeddingService>();
-
-            services.AddScoped<
-                IVectorStore,
-                QdrantVectorStore>();
-
-            services.AddHostedService<QdrantInitializationHostedService>();
 
             // Document text extractors
             services.AddScoped<IDocumentTextExtractor, TextFileExtractor>();
@@ -62,8 +45,6 @@ namespace TaskPilot.AI.Extensions
 
             services.AddScoped<
                  ContextAdvisorOrchestrator>();
-            services.AddScoped<
-                 KnowledgeOrchestrator>();
 
             services.AddSingleton<
                 IRequirementSessionStore,
@@ -88,8 +69,6 @@ namespace TaskPilot.AI.Extensions
                 AudioTranscriptionAgent>();
             services.AddScoped<
                 ChunkingAgent>();
-            services.AddScoped<
-                DocumentQuestionResolutionAgent>();
 
             // Requirements agents
             services.AddScoped<
@@ -115,21 +94,6 @@ namespace TaskPilot.AI.Extensions
             // Context advisor agents
             services.AddScoped<
                 AgileCoachAgent>();
-            // RAG agents
-            services.AddScoped<
-                KnowledgeRetrievalAgent>();
-            services.AddScoped<
-                KnowledgeAnswerAgent>();
-
-            // Planning agents
-            services.AddScoped<
-                WBSGenerationAgent>();
-            services.AddScoped<
-                TechStackAdvisorAgent>();
-            services.AddScoped<
-                SprintSuggestionAgent>();
-            services.AddScoped<
-                SprintRetrospectiveAgent>();
 
             return services;
         }

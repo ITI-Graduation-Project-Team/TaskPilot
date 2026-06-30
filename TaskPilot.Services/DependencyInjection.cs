@@ -5,7 +5,6 @@ using TaskPilot.Services.Helpers;
 using TaskPilot.Services.Interfaces;
 using TaskPilot.Services.Interfaces.CVExtractorInterfaces;
 using TaskPilot.Services.Interfaces.External;
-using TaskPilot.Services.Repositories;
 
 namespace TaskPilot.Services
 {
@@ -23,14 +22,6 @@ namespace TaskPilot.Services
             services.AddScoped<ISubscriptionPlanService, SubscriptionPlanService>();
             services.AddScoped<IUserSubscriptionService, UserSubscriptionService>();
             services.AddScoped<ILocalizationService, LocalizationService>();
-            services.AddScoped<IRequirementFinalizationService, RequirementFinalizationService>();
-            services.AddScoped<IWbsPersistenceService, WbsPersistenceService>();
-            services.AddScoped<IBacklogService, BacklogService>();
-            services.AddScoped<IBacklogRegenerationService, BacklogRegenerationService>();
-            services.AddScoped<ISprintPlanningService, SprintPlanningService>();
-            services.AddScoped<ISprintConfirmationService, SprintConfirmationService>();
-            services.AddScoped<ITechStackService, TechStackService>();
-            services.AddScoped<IWbsGenerationService, WbsGenerationService>();
             
             // الآن التكوين (configuration) متاح للاستخدام
           
@@ -41,8 +32,6 @@ namespace TaskPilot.Services
             services.AddScoped<IFileTextExtractor, FileTextExtractor>();
 
             services.AddScoped<ISkillService, SkillService>();
-            services.AddScoped<ISkillRepository, SkillRepository>();
-            services.AddScoped<ISprintRetrospectiveService, SprintRetrospectiveService>();
 
 
             services.AddScoped<ICompanyService,CompanyService>();

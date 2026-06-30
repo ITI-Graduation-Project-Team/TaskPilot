@@ -85,10 +85,10 @@ namespace TaskPilot.Presentation.Controllers
         }
 
         [HttpPost("forgot-password")]
-        public async Task<ActionResult> ForgotPassword([FromBody] ForgotPasswordDto dto)
+        public async Task<ActionResult> ForgotPassword([FromBody] string email)
         {
-            var result = await _authService.ForgotPasswordAsync(dto);
-            return HandleResult(result, SuccessCodes.Auth.OtpSent);
+            var result = await _authService.ForgotPasswordAsync(email);
+            return HandleResult(result, SuccessCodes.Auth.ForgotPassword);
         }
 
         [HttpPost("reset-password")]

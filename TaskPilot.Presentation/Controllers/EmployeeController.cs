@@ -1,5 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
-using TaskPilot.Models.Common;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TaskPilot.Data.Repositories;
 using TaskPilot.Models.Common.Errors;
@@ -38,13 +37,19 @@ public class EmployeeController : ApiControllerBase
     {
         if (request.File == null || request.File.Length == 0)
         {
-            return HandleResult(Result.Failure(CvErrors.InvalidFile));
+            return HandleResult(
+                   Result.Failure(
+                       CommonErrors.InvalidInput(
+                           "Invalid file.")));
         }
         const long maxFileSize = 5 * 1024 * 1024;
 
         if (request.File.Length > maxFileSize)
         {
-            return HandleResult(Result.Failure(CvErrors.FileTooLarge));
+            return HandleResult(
+                Result.Failure(
+                    CommonErrors.InvalidInput(
+                        "Maximum allowed file size is 5 MB.")));
         }
         var allowedExtensions = new[] { ".pdf", ".docx" };
 
@@ -54,7 +59,10 @@ public class EmployeeController : ApiControllerBase
 
         if (!allowedExtensions.Contains(extension))
         {
-            return HandleResult(Result.Failure(CvErrors.UnsupportedFormat));
+            return HandleResult(
+            Result.Failure(
+                 CommonErrors.InvalidInput(
+                "Only PDF and DOCX files are allowed.")));
         }
 
         Guid finalUserId;
@@ -87,6 +95,8 @@ public class EmployeeController : ApiControllerBase
 
         }
 
-        return HandleResult(result, SuccessCodes.Employee.CvUploaded);
+        return HandleResult(
+            result,
+            "CV processed successfully.");
     }
 }

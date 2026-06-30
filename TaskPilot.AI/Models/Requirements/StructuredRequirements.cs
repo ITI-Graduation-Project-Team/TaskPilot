@@ -1,9 +1,17 @@
-namespace TaskPilot.AI.Models.Requirements
+﻿namespace TaskPilot.AI.Models.Requirements
 {
     public class StructuredRequirements
     {
+        public string ProjectSummary
+        {
+            get;
+            set;
+        }
+        =
+            string.Empty;
+
         public List<string>
-            BusinessRequirements
+            BusinessGoals
         {
             get;
             set;
@@ -12,7 +20,7 @@ namespace TaskPilot.AI.Models.Requirements
             new();
 
         public List<string>
-            TechnicalRequirements
+            CoreFeatures
         {
             get;
             set;
@@ -40,6 +48,15 @@ namespace TaskPilot.AI.Models.Requirements
 
         public List<string>
             ScaleRequirements
+        {
+            get;
+            set;
+        }
+        =
+            new();
+
+        public List<string>
+            Risks
         {
             get;
             set;
