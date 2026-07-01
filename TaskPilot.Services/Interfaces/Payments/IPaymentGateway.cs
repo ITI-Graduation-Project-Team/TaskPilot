@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Gateways;
 using TaskPilot.Models.Enums;
 
@@ -16,7 +17,7 @@ namespace TaskPilot.Services.Interfaces.Payments
             string? returnUrl, string? cancelUrl, CancellationToken ct);
         Task<GatewayCancelResult> CancelSubscriptionAsync(
             string gatewaySubscriptionId, string idempotencyKey, CancellationToken ct);
-        Task<string> CreateOrGetCustomerAsync(
+        Task<Result<string>> CreateOrGetCustomerAsync(
             string userId, string email, CancellationToken ct);
         Task<WebhookParseResult> ParseAndVerifyWebhookAsync(
             string payload, IHeaderDictionary headers, CancellationToken ct);

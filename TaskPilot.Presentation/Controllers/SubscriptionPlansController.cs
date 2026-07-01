@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Mvc;
 using TaskPilot.Data.Repositories;
 using TaskPilot.DTOs.SubscriptionPlans;
 using TaskPilot.Services.Interfaces;
-using TaskPilot.Models.Common;
 
 namespace TaskPilot.Presentation.Controllers
 {
@@ -41,7 +40,7 @@ namespace TaskPilot.Presentation.Controllers
             if (result.IsSuccess)
                 await _unitOfWork.SaveChangesAsync();
 
-            return HandleCreated(result, SuccessCodes.SubscriptionPlan.Created);
+            return HandleCreated(result, "Subscription plan created successfully.");
         }
 
         [HttpPut("{id:int}")]
@@ -52,7 +51,7 @@ namespace TaskPilot.Presentation.Controllers
             if (result.IsSuccess)
                 await _unitOfWork.SaveChangesAsync();
 
-            return HandleResult(result, SuccessCodes.SubscriptionPlan.Updated);
+            return HandleResult(result, "Subscription plan updated successfully.");
         }
 
         [HttpDelete("{id:int}")]
@@ -63,7 +62,7 @@ namespace TaskPilot.Presentation.Controllers
             if (result.IsSuccess)
                 await _unitOfWork.SaveChangesAsync();
 
-            return HandleResult(result, SuccessCodes.SubscriptionPlan.Deleted);
+            return HandleResult(result, "Subscription plan deleted successfully.");
         }
     }
 }

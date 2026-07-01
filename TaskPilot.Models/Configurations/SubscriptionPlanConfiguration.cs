@@ -43,6 +43,9 @@ namespace TaskPilot.Models.Configurations
             builder.Property(p => p.HasTrial)
                 .HasDefaultValue(false);
 
+            builder.Property(p => p.TrialDays)
+                .HasDefaultValue(0);
+
         }
     }
 }

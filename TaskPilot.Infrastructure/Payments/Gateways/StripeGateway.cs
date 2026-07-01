@@ -5,6 +5,8 @@ using Stripe;
 using TaskPilot.Infrastructure.Options.Payments;
 using TaskPilot.Models.Enums;
 using TaskPilot.Models.Gateways;
+using TaskPilot.Models.Common.Results;
+using TaskPilot.Models.Common.Errors;
 using TaskPilot.Services.Interfaces.Payments;
 
 namespace TaskPilot.Infrastructure.Payments.Gateways
@@ -100,7 +102,7 @@ namespace TaskPilot.Infrastructure.Payments.Gateways
             }
         }
 
-        public async Task<string> CreateOrGetCustomerAsync(string userId, string email, CancellationToken ct)
+        public async Task<Result<string>> CreateOrGetCustomerAsync(string userId, string email, CancellationToken ct)
         {
             try
             {
@@ -115,7 +117,7 @@ namespace TaskPilot.Infrastructure.Payments.Gateways
 
                 if (existing.Data.Count > 0)
                 {
-                    return existing.Data[0].Id;
+                    return Result.Success(existing.Data[0].Id);
                 }
 
                 // Create new
@@ -128,12 +130,12 @@ namespace TaskPilot.Infrastructure.Payments.Gateways
                     }
                 };
                 var customer = await service.CreateAsync(createOptions, null, ct);
-                return customer.Id;
+                return Result.Success(customer.Id);
             }
             catch (StripeException ex)
             {
                 _logger.LogError(ex, "Stripe API error during CreateOrGetCustomerAsync: {Message}", ex.StripeError?.Message ?? ex.Message);
-                throw; // Rethrowing because the interface requires returning a string (customer ID). We log it at least.
+                return Result.Failure<string>(new Error("GatewayError", ErrorType.Failure, ex.StripeError?.Message ?? ex.Message));
             }
         }
 

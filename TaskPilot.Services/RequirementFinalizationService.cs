@@ -25,7 +25,6 @@ namespace TaskPilot.Services
         private readonly IRepository<Company> _companyRepository;
         private readonly UserManager<User> _userManager;
         private readonly ILogger<RequirementFinalizationService> _logger;
-        private readonly ILocalizationService _localizationService;
 
         public RequirementFinalizationService(
             IRequirementSessionStore sessionStore,
@@ -33,8 +32,7 @@ namespace TaskPilot.Services
             IRepository<Project> projectRepository,
             IRepository<Company> companyRepository,
             UserManager<User> userManager,
-            ILogger<RequirementFinalizationService> logger,
-            ILocalizationService localizationService)
+            ILogger<RequirementFinalizationService> logger)
         {
             _sessionStore = sessionStore;
             _unitOfWork = unitOfWork;
@@ -42,7 +40,6 @@ namespace TaskPilot.Services
             _companyRepository = companyRepository;
             _userManager = userManager;
             _logger = logger;
-            _localizationService = localizationService;
         }
 
         public async Task<Result<FinalizeRequirementsResponse>> FinalizeRequirementsAsync(Guid sessionId, FinalizeRequirementsRequest request, CancellationToken cancellationToken = default)
@@ -56,7 +53,7 @@ namespace TaskPilot.Services
 
             if (session.Status == RequirementSessionStatus.Completed)
             {
-                return Result.Failure<FinalizeRequirementsResponse>(RequirementErrors.SessionAlreadyFinalized);
+                return Result.Failure<FinalizeRequirementsResponse>(new Error("SESSION_ALREADY_FINALIZED", ErrorType.Conflict, $"This session has already been finalized. ProjectId: {session.ProjectId}"));
             }
 
             if (session.Status != RequirementSessionStatus.Planning)
@@ -146,7 +143,7 @@ namespace TaskPilot.Services
             {
                 ProjectId = project.Id,
                 CompanyId = project.CompanyId,
-                ProjectName = _localizationService.GetLocalizedProperty(project.NameEn, project.NameAr),
+                ProjectName = project.NameEn,
                 Status = project.Status.ToString(),
                 RequirementsFinalized = true
             };

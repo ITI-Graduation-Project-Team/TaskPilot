@@ -39,9 +39,6 @@ namespace TaskPilot.Services
         private readonly IFileStorageService
             _fileStorage;
 
-        private readonly ILocalizationService
-            _localizationService;
-
         public CompanyService(
             IRepository<Company> companyRepository,
             IRepository<ProjectManager>
@@ -52,8 +49,7 @@ namespace TaskPilot.Services
             IEmailService emailService,
             IEmailBodyService emailBodyService,
             IFileStorageService fileStorage,
-            IRepository<Employee> employeeRepository,
-            ILocalizationService localizationService)
+            IRepository<Employee> employeeRepository)
         {
             _companyRepository =
                 companyRepository;
@@ -78,9 +74,6 @@ namespace TaskPilot.Services
 
             _fileStorage =
                 fileStorage;
-
-            _localizationService =
-                localizationService;
         }
 
         public async Task<Result<CompanyResponse>>
@@ -362,7 +355,7 @@ namespace TaskPilot.Services
                             Id = e.Id,
 
                             FullName =
-                                $"{_localizationService.GetLocalizedProperty(e.FirstNameEn, e.FirstNameAr)} {_localizationService.GetLocalizedProperty(e.LastNameEn, e.LastNameAr)}".Trim(),
+                                $"{e.FirstNameEn} {e.LastNameEn}",
 
                             Email = e.Email!,
 
@@ -380,7 +373,7 @@ namespace TaskPilot.Services
         {
             var companyExists = await _companyRepository.AnyAsync(c => c.Id == companyId);
             if (!companyExists)
-                return Result<List<CompanyEmployeeDto>>.Failure(CompanyErrors.NotFound);
+                return Result<List<CompanyEmployeeDto>>.Failure(new Error("Company.NotFound", ErrorType.NotFound, "Company not found."));
 
             var employees = await _employeeRepository.GetQueryable()
                 .Include(e => e.UserSkills)
@@ -397,7 +390,7 @@ namespace TaskPilot.Services
                 return new CompanyEmployeeDto
                 {
                     EmployeeId = e.Id,
-                    FullName = $"{_localizationService.GetLocalizedProperty(e.FirstNameEn, e.FirstNameAr)} {_localizationService.GetLocalizedProperty(e.LastNameEn, e.LastNameAr)}".Trim(),
+                    FullName = $"{e.FirstNameEn} {e.LastNameEn}".Trim(),
                     JobTitle = e.JobTitle ?? string.Empty,
                     SeniorityLevel = e.SeniorityLevel?.ToString() ?? string.Empty,
                     ActiveProjectsCount = activeProjectsCount,

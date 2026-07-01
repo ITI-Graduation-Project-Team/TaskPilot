@@ -49,7 +49,6 @@ namespace TaskPilot.Presentation
                         .AllowCredentials();  // now valid because origin is explicit
                 });
             });
-
             builder.Services.AddControllers()
                 .AddJsonOptions(options =>
                 {
@@ -127,6 +126,7 @@ namespace TaskPilot.Presentation
 
             //app.UseCors("AllowAll");
             app.UseCors("AllowFrontend");
+
             app.UseHttpsRedirection();
 
             app.UseMiddleware<LanguageMiddleware>();
