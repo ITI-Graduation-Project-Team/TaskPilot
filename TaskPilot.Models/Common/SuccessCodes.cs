@@ -67,6 +67,7 @@ namespace TaskPilot.Models.Common
             public const string Updated = "SUBSCRIPTION_UPDATED_SUCCESS";
             public const string Deleted = "SUBSCRIPTION_DELETED_SUCCESS";
             public const string Retrieved = "SUBSCRIPTION_RETRIEVED_SUCCESS";
+            public const string Cancelled = "SUBSCRIPTION_CANCELLED_SUCCESS";
         }
 
         public static class Employee
@@ -85,6 +86,21 @@ namespace TaskPilot.Models.Common
         {
             public const string Generated = "AI_PROJECT_GENERATED";
             public const string Confirmed = "AI_PROJECT_CONFIRMED";
+        }
+
+        public static class Backlog
+        {
+            public const string UserStoryCreated = "USER_STORY_CREATED_SUCCESS";
+            public const string UserStoryUpdated = "USER_STORY_UPDATED_SUCCESS";
+            public const string UserStoryDeleted = "USER_STORY_DELETED_SUCCESS";
+            public const string TaskCreated = "TASK_CREATED_SUCCESS";
+            public const string TaskUpdated = "TASK_UPDATED_SUCCESS";
+            public const string TaskDeleted = "TASK_DELETED_SUCCESS";
+        }
+
+        public static class TechStack
+        {
+            public const string Confirmed = "TECH_STACK_CONFIRMED_SUCCESS";
         }
     }
 }

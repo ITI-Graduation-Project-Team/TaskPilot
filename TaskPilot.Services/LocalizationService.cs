@@ -54,12 +54,12 @@ namespace TaskPilot.Services
             return key; // Fallback to key if not found
         }
 
-        //public string GetLocalizedProperty(string enValue, string arValue)
-        //{
-        //    if (CurrentLanguage == "ar")
-        //        return !string.IsNullOrEmpty(arValue) ? arValue : enValue;
+        public string GetLocalizedProperty(string enValue, string arValue)
+        {
+            if (CurrentLanguage == "ar")
+                return !string.IsNullOrEmpty(arValue) ? arValue : enValue;
 
-        //    return !string.IsNullOrEmpty(enValue) ? enValue : arValue;
-        //}
+            return !string.IsNullOrEmpty(enValue) ? enValue : arValue;
+        }
     }
 }

@@ -135,5 +135,58 @@
   
   // ai project success
   "AI_PROJECT_GENERATED": "Project draft generated successfully.",
-  "AI_PROJECT_CONFIRMED": "Project confirmed successfully."
+  "AI_PROJECT_CONFIRMED": "Project confirmed successfully.",
+
+  // missing common errors
+  "NOT_FOUND": "The requested resource was not found.",
+  "UPDATE_FAILED": "Failed to update the resource.",
+  "DELETE_FAILED": "Failed to delete the resource.",
+  "RETRIEVE_FAILED": "Failed to retrieve the resource.",
+  "SEND_CODE_FAILED": "Failed to send the verification code.",
+
+  // missing auth errors
+  "INVITATION_NOT_YOURS": "This invitation does not belong to you.",
+  "OTP_GENERATION_FAILED": "Failed to generate OTP.",
+
+  // missing company errors
+  "COMPANY_ALREADY_EXISTS": "A company is already registered for this account.",
+  "INVALID_OWNER": "Invalid company owner.",
+  "INVALID_INVITATION": "Invalid invitation.",
+  "INVITATION_EXPIRED": "This invitation has expired.",
+  "INVITATION_ALREADY_ACCEPTED": "This invitation has already been accepted.",
+
+  // missing domain errors
+  "NO_USER_STORIES_SELECTED": "At least one user story must be selected.",
+  "WBS_GENERATION_FAILED": "Failed to generate WBS.",
+  "TECH_STACK_GENERATION_FAILED": "Failed to suggest a tech stack.",
+  "EMPTY_SESSION_ID": "Session ID cannot be empty.",
+  "SESSION_ALREADY_FINALIZED": "This session has already been finalized.",
+  "SESSION_NOT_PLANNING": "Session is not in planning status.",
+  "DOCUMENT_INGESTION_FAILED": "Failed to ingest document.",
+  "USER_NOT_EMPLOYEE": "User is not registered as an employee.",
+
+  // missing success codes
+  "RESEND_CONFIRMATION_SUCCESS": "Confirmation email resent successfully.",
+  "GOOGLE_LOGIN_SUCCESS": "Signed in with Google successfully.",
+  "PASSWORD_RESET_OTP_SENT": "Password reset OTP sent successfully.",
+
+  // missing backlog success
+  "USER_STORY_CREATED_SUCCESS": "User story created successfully.",
+  "USER_STORY_UPDATED_SUCCESS": "User story updated successfully.",
+  "USER_STORY_DELETED_SUCCESS": "User story deleted successfully.",
+  "TASK_CREATED_SUCCESS": "Task created successfully.",
+  "TASK_UPDATED_SUCCESS": "Task updated successfully.",
+  "TASK_DELETED_SUCCESS": "Task deleted successfully.",
+
+  // missing tech stack success
+  "TECH_STACK_CONFIRMED_SUCCESS": "Tech stack confirmed successfully.",
+
+  // missing subscription success
+  "SUBSCRIPTION_CANCELLED_SUCCESS": "Subscription cancelled successfully.",
+
+  // missing gateway error
+  "GATEWAY_ERROR": "A payment gateway error occurred.",
+
+  // missing wbs error
+  "BACKLOG_ALREADY_EXISTS": "This project already contains a generated backlog. Review the existing backlog or use the Regenerate endpoint to replace it."
 }

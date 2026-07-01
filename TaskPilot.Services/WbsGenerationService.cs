@@ -44,11 +44,7 @@ namespace TaskPilot.Services
 
             if (hasUserStories)
             {
-                return Result<WbsPersistenceResult>.Failure(new Error(
-                    "BACKLOG_ALREADY_EXISTS",
-                     ErrorType.Conflict,
-                    "This project already contains a generated backlog. Review the existing backlog or use the Regenerate endpoint to replace it."
-                   ));
+                return Result<WbsPersistenceResult>.Failure(WbsErrors.BacklogAlreadyExists);
             }
 
             var wbs = await _wbsAgent.GenerateAsync(

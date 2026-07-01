@@ -37,7 +37,7 @@ namespace TaskPilot.Presentation.Controllers
         {
             var result = await _techStackService
                 .ConfirmAsync(projectId, request, cancellationToken);
-            return HandleResult(result, "Tech stack confirmed successfully.");
+            return HandleResult(result, SuccessCodes.TechStack.Confirmed);
         }
     }
 }

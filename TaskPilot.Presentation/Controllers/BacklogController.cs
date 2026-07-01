@@ -35,7 +35,7 @@ namespace TaskPilot.Presentation.Controllers
         public async Task<ActionResult> CreateUserStory(Guid projectId, [FromBody] CreateUserStoryDto request)
         {
             var result = await _backlogService.CreateUserStoryAsync(projectId, request);
-            return HandleCreated(result, "User story created successfully.");
+            return HandleCreated(result, SuccessCodes.Backlog.UserStoryCreated);
         }
 
         //[Authorize(Roles = "Admin,ProjectManager")]
@@ -43,7 +43,7 @@ namespace TaskPilot.Presentation.Controllers
         public async Task<ActionResult> UpdateUserStory(Guid storyId, [FromBody] UpdateUserStoryDto request)
         {
             var result = await _backlogService.UpdateUserStoryAsync(storyId, request);
-            return HandleResult(result, "User story updated successfully.");
+            return HandleResult(result, SuccessCodes.Backlog.UserStoryUpdated);
         }
 
         //[Authorize(Roles = "Admin,ProjectManager")]
@@ -51,7 +51,7 @@ namespace TaskPilot.Presentation.Controllers
         public async Task<ActionResult> DeleteUserStory(Guid storyId)
         {
             var result = await _backlogService.DeleteUserStoryAsync(storyId);
-            return HandleResult(result, "User story deleted successfully.");
+            return HandleResult(result, SuccessCodes.Backlog.UserStoryDeleted);
         }
 
         //[Authorize(Roles = "Admin,ProjectManager")]
@@ -59,7 +59,7 @@ namespace TaskPilot.Presentation.Controllers
         public async Task<ActionResult> CreateTask(Guid storyId, [FromBody] CreateTaskDto request)
         {
             var result = await _backlogService.CreateTaskAsync(storyId, request);
-            return HandleCreated(result, "Task created successfully.");
+            return HandleCreated(result, SuccessCodes.Backlog.TaskCreated);
         }
 
         //[Authorize(Roles = "Admin,ProjectManager")]
@@ -67,7 +67,7 @@ namespace TaskPilot.Presentation.Controllers
         public async Task<ActionResult> UpdateTask(Guid taskId, [FromBody] UpdateTaskDto request)
         {
             var result = await _backlogService.UpdateTaskAsync(taskId, request);
-            return HandleResult(result, "Task updated successfully.");
+            return HandleResult(result, SuccessCodes.Backlog.TaskUpdated);
         }
 
         //[Authorize(Roles = "Admin,ProjectManager")]
@@ -75,7 +75,7 @@ namespace TaskPilot.Presentation.Controllers
         public async Task<ActionResult> DeleteTask(Guid taskId)
         {
             var result = await _backlogService.DeleteTaskAsync(taskId);
-            return HandleResult(result, "Task deleted successfully.");
+            return HandleResult(result, SuccessCodes.Backlog.TaskDeleted);
         }
 
         //[Authorize(Roles = "Admin,ProjectManager")]
