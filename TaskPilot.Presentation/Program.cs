@@ -34,6 +34,22 @@ namespace TaskPilot.Presentation
                           .AllowAnyHeader();
                 });
             });
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowFrontend", policy =>
+                {
+                    policy
+                        .WithOrigins(
+                            "http://localhost:4200",        // Angular dev
+                            "http://localhost:4000",        // any other local port
+                            "https://taskpilotapi.runasp.net" // production (adjust to real frontend URL)
+                        )
+                        .AllowAnyHeader()
+                        .AllowAnyMethod()
+                        .AllowCredentials();  // now valid because origin is explicit
+                });
+            });
+
             builder.Services.AddControllers()
                 .AddJsonOptions(options =>
                 {
@@ -78,23 +94,23 @@ namespace TaskPilot.Presentation
 
                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JWTSettings:Key"]))
                };
-        
-            o.Events = new JwtBearerEvents
-                {
-                    OnChallenge = context =>
-                    {
-                        context.HandleResponse();
 
-                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                        context.Response.ContentType = "application/json";
+               o.Events = new JwtBearerEvents
+               {
+                   OnChallenge = context =>
+                   {
+                       context.HandleResponse();
 
-                        var error =CommonErrors.Unauthorized();
-                        var response = Result.Failure(error);
+                       context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                       context.Response.ContentType = "application/json";
 
-                        return context.Response.WriteAsync(JsonSerializer.Serialize(response));
-                    }
-                };
-            });
+                       var error = CommonErrors.Unauthorized();
+                       var response = Result.Failure(error);
+
+                       return context.Response.WriteAsync(JsonSerializer.Serialize(response));
+                   }
+               };
+           });
             builder.Services.AddAuthorization(options =>
             {
                 options.AddPolicy("ProfileComplete", policy =>
@@ -105,11 +121,12 @@ namespace TaskPilot.Presentation
             });
             var app = builder.Build();
 
-            
-                app.UseSwagger();
-                app.UseSwaggerUI();
-            
-            app.UseCors("AllowAll");
+
+            app.UseSwagger();
+            app.UseSwaggerUI();
+
+            //app.UseCors("AllowAll");
+            app.UseCors("AllowFrontend");
             app.UseHttpsRedirection();
 
             app.UseMiddleware<LanguageMiddleware>();
