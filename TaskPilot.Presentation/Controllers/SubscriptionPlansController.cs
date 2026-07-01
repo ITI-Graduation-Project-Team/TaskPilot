@@ -1,5 +1,3 @@
-using System.Threading.Tasks;
-using TaskPilot.Models.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TaskPilot.Data.Repositories;
@@ -8,7 +6,6 @@ using TaskPilot.Services.Interfaces;
 
 namespace TaskPilot.Presentation.Controllers
 {
-    [Authorize(Roles = "Admin")]
     [Route("api/[controller]")]
     public class SubscriptionPlansController : ApiControllerBase
     {
@@ -22,19 +19,20 @@ namespace TaskPilot.Presentation.Controllers
         }
 
         [HttpGet]
+        [Authorize(Roles = "ProjectManager,Admin")]
         public async Task<ActionResult> GetAll()
         {
             var result = await _subscriptionPlanService.GetAllAsync();
-            return HandleResult(result, SuccessCodes.SubscriptionPlan.Retrieved);
+            return HandleResult(result);
         }
-
+        [Authorize(Roles = "ProjectManager,Admin")]
         [HttpGet("{id:int}")]
         public async Task<ActionResult> GetById(int id)
         {
             var result = await _subscriptionPlanService.GetByIdAsync(id);
-            return HandleResult(result, SuccessCodes.SubscriptionPlan.Retrieved);
+            return HandleResult(result);
         }
-
+        [Authorize(Roles = "Admin")]
         [HttpPost]
         public async Task<ActionResult> Create([FromBody] CreateSubscriptionPlanDto request)
         {
@@ -42,27 +40,29 @@ namespace TaskPilot.Presentation.Controllers
             if (result.IsSuccess)
                 await _unitOfWork.SaveChangesAsync();
 
-            return HandleCreated(result, SuccessCodes.SubscriptionPlan.Created);
+            return HandleCreated(result, "Subscription plan created successfully.");
         }
 
         [HttpPut("{id:int}")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult> Update(int id, [FromBody] UpdateSubscriptionPlanDto request)
         {
             var result = await _subscriptionPlanService.UpdateAsync(id, request);
             if (result.IsSuccess)
                 await _unitOfWork.SaveChangesAsync();
 
-            return HandleResult(result, SuccessCodes.SubscriptionPlan.Updated);
+            return HandleResult(result, "Subscription plan updated successfully.");
         }
 
         [HttpDelete("{id:int}")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult> Delete(int id)
         {
             var result = await _subscriptionPlanService.DeleteAsync(id);
             if (result.IsSuccess)
                 await _unitOfWork.SaveChangesAsync();
 
-            return HandleResult(result, SuccessCodes.SubscriptionPlan.Deleted);
+            return HandleResult(result, "Subscription plan deleted successfully.");
         }
     }
 }

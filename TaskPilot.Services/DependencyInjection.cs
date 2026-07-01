@@ -46,8 +46,8 @@ namespace TaskPilot.Services
 
             services.AddScoped<IProjectTeamService, ProjectTeamService>();
             services.AddScoped<ICompanyService,CompanyService>();
-            services.AddScoped(typeof(IRepository<>),
-                   typeof(Repository<>));
+
+            services.AddHostedService<BackgroundJobs.SubscriptionExpiryJob>();
 
             //Current User Service
             services.AddHttpContextAccessor();
