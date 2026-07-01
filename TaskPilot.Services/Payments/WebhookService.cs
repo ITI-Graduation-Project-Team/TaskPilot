@@ -1,14 +1,11 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Threading.Tasks;
 using TaskPilot.Data.Repositories;
+using TaskPilot.Models.Common.Errors;
 using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Entities;
 using TaskPilot.Models.Enums;
 using TaskPilot.Services.Interfaces.Payments;
-
-using TaskPilot.Models.Common.Errors;
 
 namespace TaskPilot.Services.Payments
 {
@@ -41,7 +38,7 @@ namespace TaskPilot.Services.Payments
 
             var gateway = _gatewayFactory.GetGateway(gatewayType);
             var result = await gateway.ParseAndVerifyWebhookAsync(payload, headers, default);
-            
+
             if (!result.IsValid)
             {
                 _logger.LogWarning("Invalid webhook signature from gateway {Gateway}", gatewayName);
@@ -95,7 +92,7 @@ namespace TaskPilot.Services.Payments
                             sub.Status = SubscriptionStatus.Active;
                             _subRepo.Update(sub);
                             _logger.LogInformation("Subscription {SubscriptionId} transitioned to {NewStatus} via {Gateway} webhook event {EventType}", sub.Id, sub.Status, gatewayName, result.EventType);
-                            
+
                             var payment = new Payment
                             {
                                 ProjectManagerId = sub.ProjectManagerId,
