@@ -71,8 +71,20 @@ namespace TaskPilot.Services.Payments
                             _subRepo.Update(sub);
                             _logger.LogInformation("Subscription {SubscriptionId} transitioned to {NewStatus} via {Gateway} webhook event {EventType}", sub.Id, sub.Status, gatewayName, result.EventType);
                         }
-                        else if (result.EventType == "invoice.payment_succeeded" || result.EventType == "PAYMENT.SALE.COMPLETED")
+                        else if (result.EventType == "invoice.payment_succeeded" || result.EventType == "PAYMENT.SALE.COMPLETED" || result.EventType == "BILLING.SUBSCRIPTION.ACTIVATED")
                         {
+                            if (result.EventType == "BILLING.SUBSCRIPTION.ACTIVATED" || result.EventType == "PAYMENT.SALE.COMPLETED")
+                            {
+                                // Status-based idempotency: if already Active, skip
+                                if (sub.Status == SubscriptionStatus.Active)
+                                {
+                                    _logger.LogInformation(
+                                        "Duplicate {EventType} webhook ignored — subscription {Id} already Active",
+                                        result.EventType, sub.Id);
+                                    return Result.Success();
+                                }
+                            }
+
                             if (!string.IsNullOrEmpty(result.PaymentId))
                             {
                                 var existingPayment = await _paymentRepo.FindSingleAsync(p => p.GatewayTransactionId == result.PaymentId);

@@ -8,6 +8,7 @@ using TaskPilot.Infrastructure.Options.Payments;
 using TaskPilot.Models.Enums;
 using TaskPilot.Models.Gateways;
 using TaskPilot.Services.Interfaces.Payments;
+using TaskPilot.Models.Common.Results;
 
 namespace TaskPilot.Infrastructure.Payments.Gateways
 {
@@ -102,7 +103,8 @@ namespace TaskPilot.Infrastructure.Payments.Gateways
                 return new GatewaySubscriptionResult
                 {
                     Status = "failed",
-                    ClientSecret = ex.Message
+                    ErrorMessage = ex.Message,
+                    ClientSecret = null
                 };
             }
         }
@@ -126,10 +128,10 @@ namespace TaskPilot.Infrastructure.Payments.Gateways
             }
         }
 
-        public Task<string> CreateOrGetCustomerAsync(string userId, string email, CancellationToken ct)
+        public Task<Result<string>> CreateOrGetCustomerAsync(string userId, string email, CancellationToken ct)
         {
             // PayPal doesn't require pre-creating a customer object like Stripe.
-            return Task.FromResult(userId);
+            return Task.FromResult(Result.Success(userId));
         }
 
         public async Task<WebhookParseResult> ParseAndVerifyWebhookAsync(
@@ -192,6 +194,9 @@ namespace TaskPilot.Infrastructure.Payments.Gateways
 
                     if (eventType == "PAYMENT.SALE.COMPLETED")
                     {
+                        if (resource.TryGetProperty("id", out var saleIdProp))
+                            result.PaymentId = saleIdProp.GetString();
+
                         if (resource.TryGetProperty("amount", out var amountProp) &&
                             amountProp.TryGetProperty("total", out var totalProp))
                         {
@@ -200,6 +205,10 @@ namespace TaskPilot.Infrastructure.Payments.Gateways
                                 result.Amount = amount;
                             }
                         }
+                    }
+                    else if (eventType == "BILLING.SUBSCRIPTION.ACTIVATED")
+                    {
+                        result.PaymentId = null;
                     }
                 }
 

@@ -35,10 +35,6 @@ namespace TaskPilot.Presentation.Controllers
 
             var result = await _userSubscriptionService.GetCurrentSubscriptionAsync(pmId);
 
-            // GetCurrentSubscriptionAsync might mutate state (auto-fallback to free), so we save changes just in case.
-            if (result.IsSuccess)
-                await _unitOfWork.SaveChangesAsync();
-
             return HandleResult(result);
         }
 
@@ -64,9 +60,6 @@ namespace TaskPilot.Presentation.Controllers
         {
             var pmId = _currentUserService.UserId ?? Guid.Empty;
             var result = await _userSubscriptionService.CreateAsync(pmId, request);
-
-            if (result.IsSuccess)
-                await _unitOfWork.SaveChangesAsync();
 
             return HandleCreated(result, "Subscribed successfully.");
         }
@@ -99,13 +92,6 @@ namespace TaskPilot.Presentation.Controllers
         {
             // First check if the subscription belongs to the current user
             var pmId = _currentUserService.UserId ?? Guid.Empty;
-            var subResult = await _userSubscriptionService.GetByIdAsync(id);
-
-            if (!subResult.IsSuccess)
-                return HandleResult(subResult);
-
-            if (subResult.Value.ProjectManagerId != pmId)
-                return Forbid();
 
             var result = await _userSubscriptionService.CancelAsync(id, pmId);
             

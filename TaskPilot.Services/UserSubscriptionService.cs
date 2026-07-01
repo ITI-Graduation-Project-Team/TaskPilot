@@ -69,7 +69,7 @@ namespace TaskPilot.Services
                 s => s.ProjectManagerId == projectManagerId && 
                      (s.Status == SubscriptionStatus.Active || s.Status == SubscriptionStatus.Pending || s.Status == SubscriptionStatus.Trialing), 
                 s => s.Plan))
-                .OrderByDescending(s => s.EndDate)
+                .OrderByDescending(s => s.CreatedAt)
                 .FirstOrDefault();
 
             if (activeSub == null)
@@ -103,7 +103,12 @@ namespace TaskPilot.Services
 
             var gateway = _gatewayFactory.GetGateway(dto.Gateway);
             var pm = await _pmRepo.GetByIdAsync(projectManagerId);
-            var customerId = await gateway.CreateOrGetCustomerAsync(projectManagerId.ToString(), pm?.Id.ToString() ?? "pm@example.com", default);
+            var customerResult = await gateway.CreateOrGetCustomerAsync(projectManagerId.ToString(), pm?.Email ?? "pm@example.com", default);
+            
+            if (!customerResult.IsSuccess)
+                return Result.Failure<UserSubscriptionDto>(customerResult.Error);
+
+            var customerId = customerResult.Value;
 
             var gatewayResult = await gateway.CreateSubscriptionAsync(
                 customerId,
