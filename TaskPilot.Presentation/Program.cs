@@ -24,6 +24,7 @@ namespace TaskPilot.Presentation
             builder.Services.AddAiLayer(builder.Configuration);
             builder.Services.AddInfrastructure(
     builder.Configuration);
+            builder.Services.AddPaymentLayer(builder.Configuration);
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("AllowAll", policy =>

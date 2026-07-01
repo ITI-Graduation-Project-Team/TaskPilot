@@ -17,7 +17,7 @@ namespace TaskPilot.Models.Entities
     public bool HasAdvancedAnalytics { get; set; }
 
     public bool HasTrial { get; set; }
-    public int? TrialDays { get; set; }
+    public int TrialDays { get; set; }
 
     public ICollection<UserSubscription> Subscriptions { get; set; } = new List<UserSubscription>();
     }

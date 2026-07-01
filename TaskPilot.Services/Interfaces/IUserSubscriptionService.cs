@@ -14,5 +14,6 @@ namespace TaskPilot.Services.Interfaces
         Task<Result<UserSubscriptionDto>> CreateAsync(Guid projectManagerId, CreateUserSubscriptionDto dto);
         Task<Result> UpdateAsync(Guid id, UpdateUserSubscriptionDto dto);
         Task<Result> DeleteAsync(Guid id);
+        Task<Result> CancelAsync(Guid id, Guid projectManagerId);
     }
 }
