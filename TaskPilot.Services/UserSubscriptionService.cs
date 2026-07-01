@@ -117,7 +117,7 @@ namespace TaskPilot.Services
             );
 
             if (!string.IsNullOrEmpty(gatewayResult.ErrorMessage))
-                return Result.Failure<UserSubscriptionDto>(new Error("GatewayError", ErrorType.Failure, gatewayResult.ErrorMessage));
+                return Result.Failure<UserSubscriptionDto>(new Error("GATEWAY_ERROR", ErrorType.Failure, gatewayResult.ErrorMessage));
 
             var endDate = billingCycle == BillingCycle.Monthly ? DateTime.UtcNow.AddMonths(1) : DateTime.UtcNow.AddYears(1);
 
@@ -180,14 +180,14 @@ namespace TaskPilot.Services
                 return Result.Failure(UserSubscriptionErrors.NotFound);
 
             if (sub.ProjectManagerId != projectManagerId)
-                return Result.Failure(new Error("Forbidden", ErrorType.Failure, "You do not have permission to cancel this subscription."));
+                return Result.Failure(CommonErrors.Forbidden("You do not have permission to cancel this subscription."));
 
             if (!string.IsNullOrEmpty(sub.GatewaySubscriptionId))
             {
                 var gateway = _gatewayFactory.GetGateway(sub.Gateway);
                 var gatewayResult = await gateway.CancelSubscriptionAsync(sub.GatewaySubscriptionId, Guid.NewGuid().ToString(), default);
                 if (!gatewayResult.IsSuccess)
-                    return Result.Failure(new Error("GatewayError", ErrorType.Failure, gatewayResult.ErrorMessage ?? "Failed to cancel subscription at gateway."));
+                    return Result.Failure(new Error("GATEWAY_ERROR", ErrorType.Failure, gatewayResult.ErrorMessage ?? "Failed to cancel subscription at gateway."));
             }
 
             sub.Status = SubscriptionStatus.Canceled;

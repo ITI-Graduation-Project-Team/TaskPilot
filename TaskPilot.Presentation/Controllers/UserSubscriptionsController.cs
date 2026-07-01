@@ -3,6 +3,9 @@ using Microsoft.AspNetCore.Mvc;
 using TaskPilot.Data.Repositories;
 using TaskPilot.DTOs.UserSubscriptions;
 using TaskPilot.Services.Interfaces;
+using TaskPilot.Models.Common;
+using TaskPilot.Models.Common.Results;
+using TaskPilot.Models.Common.Errors;
 
 namespace TaskPilot.Presentation.Controllers
 {
@@ -68,7 +71,7 @@ namespace TaskPilot.Presentation.Controllers
             if (result.IsSuccess)
                 await _unitOfWork.SaveChangesAsync();
 
-            return HandleCreated(result, "Subscribed successfully.");
+            return HandleCreated(result, SuccessCodes.UserSubscription.Created);
         }
 
         [HttpPut("{id:guid}")]
@@ -79,7 +82,7 @@ namespace TaskPilot.Presentation.Controllers
             if (result.IsSuccess)
                 await _unitOfWork.SaveChangesAsync();
 
-            return HandleResult(result, "Subscription updated successfully.");
+            return HandleResult(result, SuccessCodes.UserSubscription.Updated);
         }
 
         [HttpDelete("{id:guid}")]
@@ -90,7 +93,7 @@ namespace TaskPilot.Presentation.Controllers
             if (result.IsSuccess)
                 await _unitOfWork.SaveChangesAsync();
 
-            return HandleResult(result, "Subscription deleted successfully.");
+            return HandleResult(result, SuccessCodes.UserSubscription.Deleted);
         }
 
         [HttpPost("{id:guid}/cancel")]
@@ -105,11 +108,11 @@ namespace TaskPilot.Presentation.Controllers
                 return HandleResult(subResult);
 
             if (subResult.Value.ProjectManagerId != pmId)
-                return Forbid();
+                return HandleResult(Result.Failure(CommonErrors.Forbidden()));
 
             var result = await _userSubscriptionService.CancelAsync(id, pmId);
             
-            return HandleResult(result, "Subscription cancelled successfully.");
+            return HandleResult(result, SuccessCodes.UserSubscription.Cancelled);
         }
     }
 }

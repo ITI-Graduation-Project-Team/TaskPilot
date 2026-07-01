@@ -134,5 +134,58 @@
   
   // ai project success
   "AI_PROJECT_GENERATED": "تم إنشاء مسودة المشروع بنجاح.",
-  "AI_PROJECT_CONFIRMED": "تم تأكيد المشروع بنجاح."
+  "AI_PROJECT_CONFIRMED": "تم تأكيد المشروع بنجاح.",
+
+  // missing common errors
+  "NOT_FOUND": "العنصر المطلوب غير موجود.",
+  "UPDATE_FAILED": "فشل تحديث العنصر.",
+  "DELETE_FAILED": "فشل حذف العنصر.",
+  "RETRIEVE_FAILED": "فشل جلب العنصر.",
+  "SEND_CODE_FAILED": "فشل إرسال رمز التحقق.",
+
+  // missing auth errors
+  "INVITATION_NOT_YOURS": "هذه الدعوة ليست موجهة إليك.",
+  "OTP_GENERATION_FAILED": "فشل إنشاء رمز التحقق.",
+
+  // missing company errors
+  "COMPANY_ALREADY_EXISTS": "يوجد شركة مسجلة بالفعل لهذا الحساب.",
+  "INVALID_OWNER": "مالك الشركة غير صالح.",
+  "INVALID_INVITATION": "الدعوة غير صالحة.",
+  "INVITATION_EXPIRED": "انتهت صلاحية هذه الدعوة.",
+  "INVITATION_ALREADY_ACCEPTED": "تم قبول هذه الدعوة مسبقاً.",
+
+  // missing domain errors
+  "NO_USER_STORIES_SELECTED": "يجب اختيار قصة مستخدم واحدة على الأقل.",
+  "WBS_GENERATION_FAILED": "فشل إنشاء هيكل تقسيم العمل.",
+  "TECH_STACK_GENERATION_FAILED": "فشل اقتراح مكدس التقنيات.",
+  "EMPTY_SESSION_ID": "معرف الجلسة لا يمكن أن يكون فارغاً.",
+  "SESSION_ALREADY_FINALIZED": "تمت الموافقة على هذه الجلسة مسبقاً.",
+  "SESSION_NOT_PLANNING": "الجلسة ليست في حالة التخطيط.",
+  "DOCUMENT_INGESTION_FAILED": "فشل استيعاب المستند.",
+  "USER_NOT_EMPLOYEE": "المستخدم غير مسجل كموظف.",
+
+  // missing success codes
+  "RESEND_CONFIRMATION_SUCCESS": "تم إعادة إرسال بريد التأكيد بنجاح.",
+  "GOOGLE_LOGIN_SUCCESS": "تم تسجيل الدخول عبر Google بنجاح.",
+  "PASSWORD_RESET_OTP_SENT": "تم إرسال رمز إعادة تعيين كلمة المرور بنجاح.",
+
+  // missing backlog success
+  "USER_STORY_CREATED_SUCCESS": "تم إنشاء قصة المستخدم بنجاح.",
+  "USER_STORY_UPDATED_SUCCESS": "تم تحديث قصة المستخدم بنجاح.",
+  "USER_STORY_DELETED_SUCCESS": "تم حذف قصة المستخدم بنجاح.",
+  "TASK_CREATED_SUCCESS": "تم إنشاء المهمة بنجاح.",
+  "TASK_UPDATED_SUCCESS": "تم تحديث المهمة بنجاح.",
+  "TASK_DELETED_SUCCESS": "تم حذف المهمة بنجاح.",
+
+  // missing tech stack success
+  "TECH_STACK_CONFIRMED_SUCCESS": "تم تأكيد مكدس التقنيات بنجاح.",
+
+  // missing subscription success
+  "SUBSCRIPTION_CANCELLED_SUCCESS": "تم إلغاء الاشتراك بنجاح.",
+
+  // missing gateway error
+  "GATEWAY_ERROR": "حدث خطأ في بوابة الدفع.",
+
+  // missing wbs error
+  "BACKLOG_ALREADY_EXISTS": "يحتوي هذا المشروع بالفعل على مخطط متراكم تم إنشاؤه مسبقاً. يرجى مراجعة المخطط الحالي أو استخدام نقطة نهاية إعادة الإنشاء لاستبداله."
 }
