@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using TaskPilot.Data.Repositories;
 using TaskPilot.DTOs.SubscriptionPlans;
 using TaskPilot.Services.Interfaces;
+using TaskPilot.Models.Common;
 
 namespace TaskPilot.Presentation.Controllers
 {
