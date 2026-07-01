@@ -60,7 +60,6 @@ namespace TaskPilot.Presentation.Controllers
                     {
                         id = t.Id,
                         titleEn = t.TitleEn,
-                        titleAr = t.TitleAr,
                         effortSize = t.EffortSize.ToString(),
                         type = t.Type.ToString(),
                         estimatedHours = t.EstimatedHours,

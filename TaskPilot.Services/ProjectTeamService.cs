@@ -21,20 +21,17 @@ public class ProjectTeamService : IProjectTeamService
     private readonly IRepository<Project> _projectRepository;
     private readonly IRepository<Employee> _employeeRepository;
     private readonly IUnitOfWork _unitOfWork;
-    private readonly ILocalizationService _localizationService;
 
     public ProjectTeamService(
         IRepository<ProjectEmployee> projectEmployeeRepository,
         IRepository<Project> projectRepository,
         IRepository<Employee> employeeRepository,
-        IUnitOfWork unitOfWork,
-        ILocalizationService localizationService)
+        IUnitOfWork unitOfWork)
     {
         _projectEmployeeRepository = projectEmployeeRepository;
         _projectRepository = projectRepository;
         _employeeRepository = employeeRepository;
         _unitOfWork = unitOfWork;
-        _localizationService = localizationService;
     }
 
     public async Task<Result> AssignEmployeesAsync(
@@ -44,14 +41,14 @@ public class ProjectTeamService : IProjectTeamService
     {
         var project = await _projectRepository.GetByIdAsync(projectId);
         if (project == null)
-            return Result.Failure(ProjectErrors.NotFound);
+            return Result.Failure(new Error("Project.NotFound", ErrorType.NotFound, "Project not found."));
 
         if (request.Assignments == null || !request.Assignments.Any())
             return Result.Success();
 
         // Check for duplicates in request
         if (request.Assignments.GroupBy(x => x.EmployeeId).Any(g => g.Count() > 1))
-            return Result.Failure(ProjectErrors.DuplicateAssignment);
+            return Result.Failure(new Error("DuplicateAssignment", ErrorType.Validation, "Duplicate assignments are forbidden."));
 
         var employeeIds = request.Assignments.Select(a => a.EmployeeId).ToList();
 
@@ -60,17 +57,17 @@ public class ProjectTeamService : IProjectTeamService
             .ToListAsync(cancellationToken);
 
         if (employees.Count != employeeIds.Count)
-            return Result.Failure(ProjectErrors.EmployeeNotFound);
+            return Result.Failure(new Error("EmployeeNotFound", ErrorType.Validation, "One or more employees not found."));
 
         if (employees.Any(e => e.CompanyId != project.CompanyId))
-            return Result.Failure(ProjectErrors.InvalidCompany);
+            return Result.Failure(new Error("InvalidCompany", ErrorType.Validation, "Only Employees from the same Company may be assigned."));
 
         var existingAssignments = await _projectEmployeeRepository.GetQueryable()
             .Where(pe => pe.ProjectId == projectId && employeeIds.Contains(pe.EmployeeId))
             .ToListAsync(cancellationToken);
 
         if (existingAssignments.Any())
-            return Result.Failure(ProjectErrors.AlreadyAssigned);
+            return Result.Failure(new Error("AlreadyAssigned", ErrorType.Validation, "One or more employees are already assigned to the project."));
 
         var newAssignments = request.Assignments.Select(a => new ProjectEmployee
         {
@@ -91,7 +88,7 @@ public class ProjectTeamService : IProjectTeamService
     {
         var projectExists = await _projectRepository.AnyAsync(p => p.Id == projectId);
         if (!projectExists)
-            return Result<List<ProjectEmployeeDto>>.Failure(ProjectErrors.NotFound);
+            return Result<List<ProjectEmployeeDto>>.Failure(new Error("Project.NotFound", ErrorType.NotFound, "Project not found."));
 
         var projectEmployees = await _projectEmployeeRepository.GetQueryable()
             .Include(pe => pe.Employee)
@@ -111,7 +108,7 @@ public class ProjectTeamService : IProjectTeamService
             return new ProjectEmployeeDto
             {
                 EmployeeId = pe.EmployeeId,
-                FullName = $"{_localizationService.GetLocalizedProperty(pe.Employee.FirstNameEn, pe.Employee.FirstNameAr)} {_localizationService.GetLocalizedProperty(pe.Employee.LastNameEn, pe.Employee.LastNameAr)}".Trim(),
+                FullName = $"{pe.Employee.FirstNameEn} {pe.Employee.LastNameEn}".Trim(),
                 Role = pe.Role,
                 JobTitle = pe.Employee.JobTitle ?? string.Empty,
                 SeniorityLevel = pe.Employee.SeniorityLevel ?? default,
@@ -140,7 +137,7 @@ public class ProjectTeamService : IProjectTeamService
             .FirstOrDefaultAsync(pe => pe.ProjectId == projectId && pe.EmployeeId == employeeId, cancellationToken);
 
         if (assignment == null)
-            return Result.Failure(ProjectErrors.AssignmentNotFound);
+            return Result.Failure(new Error("Assignment.NotFound", ErrorType.NotFound, "Employee is not assigned to this project."));
 
         var hasActiveTasks = assignment.Employee.AssignedTasks.Any(t => 
             t.Sprint != null && 
@@ -148,7 +145,7 @@ public class ProjectTeamService : IProjectTeamService
             t.Sprint.Status == SprintStatus.Active);
 
         if (hasActiveTasks)
-            return Result.Failure(ProjectErrors.EmployeeHasActiveTasks);
+            return Result.Failure(new Error("EmployeeHasActiveTasks", ErrorType.Validation, "Employee still owns active tasks."));
 
         _projectEmployeeRepository.Delete(assignment);
         await _unitOfWork.SaveChangesAsync(cancellationToken);

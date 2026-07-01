@@ -3,9 +3,6 @@ using Microsoft.AspNetCore.Mvc;
 using TaskPilot.Data.Repositories;
 using TaskPilot.DTOs.UserSubscriptions;
 using TaskPilot.Services.Interfaces;
-using TaskPilot.Models.Common;
-using TaskPilot.Models.Common.Results;
-using TaskPilot.Models.Common.Errors;
 
 namespace TaskPilot.Presentation.Controllers
 {
@@ -38,10 +35,6 @@ namespace TaskPilot.Presentation.Controllers
 
             var result = await _userSubscriptionService.GetCurrentSubscriptionAsync(pmId);
 
-            // GetCurrentSubscriptionAsync might mutate state (auto-fallback to free), so we save changes just in case.
-            if (result.IsSuccess)
-                await _unitOfWork.SaveChangesAsync();
-
             return HandleResult(result);
         }
 
@@ -68,10 +61,7 @@ namespace TaskPilot.Presentation.Controllers
             var pmId = _currentUserService.UserId ?? Guid.Empty;
             var result = await _userSubscriptionService.CreateAsync(pmId, request);
 
-            if (result.IsSuccess)
-                await _unitOfWork.SaveChangesAsync();
-
-            return HandleCreated(result, SuccessCodes.UserSubscription.Created);
+            return HandleCreated(result, "Subscribed successfully.");
         }
 
         [HttpPut("{id:guid}")]
@@ -82,7 +72,7 @@ namespace TaskPilot.Presentation.Controllers
             if (result.IsSuccess)
                 await _unitOfWork.SaveChangesAsync();
 
-            return HandleResult(result, SuccessCodes.UserSubscription.Updated);
+            return HandleResult(result, "Subscription updated successfully.");
         }
 
         [HttpDelete("{id:guid}")]
@@ -93,7 +83,7 @@ namespace TaskPilot.Presentation.Controllers
             if (result.IsSuccess)
                 await _unitOfWork.SaveChangesAsync();
 
-            return HandleResult(result, SuccessCodes.UserSubscription.Deleted);
+            return HandleResult(result, "Subscription deleted successfully.");
         }
 
         [HttpPost("{id:guid}/cancel")]
@@ -102,17 +92,10 @@ namespace TaskPilot.Presentation.Controllers
         {
             // First check if the subscription belongs to the current user
             var pmId = _currentUserService.UserId ?? Guid.Empty;
-            var subResult = await _userSubscriptionService.GetByIdAsync(id);
-
-            if (!subResult.IsSuccess)
-                return HandleResult(subResult);
-
-            if (subResult.Value.ProjectManagerId != pmId)
-                return HandleResult(Result.Failure(CommonErrors.Forbidden()));
 
             var result = await _userSubscriptionService.CancelAsync(id, pmId);
             
-            return HandleResult(result, SuccessCodes.UserSubscription.Cancelled);
+            return HandleResult(result, "Subscription cancelled successfully.");
         }
     }
 }

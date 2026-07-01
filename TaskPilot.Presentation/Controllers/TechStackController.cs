@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Mvc;
 using TaskPilot.DTOs.Projects;
 using TaskPilot.Services.Interfaces;
 using TaskPilot.Models.Common.Results;
-using TaskPilot.Models.Common;
 
 namespace TaskPilot.Presentation.Controllers
 {
@@ -38,7 +37,7 @@ namespace TaskPilot.Presentation.Controllers
         {
             var result = await _techStackService
                 .ConfirmAsync(projectId, request, cancellationToken);
-            return HandleResult(result, SuccessCodes.TechStack.Confirmed);
+            return HandleResult(result, "Tech stack confirmed successfully.");
         }
     }
 }
