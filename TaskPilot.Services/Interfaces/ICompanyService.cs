@@ -14,9 +14,23 @@ namespace TaskPilot.Services.Interfaces
                 SetupCompanyRequest request,
                 Guid ownerId);
 
+        Task<Result<InviteEmployeesResponse>>
+            InviteEmployeesAsync(
+                InviteEmployeesRequest request,
+                Guid ownerId);
+
         Task<Result<List<EmployeeSuggestionDTO>>>
          SearchEmployeesAsync(
-           string query);
+           string query, Guid ownerId);
+
+        Task<Result<PagedResult<CompanyInvitationDto>>>
+            GetInvitationsAsync(Guid ownerId, TaskPilot.Models.Enums.InvitationStatus status = TaskPilot.Models.Enums.InvitationStatus.All, int page = 1, int pageSize = 20);
+
+        Task<Result<bool>>
+            CancelInvitationAsync(Guid invitationId, Guid ownerId);
+
+        Task<Result<bool>>
+            ResendInvitationAsync(Guid invitationId, Guid ownerId);
 
         Task<Result<List<CompanyEmployeeDto>>>
             GetCompanyEmployeesAsync(

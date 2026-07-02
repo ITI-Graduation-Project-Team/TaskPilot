@@ -1,4 +1,4 @@
-﻿namespace TaskPilot.DTOs.Company
+namespace TaskPilot.DTOs.Company
 {
     public class EmployeeSuggestionDTO
     {
@@ -8,6 +8,7 @@
             = string.Empty;
         public string Email { get; set; }
             = string.Empty;
-        public bool HasCompany { get; set; }
+        public TaskPilot.Models.Enums.EmployeeSearchStatus Status { get; set; }
+        public string? StatusMessage { get; set; }
     }
 }
