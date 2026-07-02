@@ -40,7 +40,7 @@
   "GOOGLE_AUTHENTICATION_FAILED": "Google authentication failed.",
 
   //success
-  "REGISTER_SUCCESS": "User registered successfully.",
+  "REGISTER_SUCCESS": "otp has been sent to your email",
   "LOGIN_SUCCESS": "Logged in successfully.",
   "EMAIL_CONFIRMED_SUCCESS": "Email confirmed successfully.",
   "OTP_SENT_SUCCESS": "OTP sent successfully.",
@@ -136,5 +136,14 @@
 
   // ai project success
   "AI_PROJECT_GENERATED": "Project draft generated successfully.",
-  "AI_PROJECT_CONFIRMED": "Project confirmed successfully."
+  "AI_PROJECT_CONFIRMED": "Project confirmed successfully.",
+
+  // identity describer
+  "PASS_REQ_NON_ALPHANUMERIC": "Passwords must have at least one non-alphanumeric character.",
+  "PASS_REQ_DIGIT": "Passwords must have at least one digit ('0'-'9').",
+  "PASS_REQ_LOWER": "Passwords must have at least one lowercase ('a'-'z').",
+  "PASS_REQ_UPPER": "Passwords must have at least one uppercase ('A'-'Z').",
+  "PASS_TOO_SHORT": "Passwords must be at least {0} characters.",
+  "PASS_REQ_UNIQUE_CHARS": "Passwords must use at least {0} unique characters.",
+  "INVALID_TOKEN": "Invalid token."
 }

@@ -21,7 +21,7 @@ namespace TaskPilot.Services
         private readonly IGoogleAuthService _googleAuthService;
         private readonly IRepository<SubscriptionPlan> _planRepo;
         private readonly IRepository<EmployeeInvitation> _invitationRepository;
-        private readonly ILocalizationService _localizationService;
+        private readonly TaskPilot.Models.Common.ILocalizationService _localizationService;
 
         private readonly IRefreshTokenService _refreshTokenService;
         public AuthService(
@@ -32,7 +32,7 @@ namespace TaskPilot.Services
             IGoogleAuthService googleAuthService,
             IRepository<SubscriptionPlan> planRepo,
             IRepository<EmployeeInvitation> invitationRepository,
-            ILocalizationService localizationService,
+            TaskPilot.Models.Common.ILocalizationService localizationService,
             IRefreshTokenService refreshTokenService)
         {
             _identityService = identityService;

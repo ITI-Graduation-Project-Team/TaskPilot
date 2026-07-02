@@ -9,7 +9,6 @@ namespace TaskPilot.DTOs.Auth
         public string Email { get; set; } = string.Empty;
         public string FullName { get; set; } = string.Empty;
         public string Token { get; set; } = string.Empty;
-        public string Message { get; set; } = string.Empty;
         public string RefreshToken { get; set; } = string.Empty;
         //addRoles
         public List<string>? Roles { get; set; } = new List<string>();

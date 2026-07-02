@@ -28,7 +28,8 @@ namespace TaskPilot.Data
 
             services.AddIdentity<User, IdentityRole<Guid>>()
                 .AddEntityFrameworkStores<ApplicationDbContext>()
-                .AddDefaultTokenProviders();
+                .AddDefaultTokenProviders()
+                .AddErrorDescriber<LocalizedIdentityErrorDescriber>();
             services.Configure<IdentityOptions>(options =>
             {
                   options.Tokens.EmailConfirmationTokenProvider = TokenOptions.DefaultPhoneProvider;

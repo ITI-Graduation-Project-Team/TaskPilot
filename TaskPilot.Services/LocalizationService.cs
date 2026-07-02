@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using System.Text.Json;
-using TaskPilot.Services.Interfaces;
+using TaskPilot.Models.Common;
 
 namespace TaskPilot.Services
 {
