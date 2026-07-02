@@ -17,6 +17,7 @@ namespace TaskPilot.Services.Payments
         private readonly IPaymentGatewayFactory _gatewayFactory;
         private readonly IRepository<UserSubscription> _subRepo;
         private readonly IRepository<Payment> _paymentRepo;
+        private readonly IRepository<SubscriptionPlan> _planRepo;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ILogger<WebhookService> _logger;
 
@@ -24,12 +25,14 @@ namespace TaskPilot.Services.Payments
             IPaymentGatewayFactory gatewayFactory,
             IRepository<UserSubscription> subRepo,
             IRepository<Payment> paymentRepo,
+            IRepository<SubscriptionPlan> planRepo,
             IUnitOfWork unitOfWork,
             ILogger<WebhookService> logger)
         {
             _gatewayFactory = gatewayFactory;
             _subRepo = subRepo;
             _paymentRepo = paymentRepo;
+            _planRepo = planRepo;
             _unitOfWork = unitOfWork;
             _logger = logger;
         }
@@ -59,10 +62,33 @@ namespace TaskPilot.Services.Payments
                     {
                         if (result.EventType == "customer.subscription.deleted" || result.EventType == "BILLING.SUBSCRIPTION.CANCELLED")
                         {
-                            sub.Status = SubscriptionStatus.Canceled;
+                            sub.Status = SubscriptionStatus.Expired;
                             sub.CanceledAt = DateTime.UtcNow;
                             _subRepo.Update(sub);
-                            _logger.LogInformation("Subscription {SubscriptionId} transitioned to {NewStatus} via {Gateway} webhook event {EventType}", sub.Id, sub.Status, gatewayName, result.EventType);
+
+                            var freePlan = await _planRepo.FindSingleAsync(p => p.MonthlyPrice == 0 && p.AnnualPrice == 0);
+                            if (freePlan == null)
+                            {
+                                _logger.LogError("Free plan not found when transitioning subscription {SubscriptionId}", sub.Id);
+                                return Result.Failure(CommonErrors.ServerError("Free plan not found"));
+                            }
+
+                            var freeSub = new UserSubscription
+                            {
+                                ProjectManagerId = sub.ProjectManagerId,
+                                SubscriptionPlanId = freePlan.Id,
+                                Status = SubscriptionStatus.Active,
+                                StartDate = DateTime.UtcNow,
+                                EndDate = DateTime.UtcNow.AddYears(100),
+                                BillingCycle = BillingCycle.Monthly,
+                                AutoRenew = false,
+                                GatewaySubscriptionId = null,
+                                GatewayCustomerId = null,
+                                CancelAtPeriodEnd = false
+                            };
+                            await _subRepo.AddAsync(freeSub);
+
+                            _logger.LogInformation("Subscription {Id} expired, user {UserId} moved to Free plan", sub.Id, sub.ProjectManagerId);
                         }
                         else if (result.EventType == "invoice.payment_failed" || result.EventType == "PAYMENT.SALE.DENIED")
                         {
@@ -109,6 +135,14 @@ namespace TaskPilot.Services.Payments
                                 PaidAt = DateTime.UtcNow
                             };
                             await _paymentRepo.AddAsync(payment);
+                        }
+                        else if (result.EventType == "customer.subscription.trial_will_end")
+                        {
+                            // Log only — no status change, no DB write
+                            _logger.LogInformation(
+                                "Trial ending soon for Stripe subscription {Id}",
+                                result.SubscriptionId);
+                            return Result.Success();
                         }
                         else
                         {

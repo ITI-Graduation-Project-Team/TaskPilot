@@ -3,10 +3,10 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Stripe;
 using TaskPilot.Infrastructure.Options.Payments;
+using TaskPilot.Models.Common.Errors;
+using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Enums;
 using TaskPilot.Models.Gateways;
-using TaskPilot.Models.Common.Results;
-using TaskPilot.Models.Common.Errors;
 using TaskPilot.Services.Interfaces.Payments;
 
 namespace TaskPilot.Infrastructure.Payments.Gateways
@@ -102,6 +102,28 @@ namespace TaskPilot.Infrastructure.Payments.Gateways
             }
         }
 
+        public async Task<GatewayCancelResult> CancelAtPeriodEndAsync(
+            string gatewaySubscriptionId, string idempotencyKey, CancellationToken ct)
+        {
+            try
+            {
+                var service = new SubscriptionService(_stripeClient);
+                var options = new SubscriptionUpdateOptions
+                {
+                    CancelAtPeriodEnd = true
+                };
+
+                var requestOptions = new RequestOptions { IdempotencyKey = idempotencyKey };
+                await service.UpdateAsync(gatewaySubscriptionId, options, requestOptions, ct);
+
+                return new GatewayCancelResult { IsSuccess = true };
+            }
+            catch (StripeException ex)
+            {
+                return new GatewayCancelResult { IsSuccess = false, ErrorMessage = ex.Message };
+            }
+        }
+
         public async Task<Result<string>> CreateOrGetCustomerAsync(string userId, string email, CancellationToken ct)
         {
             try
@@ -179,6 +201,59 @@ namespace TaskPilot.Infrastructure.Payments.Gateways
             catch
             {
                 return new WebhookParseResult { IsValid = false };
+            }
+        }
+        public async Task<GatewaySubscriptionResult> CreateTrialSubscriptionAsync(
+            string customerId, string priceId, int trialDays,
+            string paymentMethodId, string idempotencyKey,
+            CancellationToken ct)
+        {
+            try
+            {
+                var options = new SubscriptionCreateOptions
+                {
+                    Customer = customerId,
+                    Items = new System.Collections.Generic.List<SubscriptionItemOptions>
+                    {
+                        new SubscriptionItemOptions { Price = priceId }
+                    },
+                    TrialPeriodDays = trialDays,
+                    PaymentBehavior = "default_incomplete",
+                    PaymentSettings = new SubscriptionPaymentSettingsOptions
+                    {
+                        SaveDefaultPaymentMethod = "on_subscription"
+                    },
+                    Expand = new System.Collections.Generic.List<string>
+                    {
+                        "latest_invoice.payment_intent",
+                        "pending_setup_intent"
+                    }
+                };
+
+                var requestOptions = new RequestOptions { IdempotencyKey = idempotencyKey };
+                var service = new SubscriptionService(_stripeClient);
+                var subscription = await service.CreateAsync(options, requestOptions, ct);
+
+                // Trial subscriptions return a SetupIntent, not PaymentIntent
+                var setupIntentClientSecret = subscription.PendingSetupIntent?.ClientSecret;
+
+                return new GatewaySubscriptionResult
+                {
+                    SubscriptionId = subscription.Id,
+                    ClientSecret = setupIntentClientSecret,
+                    IsSetupIntent = true,
+                    Status = subscription.Status
+                };
+            }
+            catch (StripeException ex)
+            {
+                _logger.LogError(ex, "Stripe trial creation failed: {Message}", ex.StripeError?.Message ?? ex.Message);
+                return new GatewaySubscriptionResult
+                {
+                    Status = "Failed",
+                    ErrorMessage = ex.StripeError?.Message ?? ex.Message,
+                    ClientSecret = null
+                };
             }
         }
     }
