@@ -8,6 +8,7 @@ using TaskPilot.Models.Common.Errors;
 using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Entities;
 using TaskPilot.Models.Enums;
+using TaskPilot.Models.Gateways;
 using TaskPilot.Services.Interfaces;
 using TaskPilot.Services.Interfaces.Payments;
 
@@ -101,7 +102,37 @@ namespace TaskPilot.Services
                 _subscriptionRepo.Update(sub);
             }
 
-            var gateway = _gatewayFactory.GetGateway(dto.Gateway);
+            var isFree = plan.MonthlyPrice == 0 && plan.AnnualPrice == 0;
+
+            if (isFree)
+            {
+                var freeSubscription = new UserSubscription
+                {
+                    ProjectManagerId = projectManagerId,
+                    SubscriptionPlanId = dto.SubscriptionPlanId,
+                    StartDate = DateTime.UtcNow,
+                    EndDate = DateTime.UtcNow.AddYears(100),
+                    BillingCycle = billingCycle,
+                    Status = SubscriptionStatus.Active,
+                    AutoRenew = false,
+                    IsTrial = false,
+                    Gateway = default(PaymentGateway),
+                    GatewaySubscriptionId = null,
+                    GatewayCustomerId = null
+                };
+
+                await _subscriptionRepo.AddAsync(freeSubscription);
+                await _unitOfWork.SaveChangesAsync();
+
+                var freeDto = MapToDto(freeSubscription);
+                freeDto.ClientSecret = null;
+                return Result.Success(freeDto);
+            }
+
+            if (!isFree && dto.Gateway == null)
+                return Result.Failure<UserSubscriptionDto>(new Error("ValidationError", ErrorType.Validation, "Gateway is required for paid plans."));
+
+            var gateway = _gatewayFactory.GetGateway(dto.Gateway.Value);
             var pm = await _pmRepo.GetByIdAsync(projectManagerId);
             var customerResult = await gateway.CreateOrGetCustomerAsync(projectManagerId.ToString(), pm?.Email ?? "pm@example.com", default);
             
@@ -110,16 +141,51 @@ namespace TaskPilot.Services
 
             var customerId = customerResult.Value;
 
-            var gatewayResult = await gateway.CreateSubscriptionAsync(
-                customerId,
-                plan.Id.ToString(),
-                billingCycle,
-                dto.PaymentMethodId ?? "",
-                Guid.NewGuid().ToString(),
-                dto.ReturnUrl,
-                dto.CancelUrl,
-                default
-            );
+            // Trial validation
+            if (dto.IsTrial)
+            {
+                if (!plan.HasTrial || plan.TrialDays <= 0)
+                    return Result.Failure<UserSubscriptionDto>(
+                        new Error("ValidationError", ErrorType.Validation,
+                            "This plan does not offer a free trial."));
+
+                var existingTrial = await _subscriptionRepo.FindSingleAsync(
+                    s => s.ProjectManagerId == projectManagerId &&
+                         s.SubscriptionPlanId == dto.SubscriptionPlanId &&
+                         s.IsTrial == true);
+
+                if (existingTrial != null)
+                    return Result.Failure<UserSubscriptionDto>(
+                        new Error("ValidationError", ErrorType.Validation,
+                            "You have already used the free trial for this plan."));
+            }
+
+            // Branch gateway call: trial uses SetupIntent, normal uses PaymentIntent
+            GatewaySubscriptionResult gatewayResult;
+            var idempotencyKey = Guid.NewGuid().ToString();
+
+            if (dto.IsTrial)
+            {
+                gatewayResult = await gateway.CreateTrialSubscriptionAsync(
+                    customerId,
+                    plan.Id.ToString(),
+                    plan.TrialDays,
+                    dto.PaymentMethodId ?? string.Empty,
+                    idempotencyKey,
+                    default);
+            }
+            else
+            {
+                gatewayResult = await gateway.CreateSubscriptionAsync(
+                    customerId,
+                    plan.Id.ToString(),
+                    billingCycle,
+                    dto.PaymentMethodId ?? "",
+                    idempotencyKey,
+                    dto.ReturnUrl,
+                    dto.CancelUrl,
+                    default);
+            }
 
             if (!string.IsNullOrEmpty(gatewayResult.ErrorMessage))
                 return Result.Failure<UserSubscriptionDto>(new Error("GatewayError", ErrorType.Failure, gatewayResult.ErrorMessage));
@@ -133,10 +199,11 @@ namespace TaskPilot.Services
                 StartDate = DateTime.UtcNow,
                 EndDate = endDate,
                 BillingCycle = billingCycle,
-                Status = SubscriptionStatus.Pending,
+                Status = dto.IsTrial ? SubscriptionStatus.Trialing : SubscriptionStatus.Pending,
                 AutoRenew = dto.AutoRenew,
-                IsTrial = false,
-                Gateway = dto.Gateway,
+                IsTrial = dto.IsTrial,
+                TrialEndDate = dto.IsTrial ? DateTime.UtcNow.AddDays(plan.TrialDays) : null,
+                Gateway = dto.Gateway.Value,
                 GatewaySubscriptionId = gatewayResult.SubscriptionId,
                 GatewayCustomerId = customerId
             };
@@ -146,6 +213,7 @@ namespace TaskPilot.Services
 
             var resultDto = MapToDto(newSubscription);
             resultDto.ClientSecret = gatewayResult.ClientSecret;
+            resultDto.IsSetupIntent = gatewayResult.IsSetupIntent;
 
             return Result.Success(resultDto);
         }
@@ -190,12 +258,12 @@ namespace TaskPilot.Services
             if (!string.IsNullOrEmpty(sub.GatewaySubscriptionId))
             {
                 var gateway = _gatewayFactory.GetGateway(sub.Gateway);
-                var gatewayResult = await gateway.CancelSubscriptionAsync(sub.GatewaySubscriptionId, Guid.NewGuid().ToString(), default);
+                var gatewayResult = await gateway.CancelAtPeriodEndAsync(sub.GatewaySubscriptionId, Guid.NewGuid().ToString(), default);
                 if (!gatewayResult.IsSuccess)
                     return Result.Failure(new Error("GatewayError", ErrorType.Failure, gatewayResult.ErrorMessage ?? "Failed to cancel subscription at gateway."));
             }
 
-            sub.Status = SubscriptionStatus.Canceled;
+            sub.CancelAtPeriodEnd = true;
             _subscriptionRepo.Update(sub);
             await _unitOfWork.SaveChangesAsync();
 
@@ -217,6 +285,7 @@ namespace TaskPilot.Services
                 AutoRenew = sub.AutoRenew,
                 IsTrial = sub.IsTrial,
                 TrialEndDate = sub.TrialEndDate,
+                CancelAtPeriodEnd = sub.CancelAtPeriodEnd,
                 ClientSecret = null // usually returned only on creation, but we can leave it null here
             };
         }
