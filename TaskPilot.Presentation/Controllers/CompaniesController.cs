@@ -77,26 +77,39 @@ namespace TaskPilot.Presentation.Controllers
 
         [HttpGet("{companyId}/employees")]
         public async Task<ActionResult> GetCompanyEmployees(
-            [FromRoute] Guid companyId,
-            CancellationToken cancellationToken)
+    [FromRoute] Guid companyId,
+    CancellationToken cancellationToken)
         {
+            // 1. Get current user id from claims
             var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (!Guid.TryParse(userIdStr, out Guid userId))
-            {
                 return Unauthorized();
-            }
 
+            // 2. Load current user
             var user = await _userRepository.GetByIdAsync(userId);
-            if (user != null && user.CompanyId != companyId)
+            if (user is null)
+                return Unauthorized();
+
+            // 3. Admin can access any company
+            if (User.IsInRole("Admin"))
             {
-                // Let Admin bypass if needed, but per requirement: "Admin (if applicable) can still access"
-                if (!User.IsInRole("Admin"))
-                {
-                    return StatusCode(403, "You do not have access to this company's employees.");
-                }
+                var adminResult = await _companyService
+                    .GetCompanyEmployeesAsync(companyId, cancellationToken);
+                return HandleResult(adminResult);
             }
 
-            var result = await _companyService.GetCompanyEmployeesAsync(companyId, cancellationToken);
+            // 4. ProjectManager must belong to the requested company
+            if (!User.IsInRole("ProjectManager"))
+                return StatusCode(403,
+                    "Only Project Managers can view company employees.");
+
+            if (user.CompanyId != companyId)
+                return StatusCode(403,
+                    "You do not have access to this company's employees.");
+
+            // 5. Same company ProjectManager — allow access
+            var result = await _companyService
+                .GetCompanyEmployeesAsync(companyId, cancellationToken);
             return HandleResult(result);
         }
     }
