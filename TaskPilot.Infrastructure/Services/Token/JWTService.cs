@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -36,6 +36,7 @@ namespace TaskPilot.Infrastructure.Services.Token
                 foreach (var role in roles.Value)
                 {
                     roleClaims.Add(new Claim(ClaimTypes.Role, role));
+                    roleClaims.Add(new Claim("role", role));
                 }
             }
 

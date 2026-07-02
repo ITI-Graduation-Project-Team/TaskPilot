@@ -4,6 +4,7 @@ using Microsoft.OpenApi;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Security.Claims;
 using TaskPilot.AI.Extensions;
 using TaskPilot.Data;
 using TaskPilot.Infrastructure.Extensions;
@@ -91,7 +92,10 @@ namespace TaskPilot.Presentation
                    ValidIssuer = builder.Configuration["JWTSettings:Issuer"],
                    ValidAudience = builder.Configuration["JWTSettings:Audience"],
 
-                   IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JWTSettings:Key"]))
+                   IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JWTSettings:Key"])),
+
+                   RoleClaimType = ClaimTypes.Role,
+                   NameClaimType = ClaimTypes.NameIdentifier
                };
 
                o.Events = new JwtBearerEvents
