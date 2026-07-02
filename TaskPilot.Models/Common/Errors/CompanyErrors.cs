@@ -23,5 +23,8 @@ namespace TaskPilot.Models.Common.Errors
 
         public static readonly Error NotFound = 
             new("COMPANY_NOT_FOUND", ErrorType.NotFound);
+
+        public static readonly Error ProjectManagerAlreadyHasCompany =
+           new("PROJECT_MANAGER_ALREADY_HAS_COMPANY", ErrorType.Conflict);
     }
 }

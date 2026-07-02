@@ -76,21 +76,30 @@ namespace TaskPilot.Services
                 fileStorage;
         }
 
-        public async Task<Result<CompanyResponse>>
-            SetupCompanyAsync(
-                SetupCompanyRequest request,
-                Guid ownerId)
+        public async Task<Result<CompanyResponse>> SetupCompanyAsync(
+    SetupCompanyRequest request,
+    Guid ownerId)
         {
+            // Get Owner
 
-            var ownerExists =
+            var owner =
                 await _projectManagerRepository
-                    .AnyAsync(x => x.Id == ownerId);
+                    .GetByIdAsync(ownerId);
 
-            if (!ownerExists)
+            if (owner is null)
             {
                 return Result<CompanyResponse>
                     .Failure(
                         CompanyErrors.InvalidOwner);
+            }
+
+            // Prevent creating more than one company
+
+            if (owner.CompanyId.HasValue)
+            {
+                return Result<CompanyResponse>
+                    .Failure(
+                        CompanyErrors.ProjectManagerAlreadyHasCompany);
             }
 
             // Normalize Company Name
@@ -105,32 +114,34 @@ namespace TaskPilot.Services
             var companyExists =
                 await _companyRepository
                     .AnyAsync(x =>
-                        x.Name.ToLower()
-                        == normalizedCompanyName);
+                        x.Name.ToLower() ==
+                        normalizedCompanyName);
 
             if (companyExists)
             {
                 return Result<CompanyResponse>
                     .Failure(
-                        CompanyErrors
-                            .CompanyAlreadyExists);
+                        CompanyErrors.CompanyAlreadyExists);
             }
 
+            // Create Company
 
             var company = new Company
             {
                 Name = request.CompanyName.Trim(),
-
                 OwnerId = ownerId
             };
 
             await _companyRepository
                 .AddAsync(company);
 
+            // Link Owner To Company
+
+            owner.CompanyId = company.Id;
+
             // Upload Policy Document
 
             string? documentUrl = null;
-
             string? documentPublicId = null;
 
             if (request.PolicyDocument != null)
@@ -139,13 +150,12 @@ namespace TaskPilot.Services
                     await _fileStorage
                         .UploadFileAsync(
                             request.PolicyDocument,
-                           $"taskpilot/companies/{company.Id}/policies");
+                            $"taskpilot/companies/{company.Id}/policies");
 
                 if (!uploadResult.IsSuccess)
                 {
                     return Result<CompanyResponse>
-                        .Failure(
-                            uploadResult.Error!);
+                        .Failure(uploadResult.Error!);
                 }
 
                 documentUrl =
@@ -157,15 +167,9 @@ namespace TaskPilot.Services
 
             // Create Default Policy
 
-            if (
-                !string.IsNullOrWhiteSpace(
-                    request.PolicyContentEn)
-                ||
-                !string.IsNullOrWhiteSpace(
-                    request.PolicyContentAr)
-                ||
-                request.PolicyDocument != null
-            )
+            if (!string.IsNullOrWhiteSpace(request.PolicyContentEn)
+                || !string.IsNullOrWhiteSpace(request.PolicyContentAr)
+                || request.PolicyDocument != null)
             {
                 var policy = new Policy
                 {
@@ -212,29 +216,21 @@ namespace TaskPilot.Services
 
             var emails =
                 request.EmployeeEmails
-                    .Select(x =>
-                        x.Trim().ToLower())
+                    .Select(x => x.Trim().ToLower())
                     .Distinct()
                     .ToList();
 
             foreach (var email in emails)
             {
-                // Check Existing Pending Invitation
-
                 var invitationExists =
                     await _invitationRepository
                         .AnyAsync(x =>
-                            x.Email == email
-                            &&
-                            x.CompanyId
-                                == company.Id
-                            &&
+                            x.Email == email &&
+                            x.CompanyId == company.Id &&
                             !x.IsAccepted);
 
                 if (invitationExists)
                     continue;
-
-                // Create Invitation
 
                 var invitation =
                     new EmployeeInvitation
@@ -246,25 +242,17 @@ namespace TaskPilot.Services
                         InvitedById = ownerId,
 
                         Token =
-                            InvitationTokenGenerator
-                                .Generate(),
+                            InvitationTokenGenerator.Generate(),
 
                         ExpiresAt =
-                            DateTime.UtcNow
-                                .AddDays(7)
+                            DateTime.UtcNow.AddDays(7)
                     };
 
                 await _invitationRepository
                     .AddAsync(invitation);
 
-                // Invitation Link
-
                 var invitationLink =
-                    $"https://localhost:4200/" +
-                    $"accept-invitation" +
-                    $"?token={invitation.Token}";
-
-                // Generate Email Body
+                    $"https://localhost:4200/accept-invitation?token={invitation.Token}";
 
                 var body =
                     _emailBodyService
@@ -273,30 +261,21 @@ namespace TaskPilot.Services
                             company.Name,
                             invitationLink);
 
-                // Send Email
-
                 await _emailService
                     .SendEmailAsync(
                         new EmailRequest
                         {
                             To = email,
-
-                            Subject =
-                                $"Invitation to join {company.Name}",
-
+                            Subject = $"Invitation to join {company.Name}",
                             Body = body
                         });
             }
-
-            // Response
 
             var response =
                 new CompanyResponse
                 {
                     Id = company.Id,
-
                     Name = company.Name,
-
                     OwnerId = company.OwnerId
                 };
 
