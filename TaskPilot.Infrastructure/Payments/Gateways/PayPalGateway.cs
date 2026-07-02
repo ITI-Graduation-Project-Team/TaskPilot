@@ -128,6 +128,14 @@ namespace TaskPilot.Infrastructure.Payments.Gateways
             }
         }
 
+        public async Task<GatewayCancelResult> CancelAtPeriodEndAsync(
+            string gatewaySubscriptionId, string idempotencyKey, CancellationToken ct)
+        {
+            // PayPal does not support cancel_at_period_end natively.
+            // Falling back to immediate cancellation.
+            return await CancelSubscriptionAsync(gatewaySubscriptionId, idempotencyKey, ct);
+        }
+
         public Task<Result<string>> CreateOrGetCustomerAsync(string userId, string email, CancellationToken ct)
         {
             // PayPal doesn't require pre-creating a customer object like Stripe.
@@ -219,6 +227,21 @@ namespace TaskPilot.Infrastructure.Payments.Gateways
                 _logger.LogError(ex, "Error processing PayPal webhook: {Message}", ex.Message);
                 return new WebhookParseResult { IsValid = false };
             }
+        }
+        public Task<GatewaySubscriptionResult> CreateTrialSubscriptionAsync(
+            string customerId, string priceId, int trialDays,
+            string paymentMethodId, string idempotencyKey,
+            CancellationToken ct)
+        {
+            // PayPal does not support free trial with card setup.
+            // Users must select Stripe to use the free trial feature.
+            return Task.FromResult(new GatewaySubscriptionResult
+            {
+                Status = "failed",
+                ErrorMessage = "PayPal does not support free trials. Please select Stripe to use this feature.",
+                ClientSecret = null,
+                IsSetupIntent = false
+            });
         }
     }
 }

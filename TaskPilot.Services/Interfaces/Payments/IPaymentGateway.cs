@@ -17,9 +17,15 @@ namespace TaskPilot.Services.Interfaces.Payments
             string? returnUrl, string? cancelUrl, CancellationToken ct);
         Task<GatewayCancelResult> CancelSubscriptionAsync(
             string gatewaySubscriptionId, string idempotencyKey, CancellationToken ct);
+        Task<GatewayCancelResult> CancelAtPeriodEndAsync(
+            string gatewaySubscriptionId, string idempotencyKey, CancellationToken ct);
         Task<Result<string>> CreateOrGetCustomerAsync(
             string userId, string email, CancellationToken ct);
         Task<WebhookParseResult> ParseAndVerifyWebhookAsync(
             string payload, IHeaderDictionary headers, CancellationToken ct);
+        Task<GatewaySubscriptionResult> CreateTrialSubscriptionAsync(
+            string customerId, string priceId, int trialDays,
+            string paymentMethodId, string idempotencyKey,
+            CancellationToken ct);
     }
 }
