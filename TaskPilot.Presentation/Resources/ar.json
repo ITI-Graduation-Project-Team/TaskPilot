@@ -51,6 +51,16 @@
   // company
   "COMPANY_NOT_FOUND": "الشركة غير موجودة.",
   "PROJECT_MANAGER_ALREADY_HAS_COMPANY": "مدير المشروع لديه شركة بالفعل.",
+  "INVITATION_ALREADY_SENT": "تم إرسال دعوة إلى هذا البريد الإلكتروني بالفعل.",
+  "EMPLOYEE_ALREADY_IN_COMPANY": "هذا الموظف موجود في الشركة بالفعل.",
+  "INVALID_EMAIL": "عنوان البريد الإلكتروني غير صالح.",
+  "NO_EMPLOYEES_SPECIFIED": "لم يتم تحديد أي موظفين.",
+  "DUPLICATE_IN_REQUEST": "البريد الإلكتروني مكرر في الطلب.",
+  "INVITATION_EXPIRED": "انتهت صلاحية الدعوة.",
+  "INVITATION_ALREADY_ACCEPTED": "تم قبول الدعوة بالفعل.",
+  "INVALID_INVITATION_STATUS": "حالة الدعوة غير صالحة.",
+  "INVALID_PAGE_NUMBER": "رقم الصفحة غير صالح.",
+  "INVALID_PAGE_SIZE": "حجم الصفحة غير صالح.",
 
   // skill
   "SKILL_NOT_FOUND": "المهارة غير موجودة.",
@@ -93,6 +103,10 @@
   // company success
   "COMPANY_SETUP_SUCCESS": "تم إعداد الشركة بنجاح.",
   "COMPANY_EMPLOYEES_SEARCHED": "تم البحث عن الموظفين بنجاح.",
+  "EMPLOYEE_INVITATIONS_SENT_SUCCESS": "تم إرسال دعوات الموظفين بنجاح.",
+  "INVITATIONS_RETRIEVED_SUCCESS": "تم استرداد الدعوات بنجاح.",
+  "INVITATION_CANCELLED_SUCCESS": "تم إلغاء الدعوة بنجاح.",
+  "INVITATION_RESENT_SUCCESS": "تم إعادة إرسال الدعوة بنجاح.",
 
   // project success
   "PROJECT_CREATED_SUCCESS": "تم إنشاء المشروع بنجاح.",

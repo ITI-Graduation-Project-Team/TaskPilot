@@ -61,18 +61,94 @@ namespace TaskPilot.Presentation.Controllers
 
             return HandleCreated(result, SuccessCodes.Company.Setup);
         }
+
+        [Authorize(Roles = "ProjectManager")]
+        [HttpPost("employees/invite")]
+        public async Task<ActionResult> InviteEmployees(
+            [FromBody] InviteEmployeesRequest request)
+        {
+            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(userIdStr, out Guid ownerId))
+            {
+                return Unauthorized();
+            }
+
+            var result = await _companyService.InviteEmployeesAsync(request, ownerId);
+
+            if (result.IsSuccess)
+            {
+                await _unitOfWork.SaveChangesAsync();
+            }
+
+            return HandleResult(result, SuccessCodes.Company.EmployeeInvitationsSent);
+        }
         [Authorize(Roles = "ProjectManager")]
         [HttpGet("employees/search")]
-        public async Task<ActionResult>
-       SearchEmployees(
+        public async Task<ActionResult> SearchEmployees(
            [FromQuery] string query)
         {
-            var result =
-                await _companyService
-                    .SearchEmployeesAsync(
-                        query);
+            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(userIdStr, out Guid ownerId))
+                return Unauthorized();
+
+            var result = await _companyService.SearchEmployeesAsync(query, ownerId);
 
             return HandleResult(result, SuccessCodes.Company.EmployeesSearched);
+        }
+
+        [Authorize(Roles = "ProjectManager")]
+        [HttpGet("invitations")]
+        public async Task<ActionResult> GetInvitations([FromQuery] string? status = null, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+        {
+            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(userIdStr, out Guid ownerId))
+                return Unauthorized();
+
+            if (page < 1)
+                return HandleResult(Result.Failure<PagedResult<CompanyInvitationDto>>(CompanyErrors.InvalidPageNumber));
+
+            if (pageSize < 1 || pageSize > 100)
+                return HandleResult(Result.Failure<PagedResult<CompanyInvitationDto>>(CompanyErrors.InvalidPageSize));
+
+            TaskPilot.Models.Enums.InvitationStatus parsedStatus = TaskPilot.Models.Enums.InvitationStatus.All;
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                if (!Enum.TryParse(status, true, out parsedStatus) || !Enum.IsDefined(typeof(TaskPilot.Models.Enums.InvitationStatus), parsedStatus))
+                {
+                    return HandleResult(Result.Failure<PagedResult<CompanyInvitationDto>>(CompanyErrors.InvalidInvitationStatus));
+                }
+            }
+
+            var result = await _companyService.GetInvitationsAsync(ownerId, parsedStatus, page, pageSize);
+            return HandleResult(result, "INVITATIONS_RETRIEVED_SUCCESS");
+        }
+
+        [Authorize(Roles = "ProjectManager")]
+        [HttpDelete("invitations/{invitationId}")]
+        public async Task<ActionResult> CancelInvitation([FromRoute] Guid invitationId)
+        {
+            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(userIdStr, out Guid ownerId))
+                return Unauthorized();
+
+            var result = await _companyService.CancelInvitationAsync(invitationId, ownerId);
+            if (result.IsSuccess)
+            {
+                await _unitOfWork.SaveChangesAsync();
+            }
+            return HandleResult(result, "INVITATION_CANCELLED_SUCCESS");
+        }
+
+        [Authorize(Roles = "ProjectManager")]
+        [HttpPost("invitations/{invitationId}/resend")]
+        public async Task<ActionResult> ResendInvitation([FromRoute] Guid invitationId)
+        {
+            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(userIdStr, out Guid ownerId))
+                return Unauthorized();
+
+            var result = await _companyService.ResendInvitationAsync(invitationId, ownerId);
+            return HandleResult(result, "INVITATION_RESENT_SUCCESS");
         }
 
         [HttpGet("{companyId}/employees")]

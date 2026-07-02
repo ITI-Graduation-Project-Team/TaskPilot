@@ -52,6 +52,16 @@
   // company
   "COMPANY_NOT_FOUND": "Company was not found.",
   "PROJECT_MANAGER_ALREADY_HAS_COMPANY": "The project manager already has a company.",
+  "INVITATION_ALREADY_SENT": "An invitation has already been sent to this email.",
+  "EMPLOYEE_ALREADY_IN_COMPANY": "This employee is already in the company.",
+  "INVALID_EMAIL": "Invalid email address.",
+  "NO_EMPLOYEES_SPECIFIED": "No employees were specified.",
+  "DUPLICATE_IN_REQUEST": "Email is duplicated in the request.",
+  "INVITATION_EXPIRED": "Invitation has expired.",
+  "INVITATION_ALREADY_ACCEPTED": "Invitation is already accepted.",
+  "INVALID_INVITATION_STATUS": "Invalid invitation status.",
+  "INVALID_PAGE_NUMBER": "Invalid page number.",
+  "INVALID_PAGE_SIZE": "Invalid page size.",
 
   // skill
   "SKILL_NOT_FOUND": "Skill was not found.",
@@ -94,6 +104,10 @@
   // company success
   "COMPANY_SETUP_SUCCESS": "Company setup completed successfully.",
   "COMPANY_EMPLOYEES_SEARCHED": "Employees searched successfully.",
+  "EMPLOYEE_INVITATIONS_SENT_SUCCESS": "Employee invitations sent successfully.",
+  "INVITATIONS_RETRIEVED_SUCCESS": "Invitations retrieved successfully.",
+  "INVITATION_CANCELLED_SUCCESS": "Invitation cancelled successfully.",
+  "INVITATION_RESENT_SUCCESS": "Invitation resent successfully.",
 
   // project success
   "PROJECT_CREATED_SUCCESS": "Project created successfully.",

@@ -24,6 +24,7 @@ namespace TaskPilot.Models.Common
         {
             public const string Setup = "COMPANY_SETUP_SUCCESS";
             public const string EmployeesSearched = "COMPANY_EMPLOYEES_SEARCHED";
+            public const string EmployeeInvitationsSent = "EMPLOYEE_INVITATIONS_SENT_SUCCESS";
         }
 
         public static class Project
