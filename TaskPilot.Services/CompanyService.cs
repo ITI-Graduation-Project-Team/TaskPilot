@@ -39,6 +39,9 @@ namespace TaskPilot.Services
         private readonly IFileStorageService
             _fileStorage;
 
+        private readonly IUnitOfWork
+            _unitOfWork;
+
         public CompanyService(
             IRepository<Company> companyRepository,
             IRepository<ProjectManager>
@@ -49,7 +52,8 @@ namespace TaskPilot.Services
             IEmailService emailService,
             IEmailBodyService emailBodyService,
             IFileStorageService fileStorage,
-            IRepository<Employee> employeeRepository)
+            IRepository<Employee> employeeRepository,
+            IUnitOfWork unitOfWork)
         {
             _companyRepository =
                 companyRepository;
@@ -74,6 +78,9 @@ namespace TaskPilot.Services
 
             _fileStorage =
                 fileStorage;
+
+            _unitOfWork =
+                unitOfWork;
         }
 
         public async Task<Result<CompanyResponse>> SetupCompanyAsync(
@@ -209,10 +216,9 @@ namespace TaskPilot.Services
                     .AddAsync(policy);
             }
 
-            // Employee Invitations
+            // Employee Invitations — save all DB records first, then send emails
 
-            request.EmployeeEmails ??=
-                new List<string>();
+            request.EmployeeEmails ??= new List<string>();
 
             var emails =
                 request.EmployeeEmails
@@ -220,9 +226,50 @@ namespace TaskPilot.Services
                     .Distinct()
                     .ToList();
 
+            // Collect valid invitations to send in memory before saving
+            var pendingInvitations = new List<(string email, EmployeeInvitation invitation)>();
+
             foreach (var email in emails)
             {
-                await CreateInvitationAsync(email, company, ownerId);
+                var normalizedEmail = email.Trim().ToLower();
+
+                var alreadyInCompany = await _employeeRepository
+                    .AnyAsync(x => x.Email == normalizedEmail && x.CompanyId == company.Id);
+                if (alreadyInCompany) continue;
+
+                var invitationExists = await _invitationRepository
+                    .AnyAsync(x => x.Email == normalizedEmail && x.CompanyId == company.Id && !x.IsAccepted);
+                if (invitationExists) continue;
+
+                var invitation = new EmployeeInvitation
+                {
+                    Email = normalizedEmail,
+                    CompanyId = company.Id,
+                    InvitedById = ownerId,
+                    Token = InvitationTokenGenerator.Generate(),
+                    ExpiresAt = DateTime.UtcNow.AddDays(7)
+                };
+
+                await _invitationRepository.AddAsync(invitation);
+                pendingInvitations.Add((normalizedEmail, invitation));
+            }
+
+            // Flush all invitation records to DB before sending emails
+            if (pendingInvitations.Count > 0)
+            {
+                await _unitOfWork.SaveChangesAsync();
+
+                foreach (var (email, invitation) in pendingInvitations)
+                {
+                    var invitationLink = $"https://taskpilot.vercel.app/accept-invitation?token={invitation.Token}";
+                    var body = _emailBodyService.GenerateEmployeeInvitationBody(email, company.Name, invitationLink);
+                    await _emailService.SendEmailAsync(new EmailRequest
+                    {
+                        To = email,
+                        Subject = $"You're invited to join {company.Name} on TaskPilot",
+                        Body = body
+                    });
+                }
             }
 
             var response =
@@ -445,12 +492,17 @@ namespace TaskPilot.Services
                 company.Name,
                 invitationLink);
 
-            await _emailService.SendEmailAsync(new EmailRequest
+            var emailResult = await _emailService.SendEmailAsync(new EmailRequest
             {
                 To = normalizedEmail,
                 Subject = $"Invitation to join {company.Name}",
                 Body = body
             });
+
+            if (emailResult.IsFailure)
+            {
+                return Result<bool>.Failure(emailResult.Error!);
+            }
 
             return Result<bool>.Success(true);
         }

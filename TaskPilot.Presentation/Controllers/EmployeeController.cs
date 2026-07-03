@@ -172,7 +172,11 @@ public class EmployeeController : ApiControllerBase
                 FirstName = user.FirstNameEn,
                 LastName = user.LastNameEn,
                 Email = user.Email,
-                IsEmployee = false
+                JobTitle = "Project Manager",
+                SeniorityLevel = "Manager",
+                TotalYearsOfExperience = 5,
+                IsEmployee = false,
+                Skills = new List<string>()
             });
         }
 
