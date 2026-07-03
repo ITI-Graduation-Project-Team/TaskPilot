@@ -100,6 +100,8 @@
   "INVALID_CV_FILE": "Invalid CV file.",
   "CV_FILE_TOO_LARGE": "CV file is too large.",
   "CV_UNSUPPORTED_FORMAT": "Unsupported CV format.",
+  "PRIMARY_SKILL_REQUIRED": "Please choose one primary skill.",
+  "MULTIPLE_PRIMARY_SKILLS": "Only one primary skill is allowed.",
 
   // company success
   "COMPANY_SETUP_SUCCESS": "Company setup completed successfully.",

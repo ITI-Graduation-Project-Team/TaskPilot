@@ -38,6 +38,7 @@ namespace TaskPilot.Services
 
             //for ---CV
             services.AddScoped<ICvService, CvService>();
+            services.AddScoped<ICvConfirmationService, CvConfirmationService>();
             services.AddScoped<IFileTextExtractor, FileTextExtractor>();
 
             services.AddScoped<ISkillService, SkillService>();

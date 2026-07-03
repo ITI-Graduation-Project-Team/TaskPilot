@@ -1,4 +1,4 @@
-﻿using TaskPilot.Models.Enums;
+using TaskPilot.Models.Enums;
 
 namespace TaskPilot.DTOs.CV
 {
@@ -11,5 +11,7 @@ namespace TaskPilot.DTOs.CV
         public double? YearsOfExperience { get; set; }
 
         public double ConfidenceScore { get; set; }
+
+        public bool IsPrimarySuggested { get; set; }
     }
 }
