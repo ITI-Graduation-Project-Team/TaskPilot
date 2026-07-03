@@ -116,21 +116,6 @@ namespace TaskPilot.Services
                     .Trim()
                     .ToLower();
 
-            // Check Existing Company
-
-            var companyExists =
-                await _companyRepository
-                    .AnyAsync(x =>
-                        x.Name.ToLower() ==
-                        normalizedCompanyName);
-
-            if (companyExists)
-            {
-                return Result<CompanyResponse>
-                    .Failure(
-                        CompanyErrors.CompanyAlreadyExists);
-            }
-
             // Create Company
 
             var company = new Company
