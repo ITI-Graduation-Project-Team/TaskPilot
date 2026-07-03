@@ -9,6 +9,8 @@ using TaskPilot.Presentation.Controllers;
 using TaskPilot.Services.Interfaces;
 using TaskPilot.Services.Interfaces.CVExtractorInterfaces;
 using TaskPilot.DTOs.CV;
+using Microsoft.EntityFrameworkCore;
+using TaskPilot.Models.Entities;
 
 [Authorize]
 [Route("api/employees")]
@@ -19,18 +21,24 @@ public class EmployeeController : ApiControllerBase
     private readonly ICvConfirmationService _cvConfirmationService;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUserService _currentUser;
+    private readonly IRepository<Employee> _employeeRepository;
+    private readonly IRepository<User> _userRepository;
 
     public EmployeeController(
         ICvService cvService,
         ICvConfirmationService cvConfirmationService,
         IUnitOfWork unitOfWork,
-        ICurrentUserService currentUser
+        ICurrentUserService currentUser,
+        IRepository<Employee> employeeRepository,
+        IRepository<User> userRepository
          )
     {
         _cvService = cvService;
         _cvConfirmationService = cvConfirmationService;
         _unitOfWork = unitOfWork;
         _currentUser = currentUser;
+        _employeeRepository = employeeRepository;
+        _userRepository = userRepository;
     }
 
     /// <summary>
@@ -136,5 +144,49 @@ public class EmployeeController : ApiControllerBase
         }
 
         return HandleResult(result, SuccessCodes.Employee.CvUploaded);
+    }
+
+    [HttpGet("profile")]
+    public async Task<ActionResult> GetProfile(CancellationToken cancellationToken)
+    {
+        if (_currentUser.UserId == null)
+            return HandleResult(Result.Failure(CommonErrors.Unauthorized()));
+
+        var employeeId = _currentUser.UserId.Value;
+
+        var employee = await _employeeRepository.GetQueryable()
+            .Include(e => e.UserSkills)
+                .ThenInclude(us => us.Skill)
+            .FirstOrDefaultAsync(e => e.Id == employeeId, cancellationToken);
+
+        if (employee == null)
+        {
+            var user = await _userRepository.GetQueryable()
+                .FirstOrDefaultAsync(u => u.Id == employeeId, cancellationToken);
+            if (user == null)
+                return HandleResult(Result.Failure(CommonErrors.Unauthorized()));
+
+            return Ok(new
+            {
+                Id = user.Id,
+                FirstName = user.FirstNameEn,
+                LastName = user.LastNameEn,
+                Email = user.Email,
+                IsEmployee = false
+            });
+        }
+
+        return Ok(new
+        {
+            Id = employee.Id,
+            FirstName = employee.FirstNameEn,
+            LastName = employee.LastNameEn,
+            Email = employee.Email,
+            JobTitle = employee.JobTitle ?? string.Empty,
+            SeniorityLevel = employee.SeniorityLevel?.ToString() ?? "MidLevel",
+            TotalYearsOfExperience = employee.TotalYearsOfExperience ?? 0,
+            IsEmployee = true,
+            Skills = employee.UserSkills.Select(us => us.Skill.Name).ToList()
+        });
     }
 }
