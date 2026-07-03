@@ -42,8 +42,7 @@ namespace TaskPilot.Data.Identity
             if (!creationResult.Succeeded)
             {
                 var errors = string.Join(" | ", creationResult.Errors.Select(e => e.Description));
-                return CommonErrors.InvalidInput(errors);
-                //return CommonErrors.InvalidInput(c.Errors.First().Description);
+                return new Error("REGISTRATION_VALIDATION_FAILED", ErrorType.Validation, errors);
             }
             return user;
         }
@@ -78,7 +77,7 @@ namespace TaskPilot.Data.Identity
             var res = await _UserManager.DeleteAsync(user);
             if (!res.Succeeded)
             {
-                return Result.Failure(CommonErrors.OperationFailed("Failed to Delete User"));
+                return Result.Failure(IdentityErrors.UserDeletionFailed);
             }
             return Result.Success();
         }
@@ -106,7 +105,7 @@ namespace TaskPilot.Data.Identity
             var result = await _UserManager.ConfirmEmailAsync(user, otp);
              if(!result.Succeeded)
             {
-                return Result.Failure<string>(CommonErrors.OperationFailed("Email verification failed."));
+                return Result.Failure<string>(IdentityErrors.EmailVerificationFailed);
             }
             return Result.Success("Email verified successfully.");
         }
@@ -117,7 +116,7 @@ namespace TaskPilot.Data.Identity
                 var result = await _signInManager.CheckPasswordSignInAsync(user, password, lockoutOnFailure: true);
                 if (result.IsLockedOut)
                 {
-                    return CommonErrors.Unauthorized("Account is temporarily locked due to multiple failed attempts please try again later");
+                    return IdentityErrors.AccountLocked;
                 }
                 if (!result.Succeeded)
                 {
@@ -201,10 +200,16 @@ namespace TaskPilot.Data.Identity
                 }
             }
             // B- has account has not signed with google yet or new we'll create a new userlogininfo             
-            var loginInfo = new UserLoginInfo(
-               provider,       
-               providerKey,    
-               provider);
+            if (!user.EmailConfirmed)
+            {
+                user.EmailConfirmed = true;
+                var updateResult = await _UserManager.UpdateAsync(user);
+                if (!updateResult.Succeeded)
+                {
+                    var errors = string.Join(" | ", updateResult.Errors.Select(e => e.Description));
+                    return CommonErrors.OperationFailed(errors);
+                }
+            }
 
             var linkResult = await _UserManager.AddLoginAsync(user, new UserLoginInfo(provider, providerKey, provider));
             if (!linkResult.Succeeded)
@@ -227,7 +232,7 @@ namespace TaskPilot.Data.Identity
             if(!result.Succeeded)
             {
                 var errors = string.Join(" | ", result.Errors.Select(e => e.Description));
-                return Result.Failure(CommonErrors.OperationFailed(errors));
+                return Result.Failure(IdentityErrors.PasswordResetValidationFailed(errors));
             }
             return Result.Success();
         }

@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using TaskPilot.Data.Repositories;
 using TaskPilot.Services.Helpers;
 using TaskPilot.Services.Interfaces;
+using TaskPilot.Models.Common;
 using TaskPilot.Services.Interfaces.CVExtractorInterfaces;
 using TaskPilot.Services.Interfaces.External;
 using TaskPilot.Services.Repositories;

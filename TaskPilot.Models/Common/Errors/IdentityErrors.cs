@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -32,5 +32,8 @@ namespace TaskPilot.Models.Common.Errors
 
         public static readonly Error PasswordResetFailed =
             new("PASSWORD_RESET_FAILED", ErrorType.Failure);
+
+        public static Error PasswordResetValidationFailed(string errors) =>
+            new("PASSWORD_RESET_VALIDATION_FAILED", ErrorType.Validation, errors);
     }
 }
