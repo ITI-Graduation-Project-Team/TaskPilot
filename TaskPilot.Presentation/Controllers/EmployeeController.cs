@@ -176,6 +176,7 @@ public class EmployeeController : ApiControllerBase
                 SeniorityLevel = "Manager",
                 TotalYearsOfExperience = 0,
                 IsEmployee = false,
+                CompanyId = user.CompanyId,
                 Skills = new List<string>()
             });
         }
@@ -190,6 +191,7 @@ public class EmployeeController : ApiControllerBase
             SeniorityLevel = employee.SeniorityLevel?.ToString() ?? "MidLevel",
             TotalYearsOfExperience = employee.TotalYearsOfExperience ?? 0,
             IsEmployee = true,
+            CompanyId = employee.CompanyId,
             Skills = employee.UserSkills.Select(us => us.Skill.Name).ToList()
         });
     }
