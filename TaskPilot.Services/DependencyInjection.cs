@@ -32,6 +32,7 @@ namespace TaskPilot.Services
             services.AddScoped<ISprintConfirmationService, SprintConfirmationService>();
             services.AddScoped<ITechStackService, TechStackService>();
             services.AddScoped<IWbsGenerationService, WbsGenerationService>();
+            services.AddScoped<TaskPilot.Services.Assignment.ITeamSnapshotService, TaskPilot.Services.Assignment.TeamSnapshotService>();
             
             // الآن التكوين (configuration) متاح للاستخدام
           
