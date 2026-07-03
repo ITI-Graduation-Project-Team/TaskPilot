@@ -102,6 +102,13 @@
   "PRIMARY_SKILL_REQUIRED": "يرجى اختيار المهارة الأساسية.",
   "MULTIPLE_PRIMARY_SKILLS": "يمكن اختيار مهارة أساسية واحدة فقط.",
 
+  // assignment
+  "ASSIGNMENT_PROJECT_NOT_FOUND": "المشروع غير موجود.",
+  "ASSIGNMENT_SPRINT_NOT_FOUND": "السباق غير موجود.",
+  "SPRINT_DOES_NOT_BELONG_TO_PROJECT": "السباق لا ينتمي لهذا المشروع.",
+  "SPRINT_CANCELLED": "لا يمكن إنشاء Snapshot لسباق ملغي.",
+  "NO_PROJECT_TEAM": "لا يوجد أعضاء فريق مرتبطون بالمشروع.",
+
   // company success
   "COMPANY_SETUP_SUCCESS": "تم إعداد الشركة بنجاح.",
   "COMPANY_EMPLOYEES_SEARCHED": "تم البحث عن الموظفين بنجاح.",
