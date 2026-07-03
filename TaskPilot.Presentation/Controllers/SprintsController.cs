@@ -12,6 +12,8 @@ using TaskPilot.Data.Repositories;
 using TaskPilot.Models.Entities;
 using TaskPilot.Models.Common.Errors;
 using TaskPilot.DTOs.Assignment;
+using Microsoft.EntityFrameworkCore;
+using TaskPilot.Models.Enums;
 
 namespace TaskPilot.Presentation.Controllers
 {
@@ -23,17 +25,20 @@ namespace TaskPilot.Presentation.Controllers
         private readonly ITeamSnapshotService _teamSnapshotService;
         private readonly IRepository<User> _userRepository;
         private readonly IRepository<Project> _projectRepository;
+        private readonly IRepository<Sprint> _sprintRepository;
 
         public SprintsController(
             ISprintConfirmationService sprintConfirmationService,
             ITeamSnapshotService teamSnapshotService,
             IRepository<User> userRepository,
-            IRepository<Project> projectRepository)
+            IRepository<Project> projectRepository,
+            IRepository<Sprint> sprintRepository)
         {
             _sprintConfirmationService = sprintConfirmationService;
             _teamSnapshotService = teamSnapshotService;
             _userRepository = userRepository;
             _projectRepository = projectRepository;
+            _sprintRepository = sprintRepository;
         }
 
         [HttpPost("confirm")]
@@ -75,6 +80,29 @@ namespace TaskPilot.Presentation.Controllers
 
             var result = await _teamSnapshotService.GetSnapshotAsync(projectId, sprintId, cancellationToken);
             return HandleResult(result);
+        }
+
+        [HttpGet("active")]
+        public async Task<ActionResult> GetActiveSprint(Guid projectId, CancellationToken cancellationToken)
+        {
+            var sprint = await _sprintRepository.GetQueryable()
+                .Where(s => s.ProjectId == projectId && s.Status == SprintStatus.Active && !s.IsDeleted)
+                .Select(s => new {
+                    s.Id,
+                    s.TitleEn,
+                    s.TitleAr,
+                    s.SprintGoalEn,
+                    s.SprintGoalAr,
+                    Status = s.Status.ToString()
+                })
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (sprint == null)
+            {
+                return Ok(new { Succeeded = true, Data = (object?)null });
+            }
+
+            return Ok(new { Succeeded = true, Data = sprint });
         }
     }
 }
