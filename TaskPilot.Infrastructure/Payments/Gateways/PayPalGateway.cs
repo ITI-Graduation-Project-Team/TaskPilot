@@ -5,10 +5,10 @@ using PayPalCheckoutSdk.Core;
 //using PaypalServerSdk;
 using System.Text.Json;
 using TaskPilot.Infrastructure.Options.Payments;
+using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Enums;
 using TaskPilot.Models.Gateways;
 using TaskPilot.Services.Interfaces.Payments;
-using TaskPilot.Models.Common.Results;
 
 namespace TaskPilot.Infrastructure.Payments.Gateways
 {
@@ -48,46 +48,35 @@ namespace TaskPilot.Infrastructure.Payments.Gateways
             }
 
             _logger.LogInformation("Attempting to create PayPal subscription for plan {PlanId}", planId);
-            var request = new PayPalHttp.HttpRequest("/v1/billing/subscriptions", HttpMethod.Post, typeof(object));
+            var request = new PayPalHttp.HttpRequest("/v1/billing/subscriptions", HttpMethod.Post, typeof(PayPalSubscriptionResponse));
             request.Headers.Add("Prefer", "return=representation");
             request.Headers.Add("PayPal-Request-Id", idempotencyKey);
+            request.ContentType = "application/json";
 
-            request.Body = new
+            request.Body = new PayPalSubscriptionRequest
             {
-                plan_id = mappedPlanId,
-                subscriber = new
+                PlanId = mappedPlanId,
+                Subscriber = new PayPalSubscriber
                 {
-                    custom_id = customerId
+                    CustomId = customerId
                 },
-                application_context = new
+                ApplicationContext = new PayPalApplicationContext
                 {
-                    return_url = returnUrl,
-                    cancel_url = cancelUrl
+                    ReturnUrl = returnUrl,
+                    CancelUrl = cancelUrl
                 }
             };
 
             try
             {
                 var response = await _client.Execute(request);
-                var json = JsonSerializer.Serialize(response.Result<object>());
-                using var doc = JsonDocument.Parse(json);
 
-                var root = doc.RootElement;
-                var id = root.GetProperty("id").GetString();
-                var status = root.GetProperty("status").GetString();
+                // Read response safely using the strongly typed model
+                var result = response.Result<PayPalSubscriptionResponse>();
 
-                string? approveLink = null;
-                if (root.TryGetProperty("links", out var links))
-                {
-                    foreach (var link in links.EnumerateArray())
-                    {
-                        if (link.GetProperty("rel").GetString() == "approve")
-                        {
-                            approveLink = link.GetProperty("href").GetString();
-                            break;
-                        }
-                    }
-                }
+                var id = result?.Id;
+                var status = result?.Status;
+                var approveLink = result?.Links?.FirstOrDefault(l => l.Rel == "approve")?.Href;
 
                 _logger.LogInformation("Successfully created PayPal subscription {GatewaySubscriptionId}", id);
                 return new GatewaySubscriptionResult
@@ -104,6 +93,16 @@ namespace TaskPilot.Infrastructure.Payments.Gateways
                 {
                     Status = "failed",
                     ErrorMessage = ex.Message,
+                    ClientSecret = null
+                };
+            }
+            catch (System.Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error during CreateSubscriptionAsync: {Message}", ex.Message);
+                return new GatewaySubscriptionResult
+                {
+                    Status = "failed",
+                    ErrorMessage = $"CRITICAL ERROR: {ex.GetType().Name} - {ex.Message} - {ex.StackTrace}",
                     ClientSecret = null
                 };
             }
@@ -243,5 +242,61 @@ namespace TaskPilot.Infrastructure.Payments.Gateways
                 IsSetupIntent = false
             });
         }
+    }
+
+    [System.Runtime.Serialization.DataContract]
+    public class PayPalSubscriptionRequest
+    {
+        [System.Runtime.Serialization.DataMember(Name = "plan_id")]
+        public string PlanId { get; set; } = string.Empty;
+
+        [System.Runtime.Serialization.DataMember(Name = "subscriber")]
+        public PayPalSubscriber Subscriber { get; set; } = new();
+
+        [System.Runtime.Serialization.DataMember(Name = "application_context")]
+        public PayPalApplicationContext ApplicationContext { get; set; } = new();
+    }
+
+    [System.Runtime.Serialization.DataContract]
+    public class PayPalSubscriber
+    {
+        [System.Runtime.Serialization.DataMember(Name = "custom_id")]
+        public string CustomId { get; set; } = string.Empty;
+    }
+
+    [System.Runtime.Serialization.DataContract]
+    public class PayPalApplicationContext
+    {
+        [System.Runtime.Serialization.DataMember(Name = "return_url")]
+        public string? ReturnUrl { get; set; }
+
+        [System.Runtime.Serialization.DataMember(Name = "cancel_url")]
+        public string? CancelUrl { get; set; }
+    }
+
+    [System.Runtime.Serialization.DataContract]
+    public class PayPalSubscriptionResponse
+    {
+        [System.Runtime.Serialization.DataMember(Name = "id")]
+        public string Id { get; set; } = string.Empty;
+
+        [System.Runtime.Serialization.DataMember(Name = "status")]
+        public string Status { get; set; } = string.Empty;
+
+        [System.Runtime.Serialization.DataMember(Name = "links")]
+        public System.Collections.Generic.List<PayPalLink>? Links { get; set; }
+    }
+
+    [System.Runtime.Serialization.DataContract]
+    public class PayPalLink
+    {
+        [System.Runtime.Serialization.DataMember(Name = "href")]
+        public string Href { get; set; } = string.Empty;
+
+        [System.Runtime.Serialization.DataMember(Name = "rel")]
+        public string Rel { get; set; } = string.Empty;
+
+        [System.Runtime.Serialization.DataMember(Name = "method")]
+        public string Method { get; set; } = string.Empty;
     }
 }
