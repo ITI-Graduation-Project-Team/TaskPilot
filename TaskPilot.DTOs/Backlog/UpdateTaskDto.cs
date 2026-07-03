@@ -26,5 +26,8 @@ namespace TaskPilot.DTOs.Backlog
         
         [Required]
         public TaskType Type { get; set; }
+
+        [Required]
+        public TaskItemStatus Status { get; set; }
     }
 }

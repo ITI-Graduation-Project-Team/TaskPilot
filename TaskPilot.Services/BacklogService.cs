@@ -221,6 +221,7 @@ namespace TaskPilot.Services
             task.EstimatedHours = request.EstimatedHours;
             task.EffortSize = request.EffortSize;
             task.Type = request.Type;
+            task.Status = request.Status;
 
             _taskRepository.Update(task);
             await _unitOfWork.SaveChangesAsync();
