@@ -163,6 +163,7 @@ namespace TaskPilot.Services
                 Roles = roles,
                 Token = token,
                 UserId = userResult.Value.Id,
+                IsProfileCompleted = user is Employee emp ? emp.IsProfileCompleted : user.CompanyId.HasValue
             };
 
             return response;
@@ -200,7 +201,7 @@ namespace TaskPilot.Services
                 RefreshToken = refreshToken.Value,
                 UserId = user.Id,
                 Roles = roles,
-                IsProfileCompleted = user is Employee emp ? emp.IsProfileCompleted : true
+                IsProfileCompleted = user is Employee emp ? emp.IsProfileCompleted : user.CompanyId.HasValue
             };
             return response;
         }
@@ -299,7 +300,7 @@ namespace TaskPilot.Services
                 Roles = roles,
                 UserId = user.Id,
                 RefreshToken = refreshToken.Value,
-                IsProfileCompleted = user is Employee emp ? emp.IsProfileCompleted : true
+                IsProfileCompleted = user is Employee emp ? emp.IsProfileCompleted : user.CompanyId.HasValue
             };
             return response;
 
