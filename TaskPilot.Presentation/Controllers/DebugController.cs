@@ -9,6 +9,7 @@ using TaskPilot.Data.Context;
 using Microsoft.EntityFrameworkCore;
 using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Common.Errors;
+using TaskPilot.Models.Entities;
 
 namespace TaskPilot.Presentation.Controllers
 {
@@ -105,6 +106,7 @@ namespace TaskPilot.Presentation.Controllers
             var projects = await dbContext.Projects.Select(p => new { p.Id }).ToListAsync();
             return HandleResult(Result.Success(projects));
         }
+
 
         [HttpGet("test-wbs/mock")]
         public async Task<ActionResult> TestWbsGenerationMock(
