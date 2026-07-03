@@ -40,8 +40,6 @@ namespace TaskPilot.Models.Configurations
 
             builder.HasIndex(c => c.Name);
             builder.HasIndex(c => c.OwnerId);
-            builder.HasIndex(c => c.Name)
-                .IsUnique();
         }
     }
 }
