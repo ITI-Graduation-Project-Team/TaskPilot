@@ -35,6 +35,10 @@ template: |
   - Never wrap JSON inside markdown.
   - Never return code fences.
   - Return ONLY valid JSON.
+  - After identifying all skills, determine which ONE skill best represents the employee's primary expertise.
+  - Choose exactly ONE skill.
+  - Usually the skill with highest experience, strongest confidence, and most related to JobTitle.
+  - Exactly one skill must have isPrimarySuggested set to true, all others must be false.
 
   SeniorityLevel must be one of:
 
@@ -62,7 +66,8 @@ template: |
         "name":"",
         "level":"",
         "yearsOfExperience":0,
-        "confidenceScore":0.0
+        "confidenceScore":0.0,
+        "isPrimarySuggested":false
       }
     ]
   }

@@ -99,6 +99,8 @@
   "INVALID_CV_FILE": "ملف السيرة الذاتية غير صالح.",
   "CV_FILE_TOO_LARGE": "ملف السيرة الذاتية كبير جداً.",
   "CV_UNSUPPORTED_FORMAT": "تنسيق السيرة الذاتية غير مدعوم.",
+  "PRIMARY_SKILL_REQUIRED": "يرجى اختيار المهارة الأساسية.",
+  "MULTIPLE_PRIMARY_SKILLS": "يمكن اختيار مهارة أساسية واحدة فقط.",
 
   // company success
   "COMPANY_SETUP_SUCCESS": "تم إعداد الشركة بنجاح.",

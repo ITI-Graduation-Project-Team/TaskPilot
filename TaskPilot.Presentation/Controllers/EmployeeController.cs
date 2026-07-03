@@ -16,24 +16,32 @@ using TaskPilot.DTOs.CV;
 public class EmployeeController : ApiControllerBase
 {
     private readonly ICvService _cvService;
+    private readonly ICvConfirmationService _cvConfirmationService;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUserService _currentUser;
 
     public EmployeeController(
         ICvService cvService,
+        ICvConfirmationService cvConfirmationService,
         IUnitOfWork unitOfWork,
         ICurrentUserService currentUser
          )
     {
         _cvService = cvService;
+        _cvConfirmationService = cvConfirmationService;
         _unitOfWork = unitOfWork;
         _currentUser = currentUser;
     }
 
-    // Current logged-in employee uploads CV
-    [HttpPost("cv")]
-    [HttpPost("{userId:guid}/cv")]
-    public async Task<ActionResult> UploadCv(
+    /// <summary>
+    /// Extracts data from an uploaded CV.
+    /// </summary>
+    /// <remarks>
+    /// Note: The returned `IsPrimarySuggested` property is only an AI recommendation.
+    /// </remarks>
+    [HttpPost("cv/extract")]
+    [HttpPost("{userId:guid}/cv/extract")]
+    public async Task<ActionResult> ExtractCv(
         Guid? userId,
         [FromForm] UploadCvRequest request)
     {
@@ -60,7 +68,6 @@ public class EmployeeController : ApiControllerBase
 
         Guid finalUserId;
 
-        // Admin / PM uploads for another employee
         if (userId.HasValue)
         {
             if (!User.IsInRole("Admin") &&
@@ -79,13 +86,53 @@ public class EmployeeController : ApiControllerBase
             finalUserId = _currentUser.UserId.Value;
         }
 
-        var result = await _cvService
-    .ProcessCvAsync(finalUserId, request.File);
+        var result = await _cvService.ExtractAsync(finalUserId, request.File);
 
         if (result.IsSuccess)
         {
             await _unitOfWork.SaveChangesAsync();
+        }
 
+        return HandleResult(result, SuccessCodes.Employee.CvUploaded);
+    }
+
+    /// <summary>
+    /// Confirms and persists the reviewed CV data.
+    /// </summary>
+    /// <remarks>
+    /// Note: The `IsPrimary` property provided here is the employee's final decision.
+    /// </remarks>
+    [HttpPost("cv/confirm")]
+    [HttpPost("{userId:guid}/cv/confirm")]
+    public async Task<ActionResult> ConfirmCv(
+        Guid? userId,
+        [FromBody] ConfirmCvRequest request)
+    {
+        Guid finalUserId;
+
+        if (userId.HasValue)
+        {
+            if (!User.IsInRole("Admin") &&
+                !User.IsInRole("ProjectManager"))
+            {
+                return HandleResult(Result.Failure(CommonErrors.Forbidden()));
+            }
+
+            finalUserId = userId.Value;
+        }
+        else
+        {
+            if (_currentUser.UserId == null)
+                return HandleResult(Result.Failure(CommonErrors.Unauthorized()));
+
+            finalUserId = _currentUser.UserId.Value;
+        }
+
+        var result = await _cvConfirmationService.ConfirmAsync(finalUserId, request);
+
+        if (result.IsSuccess)
+        {
+            await _unitOfWork.SaveChangesAsync();
         }
 
         return HandleResult(result, SuccessCodes.Employee.CvUploaded);
