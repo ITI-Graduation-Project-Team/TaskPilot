@@ -174,7 +174,7 @@ public class EmployeeController : ApiControllerBase
                 Email = user.Email,
                 JobTitle = "Project Manager",
                 SeniorityLevel = "Manager",
-                TotalYearsOfExperience = 5,
+                TotalYearsOfExperience = 0,
                 IsEmployee = false,
                 Skills = new List<string>()
             });
