@@ -348,10 +348,16 @@ namespace TaskPilot.Services
 
             var dtos = employees.Select(e => {
                 var activeProjectsCount = e.ProjectEmployees.Count(pe => pe.Project != null && pe.Project.Status != ProjectStatus.Completed);
+                var fullName = $"{e.FirstNameEn} {e.LastNameEn}".Trim();
+                if (string.IsNullOrEmpty(fullName))
+                {
+                    fullName = e.Email ?? string.Empty;
+                }
                 return new CompanyEmployeeDto
                 {
                     EmployeeId = e.Id,
-                    FullName = $"{e.FirstNameEn} {e.LastNameEn}".Trim(),
+                    FullName = fullName,
+                    Email = e.Email ?? string.Empty,
                     JobTitle = e.JobTitle ?? string.Empty,
                     SeniorityLevel = e.SeniorityLevel?.ToString() ?? string.Empty,
                     ActiveProjectsCount = activeProjectsCount,
