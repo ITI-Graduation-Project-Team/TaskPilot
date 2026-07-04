@@ -470,7 +470,7 @@ namespace TaskPilot.Services
 
             await _invitationRepository.AddAsync(invitation);
 
-            var invitationLink = $"https://localhost:4200/accept-invitation?token={invitation.Token}";
+            var invitationLink = $"http://localhost:4200/accept-invitation?token={invitation.Token}";
 
             var body = _emailBodyService.GenerateEmployeeInvitationBody(
                 normalizedEmail,
