@@ -18,6 +18,7 @@ namespace TaskPilot.Models.Entities
         public string? GatewaySubscriptionId { get; set; }
         public string? GatewayCustomerId { get; set; }
         public PaymentGateway Gateway { get; set; }
+        public string? ClientSecret { get; set; }
         public DateTime? CanceledAt { get; set; }
 
         public ProjectManager ProjectManager { get; set; } = null!;

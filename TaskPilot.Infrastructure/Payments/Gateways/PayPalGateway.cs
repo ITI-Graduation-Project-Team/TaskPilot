@@ -1,35 +1,56 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using PayPalCheckoutSdk.Core;
-//using PaypalServerSdk;
 using System.Text.Json;
 using TaskPilot.Infrastructure.Options.Payments;
 using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Enums;
 using TaskPilot.Models.Gateways;
 using TaskPilot.Services.Interfaces.Payments;
+using System.Net.Http;
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Linq;
+using System.Collections.Generic;
 
 namespace TaskPilot.Infrastructure.Payments.Gateways
 {
     public class PayPalGateway : IPaymentGateway
     {
         private readonly PayPalOptions _options;
-        private readonly PayPalHttpClient _client;
+        private readonly IHttpClientFactory _httpClientFactory;
         private readonly ILogger<PayPalGateway> _logger;
+        private readonly string _baseUrl;
 
-        public PayPalGateway(IOptions<PayPalOptions> options, ILogger<PayPalGateway> logger)
+        public PayPalGateway(IOptions<PayPalOptions> options, IHttpClientFactory httpClientFactory, ILogger<PayPalGateway> logger)
         {
             _options = options.Value;
+            _httpClientFactory = httpClientFactory;
             _logger = logger;
-            var environment = _options.Mode.Equals("live", StringComparison.OrdinalIgnoreCase)
-                ? (PayPalEnvironment)new LiveEnvironment(_options.ClientId, _options.ClientSecret)
-                : new SandboxEnvironment(_options.ClientId, _options.ClientSecret);
-            _client = new PayPalHttpClient(environment);
+            _baseUrl = _options.Mode.Equals("live", StringComparison.OrdinalIgnoreCase)
+                ? "https://api-m.paypal.com"
+                : "https://api-m.sandbox.paypal.com";
         }
 
         public string ProviderName => "PayPal";
-        public TaskPilot.Models.Enums.PaymentGateway GatewayType => TaskPilot.Models.Enums.PaymentGateway.PayPal;
+        public PaymentGateway GatewayType => PaymentGateway.PayPal;
+
+        private async Task<string> GetAccessTokenAsync(HttpClient client)
+        {
+            var request = new HttpRequestMessage(HttpMethod.Post, $"{_baseUrl}/v1/oauth2/token");
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue(
+                "Basic", Convert.ToBase64String(System.Text.Encoding.ASCII.GetBytes($"{_options.ClientId}:{_options.ClientSecret}")));
+            request.Content = new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                { "grant_type", "client_credentials" }
+            });
+            var response = await client.SendAsync(request);
+            response.EnsureSuccessStatusCode();
+            var content = await response.Content.ReadAsStringAsync();
+            var json = JsonDocument.Parse(content);
+            return json.RootElement.GetProperty("access_token").GetString()!;
+        }
 
         public async Task<GatewaySubscriptionResult> CreateSubscriptionAsync(
             string customerId, string planId, BillingCycle interval,
@@ -48,35 +69,48 @@ namespace TaskPilot.Infrastructure.Payments.Gateways
             }
 
             _logger.LogInformation("Attempting to create PayPal subscription for plan {PlanId}", planId);
-            var request = new PayPalHttp.HttpRequest("/v1/billing/subscriptions", HttpMethod.Post, typeof(PayPalSubscriptionResponse));
-            request.Headers.Add("Prefer", "return=representation");
-            request.Headers.Add("PayPal-Request-Id", idempotencyKey);
-            request.ContentType = "application/json";
-
-            request.Body = new PayPalSubscriptionRequest
-            {
-                PlanId = mappedPlanId,
-                Subscriber = new PayPalSubscriber
-                {
-                    CustomId = customerId
-                },
-                ApplicationContext = new PayPalApplicationContext
-                {
-                    ReturnUrl = returnUrl,
-                    CancelUrl = cancelUrl
-                }
-            };
 
             try
             {
-                var response = await _client.Execute(request);
+                var client = _httpClientFactory.CreateClient();
+                var accessToken = await GetAccessTokenAsync(client);
 
-                // Read response safely using the strongly typed model
-                var result = response.Result<PayPalSubscriptionResponse>();
+                var requestBody = new
+                {
+                    plan_id = mappedPlanId,
+                    subscriber = new { custom_id = customerId },
+                    application_context = new
+                    {
+                        return_url = returnUrl,
+                        cancel_url = cancelUrl
+                    }
+                };
 
+                var request = new HttpRequestMessage(HttpMethod.Post, $"{_baseUrl}/v1/billing/subscriptions");
+                request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+                request.Headers.Add("PayPal-Request-Id", idempotencyKey);
+                request.Headers.Add("Prefer", "return=representation");
+                request.Content = new StringContent(JsonSerializer.Serialize(requestBody), System.Text.Encoding.UTF8, "application/json");
+
+                var response = await client.SendAsync(request, ct);
+                var content = await response.Content.ReadAsStringAsync(ct);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogError("PayPal API error during CreateSubscriptionAsync: {Message}", content);
+                    return new GatewaySubscriptionResult
+                    {
+                        Status = "failed",
+                        ErrorMessage = $"PayPal API error: {content}",
+                        ClientSecret = null
+                    };
+                }
+
+                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                var result = JsonSerializer.Deserialize<PayPalSubscriptionResponse>(content, options);
                 var id = result?.Id;
                 var status = result?.Status;
-                var approveLink = result?.Links?.FirstOrDefault(l => l.Rel == "approve")?.Href;
+                var approveLink = result?.Links?.FirstOrDefault(l => l.Rel.Equals("approve", StringComparison.OrdinalIgnoreCase))?.Href;
 
                 _logger.LogInformation("Successfully created PayPal subscription {GatewaySubscriptionId}", id);
                 return new GatewaySubscriptionResult
@@ -86,17 +120,7 @@ namespace TaskPilot.Infrastructure.Payments.Gateways
                     ClientSecret = approveLink
                 };
             }
-            catch (PayPalHttp.HttpException ex)
-            {
-                _logger.LogError(ex, "PayPal API error during CreateSubscriptionAsync: {Message}", ex.Message);
-                return new GatewaySubscriptionResult
-                {
-                    Status = "failed",
-                    ErrorMessage = ex.Message,
-                    ClientSecret = null
-                };
-            }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
                 _logger.LogError(ex, "Unexpected error during CreateSubscriptionAsync: {Message}", ex.Message);
                 return new GatewaySubscriptionResult
@@ -111,33 +135,88 @@ namespace TaskPilot.Infrastructure.Payments.Gateways
         public async Task<GatewayCancelResult> CancelSubscriptionAsync(
             string gatewaySubscriptionId, string idempotencyKey, CancellationToken ct)
         {
-            var request = new PayPalHttp.HttpRequest($"/v1/billing/subscriptions/{gatewaySubscriptionId}/cancel", HttpMethod.Post, typeof(object));
-            request.Headers.Add("PayPal-Request-Id", idempotencyKey);
-            request.Body = new { reason = "User-requested cancellation" };
-
             try
             {
-                await _client.Execute(request);
+                var client = _httpClientFactory.CreateClient();
+                var accessToken = await GetAccessTokenAsync(client);
+
+                var requestBody = new 
+                { 
+                    reason = "User requested cancellation" 
+                };
+
+                var request = new HttpRequestMessage(
+                    HttpMethod.Post,
+                    $"{_baseUrl}/v1/billing/subscriptions/" +
+                    $"{gatewaySubscriptionId}/cancel");
+
+                request.Headers.Authorization =
+                    new System.Net.Http.Headers.AuthenticationHeaderValue(
+                        "Bearer", accessToken);
+
+                request.Content = new StringContent(
+                    JsonSerializer.Serialize(requestBody),
+                    System.Text.Encoding.UTF8,
+                    "application/json");
+
+                var response = await client.SendAsync(request, ct);
+
+                // PayPal returns 204 No Content on success
+                if (!response.IsSuccessStatusCode)
+                {
+                    var error = await response.Content.ReadAsStringAsync(ct);
+
+                    // 404 means the subscription doesn't exist on PayPal.
+                    // This happens for Pending subscriptions that were 
+                    // never approved by the user. Treat as success — 
+                    // there's nothing to cancel on PayPal's side.
+                    if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                    {
+                        _logger.LogWarning(
+                            "PayPal subscription {Id} not found during " +
+                            "cancel — treating as already cancelled.",
+                            gatewaySubscriptionId);
+                        return new GatewayCancelResult { IsSuccess = true };
+                    }
+
+                    _logger.LogError("PayPal cancel failed for {Id}: {Error}", gatewaySubscriptionId, error);
+                    return new GatewayCancelResult
+                    {
+                        IsSuccess = false,
+                        ErrorMessage = $"PayPal cancel error: {error}"
+                    };
+                }
+
+                _logger.LogInformation("PayPal subscription cancelled: {Id}", gatewaySubscriptionId);
+
                 return new GatewayCancelResult { IsSuccess = true };
             }
-            catch (PayPalHttp.HttpException ex)
+            catch (Exception ex)
             {
-                _logger.LogError(ex, "PayPal API error during CancelSubscriptionAsync: {Message}", ex.Message);
-                return new GatewayCancelResult { IsSuccess = false, ErrorMessage = ex.Message };
+                _logger.LogError(ex, "PayPal CancelSubscriptionAsync failed for {Id}", gatewaySubscriptionId);
+                return new GatewayCancelResult
+                {
+                    IsSuccess = false,
+                    ErrorMessage = ex.Message
+                };
             }
         }
 
         public async Task<GatewayCancelResult> CancelAtPeriodEndAsync(
             string gatewaySubscriptionId, string idempotencyKey, CancellationToken ct)
         {
-            // PayPal does not support cancel_at_period_end natively.
+            // PayPal does not support cancel_at_period_end.
             // Falling back to immediate cancellation.
+            _logger.LogWarning(
+                "PayPal does not support cancel_at_period_end. " +
+                "Cancelling immediately for subscription {Id}",
+                gatewaySubscriptionId);
+
             return await CancelSubscriptionAsync(gatewaySubscriptionId, idempotencyKey, ct);
         }
 
         public Task<Result<string>> CreateOrGetCustomerAsync(string userId, string email, CancellationToken ct)
         {
-            // PayPal doesn't require pre-creating a customer object like Stripe.
             return Task.FromResult(Result.Success(userId));
         }
 
@@ -155,8 +234,10 @@ namespace TaskPilot.Infrastructure.Payments.Gateways
 
             try
             {
-                var request = new PayPalHttp.HttpRequest("/v1/notifications/verify-webhook-signature", HttpMethod.Post, typeof(object));
-                request.Body = new
+                var client = _httpClientFactory.CreateClient();
+                var accessToken = await GetAccessTokenAsync(client);
+
+                var requestBody = new
                 {
                     auth_algo = authAlgo.ToString(),
                     cert_url = certUrl.ToString(),
@@ -164,12 +245,17 @@ namespace TaskPilot.Infrastructure.Payments.Gateways
                     transmission_sig = transmissionSig.ToString(),
                     transmission_time = transmissionTime.ToString(),
                     webhook_id = _options.WebhookId,
-                    webhook_event = JsonSerializer.Deserialize<object>(payload)
+                    webhook_event = JsonDocument.Parse(payload).RootElement
                 };
 
-                var response = await _client.Execute(request);
-                var json = JsonSerializer.Serialize(response.Result<object>());
-                using var verifyDoc = JsonDocument.Parse(json);
+                var request = new HttpRequestMessage(HttpMethod.Post, $"{_baseUrl}/v1/notifications/verify-webhook-signature");
+                request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+                request.Content = new StringContent(JsonSerializer.Serialize(requestBody), System.Text.Encoding.UTF8, "application/json");
+
+                var response = await client.SendAsync(request, ct);
+                var content = await response.Content.ReadAsStringAsync(ct);
+
+                using var verifyDoc = JsonDocument.Parse(content);
                 var verificationStatus = verifyDoc.RootElement.GetProperty("verification_status").GetString();
 
                 if (verificationStatus != "SUCCESS")
@@ -219,7 +305,7 @@ namespace TaskPilot.Infrastructure.Payments.Gateways
                     }
                 }
 
-                return await Task.FromResult(result);
+                return result;
             }
             catch (Exception ex)
             {
@@ -227,13 +313,12 @@ namespace TaskPilot.Infrastructure.Payments.Gateways
                 return new WebhookParseResult { IsValid = false };
             }
         }
+
         public Task<GatewaySubscriptionResult> CreateTrialSubscriptionAsync(
             string customerId, string priceId, int trialDays,
             string paymentMethodId, string idempotencyKey,
             CancellationToken ct)
         {
-            // PayPal does not support free trial with card setup.
-            // Users must select Stripe to use the free trial feature.
             return Task.FromResult(new GatewaySubscriptionResult
             {
                 Status = "failed",
@@ -244,59 +329,17 @@ namespace TaskPilot.Infrastructure.Payments.Gateways
         }
     }
 
-    [System.Runtime.Serialization.DataContract]
-    public class PayPalSubscriptionRequest
-    {
-        [System.Runtime.Serialization.DataMember(Name = "plan_id")]
-        public string PlanId { get; set; } = string.Empty;
-
-        [System.Runtime.Serialization.DataMember(Name = "subscriber")]
-        public PayPalSubscriber Subscriber { get; set; } = new();
-
-        [System.Runtime.Serialization.DataMember(Name = "application_context")]
-        public PayPalApplicationContext ApplicationContext { get; set; } = new();
-    }
-
-    [System.Runtime.Serialization.DataContract]
-    public class PayPalSubscriber
-    {
-        [System.Runtime.Serialization.DataMember(Name = "custom_id")]
-        public string CustomId { get; set; } = string.Empty;
-    }
-
-    [System.Runtime.Serialization.DataContract]
-    public class PayPalApplicationContext
-    {
-        [System.Runtime.Serialization.DataMember(Name = "return_url")]
-        public string? ReturnUrl { get; set; }
-
-        [System.Runtime.Serialization.DataMember(Name = "cancel_url")]
-        public string? CancelUrl { get; set; }
-    }
-
-    [System.Runtime.Serialization.DataContract]
     public class PayPalSubscriptionResponse
     {
-        [System.Runtime.Serialization.DataMember(Name = "id")]
         public string Id { get; set; } = string.Empty;
-
-        [System.Runtime.Serialization.DataMember(Name = "status")]
         public string Status { get; set; } = string.Empty;
-
-        [System.Runtime.Serialization.DataMember(Name = "links")]
-        public System.Collections.Generic.List<PayPalLink>? Links { get; set; }
+        public List<PayPalLink>? Links { get; set; }
     }
 
-    [System.Runtime.Serialization.DataContract]
     public class PayPalLink
     {
-        [System.Runtime.Serialization.DataMember(Name = "href")]
         public string Href { get; set; } = string.Empty;
-
-        [System.Runtime.Serialization.DataMember(Name = "rel")]
         public string Rel { get; set; } = string.Empty;
-
-        [System.Runtime.Serialization.DataMember(Name = "method")]
         public string Method { get; set; } = string.Empty;
     }
 }

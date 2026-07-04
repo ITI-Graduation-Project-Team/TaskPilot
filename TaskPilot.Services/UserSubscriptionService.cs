@@ -205,7 +205,8 @@ namespace TaskPilot.Services
                 TrialEndDate = dto.IsTrial ? DateTime.UtcNow.AddDays(plan.TrialDays) : null,
                 Gateway = dto.Gateway.Value,
                 GatewaySubscriptionId = gatewayResult.SubscriptionId,
-                GatewayCustomerId = customerId
+                GatewayCustomerId = customerId,
+                ClientSecret = gatewayResult.ClientSecret
             };
 
             await _subscriptionRepo.AddAsync(newSubscription);
@@ -255,6 +256,14 @@ namespace TaskPilot.Services
             if (sub.ProjectManagerId != projectManagerId)
                 return Result.Failure(new Error("Forbidden", ErrorType.Failure, "You do not have permission to cancel this subscription."));
 
+            if (sub.Status == SubscriptionStatus.Pending)
+            {
+                sub.Status = SubscriptionStatus.Canceled;
+                _subscriptionRepo.Update(sub);
+                await _unitOfWork.SaveChangesAsync();
+                return Result.Success();
+            }
+
             if (!string.IsNullOrEmpty(sub.GatewaySubscriptionId))
             {
                 var gateway = _gatewayFactory.GetGateway(sub.Gateway);
@@ -286,7 +295,8 @@ namespace TaskPilot.Services
                 IsTrial = sub.IsTrial,
                 TrialEndDate = sub.TrialEndDate,
                 CancelAtPeriodEnd = sub.CancelAtPeriodEnd,
-                ClientSecret = null // usually returned only on creation, but we can leave it null here
+                ClientSecret = sub.ClientSecret,
+                Gateway = sub.Gateway
             };
         }
     }
