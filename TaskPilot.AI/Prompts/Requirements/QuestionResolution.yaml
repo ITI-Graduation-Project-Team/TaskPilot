@@ -4,8 +4,8 @@ template: |
   You are an AI question resolution agent.
 
   Your responsibilities:
-    - Determine whether clarification questions
-      were answered by the PM response
+    - Determine whether each clarification question
+      was answered ANYWHERE in the PM's conversation history
 
     - Extract concise answers
 
@@ -19,6 +19,12 @@ template: |
     - Use semantic understanding
       instead of exact wording matching
 
+    - Search the ENTIRE conversation history for answers,
+      not just the latest message
+
+    - If the PM answered a question in any earlier message,
+      mark it as answered
+
     - If the PM response partially answers
       the question:
         - isAnswered MUST be true
@@ -30,9 +36,10 @@ template: |
       to be answered
 
     - Prefer marking questions as answered
-      if the PM response is substantially relevant
+      if any part of the conversation is substantially relevant
 
-    - If the PM provides semantically relevant information:
+    - If the PM provides semantically relevant information
+      ANYWHERE in the conversation:
         - consider the question answered
 
     - extractedAnswer MUST:
@@ -42,7 +49,7 @@ template: |
 
     - Never require exact wording match
 
-    - If unanswered:
+    - If unanswered across the ENTIRE conversation:
         - isAnswered = false
         - extractedAnswer = ""
 
@@ -59,7 +66,7 @@ template: |
   QUESTIONS:
   {{$questions}}
 
-  PM RESPONSE:
+  FULL PM CONVERSATION HISTORY (search all messages for answers):
   {{$response}}
 
 template_format: semantic-kernel

@@ -25,6 +25,7 @@ namespace TaskPilot.Services
         private readonly IRepository<Company> _companyRepository;
         private readonly UserManager<User> _userManager;
         private readonly ILogger<RequirementFinalizationService> _logger;
+        private readonly IServiceProvider _serviceProvider;
 
         public RequirementFinalizationService(
             IRequirementSessionStore sessionStore,
@@ -32,7 +33,8 @@ namespace TaskPilot.Services
             IRepository<Project> projectRepository,
             IRepository<Company> companyRepository,
             UserManager<User> userManager,
-            ILogger<RequirementFinalizationService> logger)
+            ILogger<RequirementFinalizationService> logger,
+            IServiceProvider serviceProvider)
         {
             _sessionStore = sessionStore;
             _unitOfWork = unitOfWork;
@@ -40,6 +42,7 @@ namespace TaskPilot.Services
             _companyRepository = companyRepository;
             _userManager = userManager;
             _logger = logger;
+            _serviceProvider = serviceProvider;
         }
 
         public async Task<Result<FinalizeRequirementsResponse>> FinalizeRequirementsAsync(Guid sessionId, FinalizeRequirementsRequest request, CancellationToken cancellationToken = default)
@@ -54,6 +57,21 @@ namespace TaskPilot.Services
             if (session.Status == RequirementSessionStatus.Completed)
             {
                 return Result.Failure<FinalizeRequirementsResponse>(new Error("SESSION_ALREADY_FINALIZED", ErrorType.Conflict, $"This session has already been finalized. ProjectId: {session.ProjectId}"));
+            }
+
+            if (session.AllQuestionsAnswered && session.Status != RequirementSessionStatus.Planning)
+            {
+                session.Status = RequirementSessionStatus.Planning;
+                // Generate final requirements if missing
+                if (session.FinalRequirements == null)
+                {
+                    var builder = _serviceProvider.GetService(typeof(TaskPilot.AI.Agents.Requirements.RequirementsBuilderAgent)) as TaskPilot.AI.Agents.Requirements.RequirementsBuilderAgent;
+                    if (builder != null)
+                    {
+                        session.FinalRequirements = await builder.BuildAsync(session);
+                    }
+                }
+                await _sessionStore.SaveAsync(session, cancellationToken);
             }
 
             if (session.Status != RequirementSessionStatus.Planning)
@@ -84,7 +102,7 @@ namespace TaskPilot.Services
                 return Result.Failure<FinalizeRequirementsResponse>(CommonErrors.InvalidInput("Some clarification questions remain unanswered."));
             }
 
-            if (!session.CompletenessReport.ReadyForPlanning)
+            if (!session.CompletenessReport.ReadyForPlanning && !session.AllQuestionsAnswered)
             {
                 return Result.Failure<FinalizeRequirementsResponse>(CommonErrors.InvalidInput("Session is not ready for planning yet."));
             }

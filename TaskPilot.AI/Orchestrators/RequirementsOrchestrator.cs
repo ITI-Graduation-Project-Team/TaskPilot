@@ -216,6 +216,13 @@ namespace TaskPilot.AI.Orchestrators
                         });
 
                 // Mark questions answered in QuestionPool
+                // Use full conversation history so previously-answered questions are not re-surfaced
+                var fullConversation = string.Join(
+                    "\n---\n",
+                    session.ConversationHistory
+                           .Where(m => m.Role == "user")
+                           .Select(m => m.Message));
+
                 var resolvedQuestions =
                   await _questionResolutionAgent
                 .ResolveAsync(
@@ -225,7 +232,7 @@ namespace TaskPilot.AI.Orchestrators
                             !q.IsAnswered)
                         .ToList(),
 
-                    pmResponse);
+                    fullConversation);
 
                 session.AddDecision(
                     nameof(QuestionResolutionAgent),
@@ -390,12 +397,26 @@ namespace TaskPilot.AI.Orchestrators
                     .EvaluateAsync(
                         session);
 
-            session.CompletenessReport =
-                report;
+            // Never let the score go backwards — LLM evaluations can fluctuate
+            var previousScore = session.CompletenessReport?.Score ?? 0f;
+            if (report.Score >= previousScore)
+            {
+                session.CompletenessReport = report;
+            }
+            else
+            {
+                // Keep the previous report but update diagnostic fields
+                if (session.CompletenessReport != null)
+                {
+                    session.CompletenessReport.CriticalMissingAreas = report.CriticalMissingAreas;
+                    session.CompletenessReport.OptionalMissingAreas = report.OptionalMissingAreas;
+                    session.CompletenessReport.WeakRequirements = report.WeakRequirements;
+                }
+            }
 
             session.AddDecision(
                 nameof(CompletenessEvaluatorAgent),
-                $"Completeness score evaluated at {report.Score}");
+                $"Completeness score evaluated at {report.Score} (kept: {session.CompletenessReport?.Score})");
         }
 
         private async Task GenerateQuestionPoolAsync(
