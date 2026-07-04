@@ -33,6 +33,7 @@ namespace TaskPilot.Services
             services.AddScoped<ITechStackService, TechStackService>();
             services.AddScoped<IWbsGenerationService, WbsGenerationService>();
             services.AddScoped<TaskPilot.Services.Assignment.ITeamSnapshotService, TaskPilot.Services.Assignment.TeamSnapshotService>();
+            services.AddScoped<IAiProjectGeneratorService, TaskPilot.Services.AiProjectGenerator.AiProjectGeneratorService>();
             
             // الآن التكوين (configuration) متاح للاستخدام
           
