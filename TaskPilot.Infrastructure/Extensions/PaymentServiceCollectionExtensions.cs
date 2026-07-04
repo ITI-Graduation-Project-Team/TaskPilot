@@ -11,6 +11,8 @@ namespace TaskPilot.Infrastructure.Extensions
     {
         public static IServiceCollection AddPaymentLayer(this IServiceCollection services, IConfiguration configuration)
         {
+            services.AddHttpClient();
+
             services.Configure<StripeOptions>(configuration.GetSection(StripeOptions.SectionName));
             services.Configure<PayPalOptions>(configuration.GetSection(PayPalOptions.SectionName));
 
