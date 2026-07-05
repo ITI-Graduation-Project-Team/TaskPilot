@@ -23,6 +23,7 @@ namespace TaskPilot.Presentation.Controllers
     {
         private readonly ISprintConfirmationService _sprintConfirmationService;
         private readonly ITeamSnapshotService _teamSnapshotService;
+        private readonly ICapacityValidationService _capacityValidationService;
         private readonly IRepository<User> _userRepository;
         private readonly IRepository<Project> _projectRepository;
         private readonly IRepository<Sprint> _sprintRepository;
@@ -30,12 +31,14 @@ namespace TaskPilot.Presentation.Controllers
         public SprintsController(
             ISprintConfirmationService sprintConfirmationService,
             ITeamSnapshotService teamSnapshotService,
+            ICapacityValidationService capacityValidationService,
             IRepository<User> userRepository,
             IRepository<Project> projectRepository,
             IRepository<Sprint> sprintRepository)
         {
             _sprintConfirmationService = sprintConfirmationService;
             _teamSnapshotService = teamSnapshotService;
+            _capacityValidationService = capacityValidationService;
             _userRepository = userRepository;
             _projectRepository = projectRepository;
             _sprintRepository = sprintRepository;
@@ -79,6 +82,35 @@ namespace TaskPilot.Presentation.Controllers
             }
 
             var result = await _teamSnapshotService.GetSnapshotAsync(projectId, sprintId, cancellationToken);
+            return HandleResult(result);
+        }
+
+        [Authorize(Roles = "Admin,ProjectManager")]
+        [HttpGet("{sprintId:guid}/assignment/validate")]
+        public async Task<ActionResult> ValidateAssignment(
+            Guid projectId,
+            Guid sprintId,
+            CancellationToken cancellationToken)
+        {
+            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(userIdStr, out Guid userId))
+                return HandleResult(Result.Failure<CapacityValidationResult>(CommonErrors.Unauthorized()));
+
+            if (!User.IsInRole("Admin"))
+            {
+                var user = await _userRepository.GetByIdAsync(userId);
+                if (user == null)
+                    return HandleResult(Result.Failure<CapacityValidationResult>(CommonErrors.Unauthorized()));
+
+                var project = await _projectRepository.GetByIdAsync(projectId);
+                if (project == null)
+                    return HandleResult(Result.Failure<CapacityValidationResult>(AssignmentErrors.ProjectNotFound));
+
+                if (user.CompanyId != project.CompanyId)
+                    return HandleResult(Result.Failure<CapacityValidationResult>(CommonErrors.Forbidden()));
+            }
+
+            var result = await _capacityValidationService.ValidateAsync(projectId, sprintId, cancellationToken);
             return HandleResult(result);
         }
 

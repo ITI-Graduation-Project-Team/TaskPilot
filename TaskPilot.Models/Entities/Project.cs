@@ -52,7 +52,7 @@ namespace TaskPilot.Models.Entities
         /// Example: "ERP" | "SaaS" | "MobileApp" | "API" | "Portal" | "Other"
         /// </summary>
         public string ProjectType { get; set; } = string.Empty;
-
+        
         public RequirementsSnapshot? RequirementsSnapshot { get; set; }
         public List<Guid> DocumentIds { get; set; } = new List<Guid>();
         public ICollection<UserStory> UserStories { get; set; } = new List<UserStory>();

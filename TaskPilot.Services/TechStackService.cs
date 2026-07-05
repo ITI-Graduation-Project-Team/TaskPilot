@@ -32,7 +32,7 @@ namespace TaskPilot.Services
             _skillRepository = skillRepository;
         }
 
-        public async Task<Result<TechStackSuggestion>> SuggestAsync(
+        public async Task<Result<TechStackSuggestion>> SuggestAsyncForCompany(
             Guid projectId,
             CancellationToken cancellationToken = default)
         {
@@ -47,6 +47,30 @@ namespace TaskPilot.Services
             var skills = await _skillRepository.GetCompanySkillSummaryAsync(project.CompanyId, cancellationToken);
 
             // 3. Call agent with both inputs
+            var suggestion = await _techStackAdvisorAgent.SuggestAsync(
+                project.RequirementsSnapshot,
+                skills,
+                cancellationToken);
+
+            return Result.Success(suggestion);
+        }
+        public async Task<Result<TechStackSuggestion>> SuggestAsync(
+            Guid projectId,
+            CancellationToken cancellationToken = default)
+        {
+            var project = await _projectRepository.GetByIdAsync(projectId);
+            if (project is null)
+                return Result.Failure<TechStackSuggestion>(
+                    CommonErrors.NotFound("Project"));
+
+            if (project.RequirementsSnapshot is null)
+                return Result.Failure<TechStackSuggestion>(
+                    CommonErrors.InvalidInput("RequirementsSnapshot is missing."));
+
+            // ✅ بدل GetCompanySkillSummaryAsync
+            var skills = await _skillRepository
+                .GetProjectSkillSummaryAsync(projectId, cancellationToken);
+
             var suggestion = await _techStackAdvisorAgent.SuggestAsync(
                 project.RequirementsSnapshot,
                 skills,

@@ -33,8 +33,10 @@ namespace TaskPilot.Services
             services.AddScoped<ITechStackService, TechStackService>();
             services.AddScoped<IWbsGenerationService, WbsGenerationService>();
             services.AddScoped<TaskPilot.Services.Assignment.ITeamSnapshotService, TaskPilot.Services.Assignment.TeamSnapshotService>();
+            services.AddScoped<TaskPilot.Services.Assignment.ICapacityValidationService, TaskPilot.Services.Assignment.CapacityValidationService>();
             
             // الآن التكوين (configuration) متاح للاستخدام
+            services.Configure<AssignmentOptions>(configuration.GetSection(AssignmentOptions.SectionName));
           
             // ── External ──
 

@@ -11,5 +11,8 @@ namespace TaskPilot.Services.Interfaces
         Task<List<EmployeeSkillSummary>> GetCompanySkillSummaryAsync(
             Guid companyId,
             CancellationToken cancellationToken = default);
+        Task<List<EmployeeSkillSummary>> GetProjectSkillSummaryAsync(
+            Guid projectId,
+            CancellationToken cancellationToken = default);
     }
 }
