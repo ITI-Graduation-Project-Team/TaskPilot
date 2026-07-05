@@ -39,5 +39,26 @@ namespace TaskPilot.Services.Repositories
                 })
                 .ToListAsync(cancellationToken);
         }
+        public async Task<List<EmployeeSkillSummary>> GetProjectSkillSummaryAsync(
+             Guid projectId,
+             CancellationToken cancellationToken = default)
+        {
+            return await _context.UserSkills
+                .Include(us => us.Skill)
+                .Include(us => us.User)
+                .Where(us =>
+                    us.User is Employee &&
+                    _context.ProjectEmployees.Any(pe =>
+                        pe.ProjectId == projectId &&
+                        pe.EmployeeId == us.UserId))
+                .GroupBy(us => us.Skill.Name)
+                .Select(g => new EmployeeSkillSummary
+                {
+                    SkillName = g.Key,
+                    EmployeeCount = g.Select(x => x.UserId).Distinct().Count(),
+                    MaxLevel = g.Max(x => x.Level).ToString()
+                })
+                .ToListAsync(cancellationToken);
+        }
     }
 }

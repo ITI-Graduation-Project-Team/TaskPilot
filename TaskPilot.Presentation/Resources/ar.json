@@ -107,7 +107,12 @@
   "ASSIGNMENT_SPRINT_NOT_FOUND": "السباق غير موجود.",
   "SPRINT_DOES_NOT_BELONG_TO_PROJECT": "السباق لا ينتمي لهذا المشروع.",
   "SPRINT_CANCELLED": "لا يمكن إنشاء Snapshot لسباق ملغي.",
-  "NO_PROJECT_TEAM": "لا يوجد أعضاء فريق مرتبطون بالمشروع.",
+  "NO_PROJECT_TEAM": "لا يوجد أعضاء مرتبطون بالمشروع.",
+  "HOURS_EXCEEDED": "إجمالي ساعات المهام أكبر من قدرة الفريق.",
+  "NO_UNASSIGNED_TASKS": "لا توجد مهام غير موزعة داخل السباق.",
+  "HIGH_UTILIZATION": "السباق يقترب من الحد الأقصى لقدرة الفريق.",
+  "HIGH_TASK_COUNT": "متوسط عدد المهام لكل مطور مرتفع.",
+  "SNAPSHOT_UNAVAILABLE": "تعذر إنشاء بيانات السباق.",
 
   // company success
   "COMPANY_SETUP_SUCCESS": "تم إعداد الشركة بنجاح.",

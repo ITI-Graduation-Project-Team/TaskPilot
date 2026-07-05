@@ -109,6 +109,11 @@
   "SPRINT_DOES_NOT_BELONG_TO_PROJECT": "The sprint does not belong to the specified project.",
   "SPRINT_CANCELLED": "Cannot build snapshot for a cancelled sprint.",
   "NO_PROJECT_TEAM": "The project has no assigned team members.",
+  "HOURS_EXCEEDED": "Total sprint task hours exceed the available team capacity.",
+  "NO_UNASSIGNED_TASKS": "There are no unassigned tasks in this sprint.",
+  "HIGH_UTILIZATION": "The sprint is close to the team's maximum capacity.",
+  "HIGH_TASK_COUNT": "The average number of tasks per developer is high.",
+  "SNAPSHOT_UNAVAILABLE": "Unable to build sprint snapshot.",
 
   // company success
   "COMPANY_SETUP_SUCCESS": "Company setup completed successfully.",
