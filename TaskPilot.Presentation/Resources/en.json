@@ -114,6 +114,12 @@
   "HIGH_UTILIZATION": "The sprint is close to the team's maximum capacity.",
   "HIGH_TASK_COUNT": "The average number of tasks per developer is high.",
   "SNAPSHOT_UNAVAILABLE": "Unable to build sprint snapshot.",
+  "INVALID_PROJECT": "Invalid project.",
+  "INVALID_SPRINT": "Invalid sprint.",
+  "SNAPSHOT_NOT_FOUND": "Sprint snapshot not found.",
+  "CAPACITY_VALIDATION_FAILED": "Capacity validation failed.",
+  "SCORING_CONFIGURATION_INVALID": "Scoring configuration is invalid.",
+  "ASSIGNMENT_SCORING_COMPLETED": "Assignment scoring completed successfully.",
 
   // company success
   "COMPANY_SETUP_SUCCESS": "Company setup completed successfully.",

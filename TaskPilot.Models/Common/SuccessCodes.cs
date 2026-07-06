@@ -87,5 +87,10 @@ namespace TaskPilot.Models.Common
             public const string Generated = "AI_PROJECT_GENERATED";
             public const string Confirmed = "AI_PROJECT_CONFIRMED";
         }
+
+        public static class Assignment
+        {
+            public const string ScoringCompleted = "ASSIGNMENT_SCORING_COMPLETED";
+        }
     }
 }
