@@ -113,6 +113,12 @@
   "HIGH_UTILIZATION": "السباق يقترب من الحد الأقصى لقدرة الفريق.",
   "HIGH_TASK_COUNT": "متوسط عدد المهام لكل مطور مرتفع.",
   "SNAPSHOT_UNAVAILABLE": "تعذر إنشاء بيانات السباق.",
+  "INVALID_PROJECT": "مشروع غير صالح.",
+  "INVALID_SPRINT": "سباق غير صالح.",
+  "SNAPSHOT_NOT_FOUND": "لم يتم العثور على بيانات السباق.",
+  "CAPACITY_VALIDATION_FAILED": "فشل التحقق من القدرة.",
+  "SCORING_CONFIGURATION_INVALID": "تكوين التقييم غير صالح.",
+  "ASSIGNMENT_SCORING_COMPLETED": "تم إكمال تقييم التعيينات بنجاح.",
 
   // company success
   "COMPANY_SETUP_SUCCESS": "تم إعداد الشركة بنجاح.",

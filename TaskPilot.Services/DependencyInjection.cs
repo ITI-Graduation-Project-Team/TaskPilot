@@ -34,9 +34,15 @@ namespace TaskPilot.Services
             services.AddScoped<IWbsGenerationService, WbsGenerationService>();
             services.AddScoped<TaskPilot.Services.Assignment.ITeamSnapshotService, TaskPilot.Services.Assignment.TeamSnapshotService>();
             services.AddScoped<TaskPilot.Services.Assignment.ICapacityValidationService, TaskPilot.Services.Assignment.CapacityValidationService>();
+            services.AddScoped<TaskPilot.Services.Assignment.IScoreCalculator, TaskPilot.Services.Assignment.SkillScoreCalculator>();
+            services.AddScoped<TaskPilot.Services.Assignment.IScoreCalculator, TaskPilot.Services.Assignment.AvailabilityScoreCalculator>();
+            services.AddScoped<TaskPilot.Services.Assignment.IScoreCalculator, TaskPilot.Services.Assignment.VelocityScoreCalculator>();
+            services.AddScoped<TaskPilot.Services.Assignment.IScoreCalculator, TaskPilot.Services.Assignment.ExperienceScoreCalculator>();
+            services.AddScoped<TaskPilot.Services.Assignment.IAssignmentScoringService, TaskPilot.Services.Assignment.AssignmentScoringService>();
             
             // الآن التكوين (configuration) متاح للاستخدام
             services.Configure<AssignmentOptions>(configuration.GetSection(AssignmentOptions.SectionName));
+            services.Configure<TaskPilot.Services.Assignment.ScoringWeights>(configuration.GetSection("Assignment:Scoring"));
           
             // ── External ──
 
