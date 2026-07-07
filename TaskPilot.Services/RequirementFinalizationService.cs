@@ -143,6 +143,7 @@ namespace TaskPilot.Services
                 SprintDurationInDays = request.SprintDurationInDays,
                 TargetSprintHours = request.TargetSprintHours,
                 RequirementsSnapshot = snapshot,
+                RequirementsSessionId = sessionId,
                 DocumentIds = session.Knowledge.DocumentIds.ToList()
             };
 

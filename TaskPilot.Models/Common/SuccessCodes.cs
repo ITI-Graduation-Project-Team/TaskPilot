@@ -88,6 +88,12 @@ namespace TaskPilot.Models.Common
             public const string Confirmed = "AI_PROJECT_CONFIRMED";
         }
 
+        public static class AgileCoach
+        {
+            public const string SummaryGenerated = "AGILE_COACH_SUMMARY_GENERATED";
+            public const string SummaryRetrieved = "AGILE_COACH_SUMMARY_RETRIEVED";
+            public const string ChatTurnCompleted = "AGILE_COACH_CHAT_TURN_COMPLETED";
+        }
         public static class Assignment
         {
             public const string ScoringCompleted = "ASSIGNMENT_SCORING_COMPLETED";

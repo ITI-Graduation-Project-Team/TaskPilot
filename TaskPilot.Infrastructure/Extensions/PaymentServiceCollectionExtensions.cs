@@ -13,11 +13,11 @@ namespace TaskPilot.Infrastructure.Extensions
         {
             services.AddHttpClient();
 
-            services.Configure<StripeOptions>(configuration.GetSection(StripeOptions.SectionName));
             services.Configure<PayPalOptions>(configuration.GetSection(PayPalOptions.SectionName));
+            services.Configure<PaymobOptions>(configuration.GetSection(PaymobOptions.SectionName));
 
-            services.AddScoped<IPaymentGateway, StripeGateway>();
             services.AddScoped<IPaymentGateway, PayPalGateway>();
+            services.AddScoped<IPaymentGateway, PaymobGateway>();
             services.AddScoped<IPaymentGatewayFactory, PaymentGatewayFactory>();
             services.AddScoped<IWebhookService, WebhookService>();
 
