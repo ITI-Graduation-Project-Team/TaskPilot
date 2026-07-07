@@ -60,7 +60,7 @@ namespace TaskPilot.Services.Payments
                     var sub = await _subRepo.FindSingleAsync(s => s.GatewaySubscriptionId == result.SubscriptionId);
                     if (sub != null)
                     {
-                        if (result.EventType == "customer.subscription.deleted" || result.EventType == "BILLING.SUBSCRIPTION.CANCELLED")
+                        if (result.EventType == "BILLING.SUBSCRIPTION.CANCELLED")
                         {
                             sub.Status = SubscriptionStatus.Expired;
                             sub.CanceledAt = DateTime.UtcNow;
@@ -90,14 +90,14 @@ namespace TaskPilot.Services.Payments
 
                             _logger.LogInformation("Subscription {Id} expired, user {UserId} moved to Free plan", sub.Id, sub.ProjectManagerId);
                         }
-                        else if (result.EventType == "invoice.payment_failed" || result.EventType == "PAYMENT.SALE.DENIED")
+                        else if (result.EventType == "PAYMENT.SALE.DENIED")
                         {
                             sub.Status = SubscriptionStatus.Canceled;
                             sub.CanceledAt = DateTime.UtcNow;
                             _subRepo.Update(sub);
                             _logger.LogInformation("Subscription {SubscriptionId} transitioned to {NewStatus} via {Gateway} webhook event {EventType}", sub.Id, sub.Status, gatewayName, result.EventType);
                         }
-                        else if (result.EventType == "invoice.payment_succeeded" || result.EventType == "PAYMENT.SALE.COMPLETED" || result.EventType == "BILLING.SUBSCRIPTION.ACTIVATED")
+                        else if (result.EventType == "PAYMENT.SALE.COMPLETED" || result.EventType == "BILLING.SUBSCRIPTION.ACTIVATED")
                         {
                             if (result.EventType == "BILLING.SUBSCRIPTION.ACTIVATED" || result.EventType == "PAYMENT.SALE.COMPLETED")
                             {
@@ -131,18 +131,61 @@ namespace TaskPilot.Services.Payments
                                 Currency = result.Currency,
                                 Status = PaymentStatus.Completed,
                                 PaymentGateway = gatewayType,
-                                PaymentMethod = gatewayType == PaymentGateway.Stripe ? PaymentMethod.CreditCard : PaymentMethod.Wallet,
+                                PaymentMethod = gatewayType == PaymentGateway.Paymob ? PaymentMethod.CreditCard : PaymentMethod.Wallet,
                                 PaidAt = DateTime.UtcNow
                             };
                             await _paymentRepo.AddAsync(payment);
                         }
-                        else if (result.EventType == "customer.subscription.trial_will_end")
+                        else if (result.EventType == "transaction.success")
                         {
-                            // Log only — no status change, no DB write
+                            // Status-based idempotency
+                            if (sub.Status == SubscriptionStatus.Active)
+                            {
+                                _logger.LogInformation(
+                                    "Duplicate transaction.success webhook " +
+                                    "ignored — subscription {Id} already Active",
+                                    sub.Id);
+                                return Result.Success();
+                            }
+
+                            // Transaction ID idempotency check
+                            if (!string.IsNullOrEmpty(result.PaymentId))
+                            {
+                                var existingPayment = await _paymentRepo
+                                    .FindSingleAsync(p => 
+                                        p.GatewayTransactionId == result.PaymentId);
+                                if (existingPayment != null)
+                                    return Result.Success();
+                            }
+
+                            sub.Status = SubscriptionStatus.Active;
+                            _subRepo.Update(sub);
                             _logger.LogInformation(
-                                "Trial ending soon for Stripe subscription {Id}",
+                                "Paymob payment success for order {Id}", 
                                 result.SubscriptionId);
-                            return Result.Success();
+
+                            var payment = new Payment
+                            {
+                                ProjectManagerId = sub.ProjectManagerId,
+                                UserSubscriptionId = sub.Id,
+                                GatewayTransactionId = result.PaymentId,
+                                Amount = result.Amount,
+                                Currency = result.Currency,
+                                Status = PaymentStatus.Completed,
+                                PaymentGateway = gatewayType,
+                                PaymentMethod = PaymentMethod.CreditCard,
+                                PaidAt = DateTime.UtcNow
+                            };
+                            await _paymentRepo.AddAsync(payment);
+                        }
+                        else if (result.EventType == "transaction.failed")
+                        {
+                            sub.Status = SubscriptionStatus.Canceled;
+                            sub.CanceledAt = DateTime.UtcNow;
+                            _subRepo.Update(sub);
+                            _logger.LogInformation(
+                                "Paymob payment failed for order {Id}", 
+                                result.SubscriptionId);
                         }
                         else
                         {

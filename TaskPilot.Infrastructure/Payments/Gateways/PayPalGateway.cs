@@ -7,12 +7,6 @@ using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Enums;
 using TaskPilot.Models.Gateways;
 using TaskPilot.Services.Interfaces.Payments;
-using System.Net.Http;
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Linq;
-using System.Collections.Generic;
 
 namespace TaskPilot.Infrastructure.Payments.Gateways
 {
@@ -140,9 +134,9 @@ namespace TaskPilot.Infrastructure.Payments.Gateways
                 var client = _httpClientFactory.CreateClient();
                 var accessToken = await GetAccessTokenAsync(client);
 
-                var requestBody = new 
-                { 
-                    reason = "User requested cancellation" 
+                var requestBody = new
+                {
+                    reason = "User requested cancellation"
                 };
 
                 var request = new HttpRequestMessage(
@@ -314,19 +308,6 @@ namespace TaskPilot.Infrastructure.Payments.Gateways
             }
         }
 
-        public Task<GatewaySubscriptionResult> CreateTrialSubscriptionAsync(
-            string customerId, string priceId, int trialDays,
-            string paymentMethodId, string idempotencyKey,
-            CancellationToken ct)
-        {
-            return Task.FromResult(new GatewaySubscriptionResult
-            {
-                Status = "failed",
-                ErrorMessage = "PayPal does not support free trials. Please select Stripe to use this feature.",
-                ClientSecret = null,
-                IsSetupIntent = false
-            });
-        }
     }
 
     public class PayPalSubscriptionResponse

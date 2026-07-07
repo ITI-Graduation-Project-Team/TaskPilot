@@ -42,6 +42,8 @@ namespace TaskPilot.Data.Context
         public DbSet<TaskRequiredSkill> TaskRequiredSkills => Set<TaskRequiredSkill>();
         public DbSet<SkillAlias> SkillAliases => Set<SkillAlias>();
         public DbSet<SprintRetrospective> SprintRetrospectives => Set<SprintRetrospective>();
+        public DbSet<TaskAiSummary> TaskAiSummaries => Set<TaskAiSummary>();
+        
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
