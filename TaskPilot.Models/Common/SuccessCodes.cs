@@ -94,5 +94,9 @@ namespace TaskPilot.Models.Common
             public const string SummaryRetrieved = "AGILE_COACH_SUMMARY_RETRIEVED";
             public const string ChatTurnCompleted = "AGILE_COACH_CHAT_TURN_COMPLETED";
         }
+        public static class Assignment
+        {
+            public const string ScoringCompleted = "ASSIGNMENT_SCORING_COMPLETED";
+        }
     }
 }
