@@ -9,6 +9,7 @@ using TaskPilot.AI.Services.Interfaces;
 using TaskPilot.AI.Models.Planning;
 using TaskPilot.Models.Common.Errors;
 using TaskPilot.Models.Common.Results;
+using TaskPilot.AI.Constants;
 
 namespace TaskPilot.AI.Agents.Planning
 {
@@ -42,7 +43,7 @@ namespace TaskPilot.AI.Agents.Planning
 
             var promptYaml = await _promptLoader.LoadAsync("Planning/RequiredSkillsEnrichment.yaml");
             var function = KernelFunctionYaml.FromPromptYaml(promptYaml);
-            var kernel = _kernelService.CreateKernel("CheapModel");
+            var kernel = _kernelService.CreateKernel(ModelConstants.CheapModel);
 
             var arguments = new KernelArguments
             {

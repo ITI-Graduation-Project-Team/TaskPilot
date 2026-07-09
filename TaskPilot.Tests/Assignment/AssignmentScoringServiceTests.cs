@@ -386,7 +386,7 @@ public class AssignmentScoringServiceTests
     public async Task ScoreAsync_ValidSnapshot_ReturnsSuccess()
     {
         var task = new TaskSnapshotDto { EstimatedHours = 10 };
-        var dev = new DeveloperSnapshotDto { FullName = "Dev1", RemainingHours = 10 }; 
+        var dev = new DeveloperSnapshotDto { FullName = "Dev1", JobTitle = "Senior Backend Developer", RemainingHours = 10 }; 
 
         var snapshot = new SprintAssignmentSnapshotDto
         {
@@ -403,5 +403,7 @@ public class AssignmentScoringServiceTests
 
         Assert.True(result.IsSuccess);
         Assert.NotNull(result.Value);
+        var score = result.Value!.TaskScores.First().RankedDevelopers.First();
+        Assert.Equal("Senior Backend Developer", score.JobTitle);
     }
 }

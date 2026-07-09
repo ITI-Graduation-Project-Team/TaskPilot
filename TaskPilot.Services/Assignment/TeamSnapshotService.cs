@@ -190,6 +190,7 @@ public class TeamSnapshotService : ITeamSnapshotService
             {
                 EmployeeId = empId,
                 FullName = pe.Employee.FirstNameEn + " " + pe.Employee.LastNameEn,
+                JobTitle = pe.Employee.JobTitle ?? string.Empty,
                 ProjectRole = pe.Role,
                 SeniorityLevel = pe.Employee.SeniorityLevel ?? SeniorityLevel.Junior,
                 AvailabilityStatus = availabilityStatus,
