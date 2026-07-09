@@ -127,9 +127,6 @@ public class TeamSnapshotService : ITeamSnapshotService
         foreach (var pe in projectEmployees)
         {
             var empId = pe.EmployeeId;
-            var activeProjectsCount = activeProjectsCounts.ContainsKey(empId) ? activeProjectsCounts[empId] : 0;
-            var availabilityString = EmployeeAvailabilityHelper.ComputeAvailabilityStatus(activeProjectsCount);
-            Enum.TryParse<EmployeeAvailabilityStatus>(availabilityString, out var availabilityStatus);
 
             var empSkills = userSkills.Where(us => us.UserId == empId)
                 .Select(us => new DeveloperSkillDto
@@ -147,10 +144,16 @@ public class TeamSnapshotService : ITeamSnapshotService
                 .Where(t => t.EmployeeId == empId && t.SprintId == sprintId)
                 .Sum(t => t.EstimatedHours);
 
-            var remainingHours = Math.Max(0, maxSprintHours - currentAssignedHours);
+            var remainingHours = maxSprintHours - currentAssignedHours;
 
             var workloadPercentage = maxSprintHours > 0 ? (currentAssignedHours / maxSprintHours) * 100 : 0;
-            workloadPercentage = Math.Min(100, workloadPercentage);
+
+            if (remainingHours < 0 || workloadPercentage < 0 || workloadPercentage > 100)
+            {
+                return Result<SprintAssignmentSnapshotDto>.Failure(AssignmentErrors.InvalidAvailabilityState);
+            }
+
+            var availabilityStatus = ComputeAvailabilityStatus(workloadPercentage);
 
             var activeTasksCount = allAssignedTasks.Count(t => t.EmployeeId == empId && t.Status != TaskItemStatus.Done);
 
@@ -216,5 +219,13 @@ public class TeamSnapshotService : ITeamSnapshotService
             projectId, sprintId, teamSnapshot.Developers.Count, unassignedTasks.Count);
 
         return Result<SprintAssignmentSnapshotDto>.Success(result);
+    }
+
+    private EmployeeAvailabilityStatus ComputeAvailabilityStatus(double workloadPercentage)
+    {
+        if (workloadPercentage <= 30) return EmployeeAvailabilityStatus.Available;
+        if (workloadPercentage <= 70) return EmployeeAvailabilityStatus.PartiallyBusy;
+        if (workloadPercentage <= 90) return EmployeeAvailabilityStatus.Busy;
+        return EmployeeAvailabilityStatus.Overloaded;
     }
 }

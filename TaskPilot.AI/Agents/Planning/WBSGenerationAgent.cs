@@ -28,6 +28,7 @@ namespace TaskPilot.AI.Agents.Planning
             System.Collections.Generic.List<string> techStack,
             System.Collections.Generic.List<string> platformTargets,
             string projectType,
+            System.Collections.Generic.List<string> availableSkills,
             CancellationToken cancellationToken = default)
         {
             var kernel = _kernelService.CreateKernel(
@@ -42,8 +43,6 @@ namespace TaskPilot.AI.Agents.Planning
                       "  Limit each userStory to a maximum of 3 tasks.\n" +
                       "  Limit acceptanceCriteria and acceptanceCriteriaAr arrays to a maximum of 2 items each.\n" +
                       "  Keep acceptanceCriteriaAr values short (under 80 characters each).\n";
-
-            var function = KernelFunctionYaml.FromPromptYaml(prompt);
 
             var executionSettings = new PromptExecutionSettings
             {
@@ -80,44 +79,58 @@ namespace TaskPilot.AI.Agents.Planning
                 ["projectType"] =
                     !string.IsNullOrEmpty(projectType)
                         ? projectType
-                        : "General"
+                        : "General",
+
+                ["availableSkills"] =
+                    availableSkills != null && availableSkills.Any()
+                        ? string.Join(", ", availableSkills)
+                        : "None"
             };
 
-            var invokeResult = await kernel.InvokeAsync(
-                function,
-                arguments,
-                cancellationToken: cancellationToken);
-
-            string rawJson = invokeResult.ToString();
-            
             const int maxAttempts = 3;
             GeneratedWbs? result = null;
             Exception? lastException = null;
+            string rawJson = string.Empty;
 
             for (int attempt = 1; attempt <= maxAttempts; attempt++)
             {
                 try
                 {
-                    string jsonToParse = attempt == 1 ? TryRepairJson(rawJson) : rawJson;
+                    string currentPrompt = prompt;
+                    if (attempt == 2)
+                    {
+                        currentPrompt += "\n  Reduce the number of User Stories. Prioritize JSON completeness over quantity.";
+                    }
+                    else if (attempt == 3)
+                    {
+                        currentPrompt += "\n  Generate between 3 and 5 User Stories only. Maximum 2 Tasks per Story. Maximum 2 Required Skills per Task. Return the smallest complete valid JSON possible.";
+                    }
+
+                    var function = KernelFunctionYaml.FromPromptYaml(currentPrompt);
+
+                    var invokeResult = await kernel.InvokeAsync(
+                        function,
+                        arguments,
+                        cancellationToken: cancellationToken);
+
+                    rawJson = invokeResult.ToString();
+                    
+                    int approxTokens = rawJson.Length / 4;
+                    _logger.LogInformation("WBS Generation Attempt {Attempt}: Generated Response Length {Length} characters, approx {Tokens} tokens.", attempt, rawJson.Length, approxTokens);
+
+                    string jsonToParse = attempt == 1 ? TryRepairJson(rawJson) : TryRepairJson(rawJson);
                     result = JsonSerializer.Deserialize<GeneratedWbs>(jsonToParse, new JsonSerializerOptions
                     {
                         PropertyNameCaseInsensitive = true
                     });
+                    
                     if (result != null) break;
                 }
                 catch (JsonException ex)
                 {
                     lastException = ex;
-                    _logger.LogWarning("WBS JSON parse failed on attempt {Attempt}/3: {Message}", attempt, ex.Message);
-                    
-                    if (attempt < maxAttempts)
-                    {
-                        invokeResult = await kernel.InvokeAsync(
-                            function,
-                            arguments,
-                            cancellationToken: cancellationToken);
-                        rawJson = invokeResult.ToString();
-                    }
+                    string retryReason = attempt < maxAttempts ? "Reducing size for next attempt" : "Max attempts reached";
+                    _logger.LogWarning("WBS JSON parse failed on attempt {Attempt}/3. Reason: {Message}. Retry reason: {RetryReason}. Response length: {Length}", attempt, ex.Message, retryReason, rawJson?.Length ?? 0);
                 }
             }
 
@@ -125,7 +138,7 @@ namespace TaskPilot.AI.Agents.Planning
                 throw new WbsGenerationException(
                     $"WBS generation failed after {maxAttempts} attempts due to truncated or invalid JSON. " +
                     "Try reducing the number of requirements or contact support.",
-                    lastException.ToString());
+                    lastException?.ToString());
 
             return result;
         }

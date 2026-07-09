@@ -21,6 +21,7 @@ namespace TaskPilot.Services
         private readonly IUserStoryRepository _userStoryRepository;
         private readonly IRepository<TaskItem> _taskRepository;
         private readonly IRepository<UserStory> _userStoryGenericRepository;
+        private readonly IRepository<Skill> _skillRepository;
         private readonly IUnitOfWork _unitOfWork;
         private readonly WBSGenerationAgent _wbsGenerationAgent;
         private readonly IWbsPersistenceService _wbsPersistenceService;
@@ -31,6 +32,7 @@ namespace TaskPilot.Services
             IUserStoryRepository userStoryRepository,
             IRepository<TaskItem> taskRepository,
             IRepository<UserStory> userStoryGenericRepository,
+            IRepository<Skill> skillRepository,
             IUnitOfWork unitOfWork,
             WBSGenerationAgent wbsGenerationAgent,
             IWbsPersistenceService wbsPersistenceService,
@@ -40,6 +42,7 @@ namespace TaskPilot.Services
             _userStoryRepository = userStoryRepository;
             _taskRepository = taskRepository;
             _userStoryGenericRepository = userStoryGenericRepository;
+            _skillRepository = skillRepository;
             _unitOfWork = unitOfWork;
             _wbsGenerationAgent = wbsGenerationAgent;
             _wbsPersistenceService = wbsPersistenceService;
@@ -88,12 +91,16 @@ namespace TaskPilot.Services
                 // so persistence service doesn't face conflicts or duplicate tracking.
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+                var skills = await _skillRepository.GetAllAsync();
+                var availableSkills = System.Linq.Enumerable.Select(skills, s => s.Name).ToList();
+
                 // Step 4: Invoke WBSGenerationAgent
                 var generatedWbs = await _wbsGenerationAgent.GenerateAsync(
                     project.RequirementsSnapshot,
                     project.TechStack,
                     project.PlatformTargets,
                     project.ProjectType,
+                    availableSkills,
                     cancellationToken);
 
                 // Step 5: Persist newly generated backlog

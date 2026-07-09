@@ -92,5 +92,12 @@ namespace TaskPilot.Models.Common
         {
             public const string ScoringCompleted = "ASSIGNMENT_SCORING_COMPLETED";
         }
+
+        public static class Wbs
+        {
+            public const string SkillsEnriched = "WBS_SKILLS_ENRICHED";
+            public const string SkillCreated = "WBS_SKILL_CREATED";
+            public const string RequiredSkillsCompleted = "WBS_REQUIRED_SKILLS_COMPLETED";
+        }
     }
 }

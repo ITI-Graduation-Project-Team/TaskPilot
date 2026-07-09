@@ -272,10 +272,10 @@ public class AssignmentScoringServiceTests
     public async Task ScoreAsync_ExperienceScore_MapsCorrectly()
     {
         var task = new TaskSnapshotDto { EstimatedHours = 8 };
-        var devJunior = new DeveloperSnapshotDto { SeniorityLevel = SeniorityLevel.Junior };
-        var devMid = new DeveloperSnapshotDto { SeniorityLevel = SeniorityLevel.MidLevel };
-        var devSenior = new DeveloperSnapshotDto { SeniorityLevel = SeniorityLevel.Senior };
-        var devLead = new DeveloperSnapshotDto { SeniorityLevel = SeniorityLevel.Lead };
+        var devJunior = new DeveloperSnapshotDto { FullName = "Junior", SeniorityLevel = SeniorityLevel.Junior };
+        var devMid = new DeveloperSnapshotDto { FullName = "Mid", SeniorityLevel = SeniorityLevel.MidLevel };
+        var devSenior = new DeveloperSnapshotDto { FullName = "Senior", SeniorityLevel = SeniorityLevel.Senior };
+        var devLead = new DeveloperSnapshotDto { FullName = "Lead", SeniorityLevel = SeniorityLevel.Lead };
 
         var snapshot = new SprintAssignmentSnapshotDto
         {
@@ -293,10 +293,10 @@ public class AssignmentScoringServiceTests
         Assert.True(result.IsSuccess);
         var developers = result.Value!.TaskScores.First().RankedDevelopers;
 
-        Assert.Equal(25, developers.First(d => d.Developer.SeniorityLevel == SeniorityLevel.Junior).ExperienceScore);
-        Assert.Equal(60, developers.First(d => d.Developer.SeniorityLevel == SeniorityLevel.MidLevel).ExperienceScore);
-        Assert.Equal(85, developers.First(d => d.Developer.SeniorityLevel == SeniorityLevel.Senior).ExperienceScore);
-        Assert.Equal(100, developers.First(d => d.Developer.SeniorityLevel == SeniorityLevel.Lead).ExperienceScore);
+        Assert.Equal(25, developers.First(d => d.FullName == "Junior").ExperienceScore);
+        Assert.Equal(60, developers.First(d => d.FullName == "Mid").ExperienceScore);
+        Assert.Equal(85, developers.First(d => d.FullName == "Senior").ExperienceScore);
+        Assert.Equal(100, developers.First(d => d.FullName == "Lead").ExperienceScore);
     }
 
     [Fact]
@@ -352,8 +352,8 @@ public class AssignmentScoringServiceTests
 
         Assert.True(result.IsSuccess);
         var ranked = result.Value!.TaskScores.First().RankedDevelopers;
-        Assert.Equal("Dev1", ranked[0].Developer.FullName); // Should be ranked higher
-        Assert.Equal("Dev2", ranked[1].Developer.FullName);
+        Assert.Equal("Dev1", ranked[0].FullName); // Should be ranked higher
+        Assert.Equal("Dev2", ranked[1].FullName);
     }
 
     [Fact]

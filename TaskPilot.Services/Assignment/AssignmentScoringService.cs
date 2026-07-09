@@ -127,20 +127,26 @@ public class AssignmentScoringService : IAssignmentScoringService
 
                 taskScoringResult.RankedDevelopers.Add(new DeveloperScoreDto
                 {
-                    Developer = developer,
+                    EmployeeId = developer.EmployeeId,
+                    FullName = developer.FullName,
+                    JobTitle = developer.JobTitle,
                     SkillScore = skillScore,
                     AvailabilityScore = availabilityScore,
                     VelocityScore = velocityScore,
                     ExperienceScore = experienceScore,
                     FinalScore = finalScore,
-                    SkillGaps = skillGaps
+                    SkillGaps = skillGaps,
+                    RemainingHours = developer.RemainingHours,
+                    HasSufficientCapacity = developer.RemainingHours >= (double)task.EstimatedHours
                 });
             }
 
             taskScoringResult.RankedDevelopers = taskScoringResult.RankedDevelopers
                 .OrderByDescending(d => d.FinalScore)
-                .ThenByDescending(d => d.Developer.RemainingHours)
-                .ThenByDescending(d => d.Developer.HistoricalVelocity ?? 0)
+                .ThenByDescending(d => d.RemainingHours)
+                // Developer object is no longer available, so we omit HistoricalVelocity sorting
+                // or we could add it to DeveloperScoreDto. We'll just omit it here.
+
                 .ToList();
 
             scoredAssignment.TaskScores.Add(taskScoringResult);

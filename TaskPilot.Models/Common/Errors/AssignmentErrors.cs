@@ -17,4 +17,10 @@ public static class AssignmentErrors
     public static readonly Error SnapshotNotFound = new("SNAPSHOT_NOT_FOUND", ErrorType.NotFound);
     public static readonly Error CapacityValidationFailed = new("CAPACITY_VALIDATION_FAILED", ErrorType.Validation);
     public static readonly Error ScoringConfigurationInvalid = new("SCORING_CONFIGURATION_INVALID", ErrorType.Failure);
+
+    // Sprint 8c Errors
+    public static readonly Error RequiredSkillsNotFound = new("REQUIRED_SKILLS_NOT_FOUND", ErrorType.NotFound);
+    public static readonly Error InvalidAvailabilityState = new("INVALID_AVAILABILITY_STATE", ErrorType.Validation);
+    public static readonly Error InvalidDeveloperSnapshot = new("INVALID_DEVELOPER_SNAPSHOT", ErrorType.Validation);
+    public static readonly Error DuplicateDeveloperDetected = new("DUPLICATE_DEVELOPER_DETECTED", ErrorType.Conflict);
 }

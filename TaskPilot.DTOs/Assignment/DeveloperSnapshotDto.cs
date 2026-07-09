@@ -6,6 +6,7 @@ public class DeveloperSnapshotDto
 {
     public Guid EmployeeId { get; set; }
     public string FullName { get; set; } = string.Empty;
+    public string JobTitle { get; set; } = string.Empty;
     public ProjectRole ProjectRole { get; set; }
     public SeniorityLevel SeniorityLevel { get; set; }
     public EmployeeAvailabilityStatus AvailabilityStatus { get; set; }

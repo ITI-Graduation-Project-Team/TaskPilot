@@ -25,6 +25,7 @@ namespace TaskPilot.Services
             services.AddScoped<IUserSubscriptionService, UserSubscriptionService>();
             services.AddScoped<ILocalizationService, LocalizationService>();
             services.AddScoped<IRequirementFinalizationService, RequirementFinalizationService>();
+            services.AddScoped<IWbsSkillEnrichmentService, WbsSkillEnrichmentService>();
             services.AddScoped<IWbsPersistenceService, WbsPersistenceService>();
             services.AddScoped<IBacklogService, BacklogService>();
             services.AddScoped<IBacklogRegenerationService, BacklogRegenerationService>();
