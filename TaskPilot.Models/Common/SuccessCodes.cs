@@ -88,6 +88,13 @@ namespace TaskPilot.Models.Common
             public const string Confirmed = "AI_PROJECT_CONFIRMED";
         }
 
+        public static class Sprint
+        {
+            public const string RiskAlertsRetrieved = "SPRINT_RISK_ALERTS_RETRIEVED";
+            public const string AlertDismissed = "SPRINT_RISK_ALERT_DISMISSED";
+            public const string SimulationGenerated = "SPRINT_RISK_SIMULATION_GENERATED";
+        }
+
         public static class AgileCoach
         {
             public const string SummaryGenerated = "AGILE_COACH_SUMMARY_GENERATED";

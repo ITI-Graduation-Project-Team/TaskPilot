@@ -116,6 +116,12 @@ namespace TaskPilot.AI.Extensions
             services.AddScoped<
                 SprintRetrospectiveAgent>();
 
+            // Sprint Risk agents
+            services.AddScoped<
+                TaskPilot.AI.Agents.Sprint.SprintRiskDetectionAgent>();
+            services.AddScoped<
+                TaskPilot.AI.Agents.Sprint.WhatIfSimulationAgent>();
+
             return services;
         }
     }

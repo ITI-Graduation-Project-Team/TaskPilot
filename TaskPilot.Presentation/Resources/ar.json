@@ -178,5 +178,13 @@
   "PASS_REQ_UPPER": "يجب أن تحتوي كلمة المرور على حرف كبير واحد على الأقل ('A'-'Z').",
   "PASS_TOO_SHORT": "يجب أن تتكون كلمة المرور من {0} أحرف على الأقل.",
   "PASS_REQ_UNIQUE_CHARS": "يجب أن تحتوي كلمة المرور على {0} من الأحرف الفريدة على الأقل.",
-  "INVALID_TOKEN": "رمز غير صالح."
+  "INVALID_TOKEN": "رمز غير صالح.",
+
+  // sprint risk alerts
+  "SPRINT_RISK_ALERTS_RETRIEVED": "تم جلب تنبيهات مخاطر السبرينت بنجاح.",
+  "SPRINT_RISK_ALERT_DISMISSED": "تم تجاهل تنبيه مخاطر السبرينت بنجاح.",
+  "SPRINT_RISK_SIMULATION_GENERATED": "تم إنشاء محاكاة مخاطر السبرينت بنجاح.",
+  "SPRINT_RISK_ALERT_NOT_FOUND": "تنبيه مخاطر السبرينت غير موجود.",
+  "SPRINT_NOT_ACTIVE": "السبرينت ليس نشطاً.",
+  "RISK_SIMULATION_FAILED": "فشل توليد محاكاة المخاطر."
 }
