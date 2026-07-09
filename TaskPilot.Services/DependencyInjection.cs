@@ -53,6 +53,7 @@ namespace TaskPilot.Services
             services.AddScoped<IFileTextExtractor, FileTextExtractor>();
 
             services.AddScoped<ISkillService, SkillService>();
+            services.AddScoped<ISkillMigrationService, SkillMigrationService>();
             services.AddScoped<ISkillRepository, SkillRepository>();
             services.AddScoped<ISprintRetrospectiveService, SprintRetrospectiveService>();
 

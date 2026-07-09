@@ -65,6 +65,12 @@
 
   // skill
   "SKILL_NOT_FOUND": "Skill was not found.",
+  "CANONICAL_SKILL_NOT_FOUND": "Canonical skill was not found.",
+  "ALIAS_ALREADY_EXISTS": "Skill alias already exists.",
+  "INVALID_ALIAS": "Invalid skill alias.",
+  "SKILL_MIGRATION_FAILED": "Failed to migrate skill.",
+  "DUPLICATE_CANONICAL_SKILL": "Canonical skill cannot be marked as obsolete.",
+  "SKILL_MERGE_FAILED": "Failed to merge skills.",
   "SKILL_NAME_REQUIRED": "Skill name is required.",
   "SKILL_ALREADY_EXISTS": "Skill already exists.",
   "SKILL_LIST_EMPTY": "Skills list is empty.",
@@ -137,6 +143,7 @@
 
   // skill success
   "SKILL_CREATED_SUCCESS": "Skill created successfully.",
+  "SKILL_MIGRATED_SUCCESS": "Skill migrated successfully.",
   "SKILL_DELETED_SUCCESS": "Skill deleted successfully.",
   "SKILL_RETRIEVED_SUCCESS": "Skill retrieved successfully.",
 

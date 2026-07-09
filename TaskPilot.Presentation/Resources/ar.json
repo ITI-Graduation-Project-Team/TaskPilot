@@ -1,4 +1,4 @@
-{
+﻿{
   "Welcome": "ظ…ط±ط­ط¨ط§ظ‹",
   "Success": "طھظ…طھ ط§ظ„ط¹ظ…ظ„ظٹط© ط¨ظ†ط¬ط§ط­.",
   "Error": "ط­ط¯ط« ط®ط·ط£.",
@@ -63,6 +63,12 @@
   "INVALID_PAGE_SIZE": "ط­ط¬ظ… ط§ظ„طµظپط­ط© ط؛ظٹط± طµط§ظ„ط­.",
 
   // skill
+    "CANONICAL_SKILL_NOT_FOUND": "المهارة الأساسية غير موجودة.",
+  "ALIAS_ALREADY_EXISTS": "الاسم المستعار للمهارة موجود بالفعل.",
+  "INVALID_ALIAS": "اسم مستعار غير صالح للمهارة.",
+  "SKILL_MIGRATION_FAILED": "فشل ترحيل المهارة.",
+  "DUPLICATE_CANONICAL_SKILL": "لا يمكن تحديد المهارة الأساسية كمهارة قديمة.",
+  "SKILL_MERGE_FAILED": "فشل دمج المهارات.",
   "SKILL_NOT_FOUND": "ط§ظ„ظ…ظ‡ط§ط±ط© ط؛ظٹط± ظ…ظˆط¬ظˆط¯ط©.",
   "SKILL_NAME_REQUIRED": "ط§ط³ظ… ط§ظ„ظ…ظ‡ط§ط±ط© ظ…ط·ظ„ظˆط¨.",
   "SKILL_ALREADY_EXISTS": "ط§ظ„ظ…ظ‡ط§ط±ط© ظ…ظˆط¬ظˆط¯ط© ط¨ط§ظ„ظپط¹ظ„.",
@@ -135,6 +141,7 @@
   "PROJECT_RETRIEVED_SUCCESS": "طھظ… ط¬ظ„ط¨ ط§ظ„ظ…ط´ط±ظˆط¹ ط¨ظ†ط¬ط§ط­.",
 
   // skill success
+    "SKILL_MIGRATED_SUCCESS": "تم ترحيل المهارة بنجاح.",
   "SKILL_CREATED_SUCCESS": "طھظ… ط¥ظ†ط´ط§ط، ط§ظ„ظ…ظ‡ط§ط±ط© ط¨ظ†ط¬ط§ط­.",
   "SKILL_DELETED_SUCCESS": "طھظ… ط­ط°ظپ ط§ظ„ظ…ظ‡ط§ط±ط© ط¨ظ†ط¬ط§ط­.",
   "SKILL_RETRIEVED_SUCCESS": "طھظ… ط¬ظ„ط¨ ط§ظ„ظ…ظ‡ط§ط±ط© ط¨ظ†ط¬ط§ط­.",

@@ -40,6 +40,7 @@ namespace TaskPilot.Models.Common
             public const string Created = "SKILL_CREATED_SUCCESS";
             public const string Deleted = "SKILL_DELETED_SUCCESS";
             public const string Retrieved = "SKILL_RETRIEVED_SUCCESS";
+            public const string Migrated = "SKILL_MIGRATED_SUCCESS";
         }
 
         public static class Role
