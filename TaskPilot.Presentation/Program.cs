@@ -13,6 +13,8 @@ using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Enums;
 using TaskPilot.Presentation.Middlewares;
 using TaskPilot.Services;
+using Hangfire;
+
 namespace TaskPilot.Presentation
 {
     public class Program
@@ -58,6 +60,14 @@ namespace TaskPilot.Presentation
                     options.JsonSerializerOptions.Converters
                         .Add(new JsonStringEnumConverter());
                 });
+
+            builder.Services.AddHangfire(config => config
+                .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+                .UseSimpleAssemblyNameTypeSerializer()
+                .UseRecommendedSerializerSettings()
+                .UseSqlServerStorage(builder.Configuration.GetConnectionString("DefaultConnection")));
+            
+            builder.Services.AddHangfireServer();
 
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen(options =>
@@ -129,6 +139,12 @@ namespace TaskPilot.Presentation
 
             app.UseSwagger();
             app.UseSwaggerUI();
+            
+            app.UseHangfireDashboard("/hangfire");
+            RecurringJob.AddOrUpdate<TaskPilot.Services.BackgroundJobs.SprintRiskDetectionJob>(
+                "SprintRiskDetectionJob",
+                job => job.ExecuteAsync(CancellationToken.None),
+                Cron.Daily);
 
             //app.UseCors("AllowAll");
             app.UseCors("AllowFrontend");

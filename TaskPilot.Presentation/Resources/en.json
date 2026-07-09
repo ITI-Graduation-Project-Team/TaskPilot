@@ -179,5 +179,13 @@
   "PASS_REQ_UPPER": "Passwords must have at least one uppercase ('A'-'Z').",
   "PASS_TOO_SHORT": "Passwords must be at least {0} characters.",
   "PASS_REQ_UNIQUE_CHARS": "Passwords must use at least {0} unique characters.",
-  "INVALID_TOKEN": "Invalid token."
+  "INVALID_TOKEN": "Invalid token.",
+
+  // sprint risk alerts
+  "SPRINT_RISK_ALERTS_RETRIEVED": "Sprint risk alerts retrieved successfully.",
+  "SPRINT_RISK_ALERT_DISMISSED": "Sprint risk alert dismissed successfully.",
+  "SPRINT_RISK_SIMULATION_GENERATED": "Sprint risk simulation generated successfully.",
+  "SPRINT_RISK_ALERT_NOT_FOUND": "Sprint risk alert was not found.",
+  "SPRINT_NOT_ACTIVE": "The sprint is not active.",
+  "RISK_SIMULATION_FAILED": "Failed to generate risk simulation."
 }

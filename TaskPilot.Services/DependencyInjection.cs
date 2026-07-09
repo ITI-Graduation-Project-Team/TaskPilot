@@ -60,6 +60,9 @@ namespace TaskPilot.Services
 
             services.AddHostedService<BackgroundJobs.SubscriptionExpiryJob>();
 
+            services.AddScoped<ISprintRiskService, SprintRiskService>();
+            services.AddTransient<TaskPilot.Services.BackgroundJobs.SprintRiskDetectionJob>();
+
             //Current User Service
             services.AddHttpContextAccessor();
             return services;
