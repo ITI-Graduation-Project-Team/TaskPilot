@@ -406,4 +406,80 @@ public class AssignmentScoringServiceTests
         var score = result.Value!.TaskScores.First().RankedDevelopers.First();
         Assert.Equal("Senior Backend Developer", score.JobTitle);
     }
+
+    [Fact]
+    public async Task ScoreAsync_SkillAliasMatch_ScoreIs100()
+    {
+        var task = new TaskSnapshotDto
+        {
+            RequiredSkills = new List<TaskRequiredSkillDto>
+            {
+                new TaskRequiredSkillDto { SkillName = "HTML/CSS", RequiredLevel = SkillLevel.Intermediate, Aliases = new List<string> { "HTML5", "CSS3" } }
+            }
+        };
+
+        var dev = new DeveloperSnapshotDto
+        {
+            Skills = new List<DeveloperSkillDto>
+            {
+                new DeveloperSkillDto { SkillName = "HTML5", Level = SkillLevel.Advanced }
+            }
+        };
+
+        var snapshot = new SprintAssignmentSnapshotDto
+        {
+            UnassignedTasks = new List<TaskSnapshotDto> { task },
+            Team = new TeamSnapshotDto { Developers = new List<DeveloperSnapshotDto> { dev } }
+        };
+
+        _teamSnapshotServiceMock.Setup(s => s.GetSnapshotAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Success(snapshot));
+        _capacityValidationServiceMock.Setup(s => s.ValidateAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Success(new CapacityValidationResult { CanProceed = true }));
+
+        var result = await _sut.ScoreAsync(Guid.NewGuid(), Guid.NewGuid(), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var score = result.Value!.TaskScores.First().RankedDevelopers.First();
+        Assert.Equal(100, score.SkillScore);
+        Assert.Empty(score.SkillGaps);
+    }
+
+    [Fact]
+    public async Task ScoreAsync_NormalizedAliasMatch_ScoreIs100()
+    {
+        var task = new TaskSnapshotDto
+        {
+            RequiredSkills = new List<TaskRequiredSkillDto>
+            {
+                new TaskRequiredSkillDto { SkillName = "RESTful APIs", RequiredLevel = SkillLevel.Beginner, Aliases = new List<string> { "ASP.NET Core Web API" } }
+            }
+        };
+
+        var dev = new DeveloperSnapshotDto
+        {
+            Skills = new List<DeveloperSkillDto>
+            {
+                new DeveloperSkillDto { SkillName = "ASP.NET Core Web API", Level = SkillLevel.Beginner }
+            }
+        };
+
+        var snapshot = new SprintAssignmentSnapshotDto
+        {
+            UnassignedTasks = new List<TaskSnapshotDto> { task },
+            Team = new TeamSnapshotDto { Developers = new List<DeveloperSnapshotDto> { dev } }
+        };
+
+        _teamSnapshotServiceMock.Setup(s => s.GetSnapshotAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Success(snapshot));
+        _capacityValidationServiceMock.Setup(s => s.ValidateAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Success(new CapacityValidationResult { CanProceed = true }));
+
+        var result = await _sut.ScoreAsync(Guid.NewGuid(), Guid.NewGuid(), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var score = result.Value!.TaskScores.First().RankedDevelopers.First();
+        Assert.Equal(100, score.SkillScore);
+        Assert.Empty(score.SkillGaps);
+    }
 }

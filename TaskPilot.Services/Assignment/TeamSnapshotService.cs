@@ -19,6 +19,7 @@ public class TeamSnapshotService : ITeamSnapshotService
     private readonly IRepository<ProjectEmployee> _projectEmployeeRepository;
     private readonly IRepository<UserSkill> _userSkillRepository;
     private readonly IRepository<TaskItem> _taskRepository;
+    private readonly IRepository<SkillAlias> _skillAliasRepository;
     private readonly ILogger<TeamSnapshotService> _logger;
 
     public TeamSnapshotService(
@@ -27,6 +28,7 @@ public class TeamSnapshotService : ITeamSnapshotService
         IRepository<ProjectEmployee> projectEmployeeRepository,
         IRepository<UserSkill> userSkillRepository,
         IRepository<TaskItem> taskRepository,
+        IRepository<SkillAlias> skillAliasRepository,
         ILogger<TeamSnapshotService> logger)
     {
         _projectRepository = projectRepository;
@@ -34,6 +36,7 @@ public class TeamSnapshotService : ITeamSnapshotService
         _projectEmployeeRepository = projectEmployeeRepository;
         _userSkillRepository = userSkillRepository;
         _taskRepository = taskRepository;
+        _skillAliasRepository = skillAliasRepository;
         _logger = logger;
     }
 
@@ -67,6 +70,12 @@ public class TeamSnapshotService : ITeamSnapshotService
             .Where(t => t.SprintId == sprintId)
             .ToListAsync(cancellationToken);
 
+        var requiredSkillIds = sprintTasks.SelectMany(t => t.RequiredSkills).Select(rs => rs.SkillId).Distinct().ToList();
+        var skillAliases = await _skillAliasRepository.GetQueryable()
+            .Where(a => requiredSkillIds.Contains(a.SkillId))
+            .ToListAsync(cancellationToken);
+        var aliasLookup = skillAliases.GroupBy(a => a.SkillId).ToDictionary(g => g.Key, g => g.Select(a => a.Alias).ToList());
+
         var unassignedTasks = sprintTasks
             .Where(t => t.EmployeeId == null)
             .Select(t => new TaskSnapshotDto
@@ -82,7 +91,8 @@ public class TeamSnapshotService : ITeamSnapshotService
                 {
                     SkillId = rs.SkillId,
                     SkillName = rs.Skill?.Name ?? string.Empty,
-                    RequiredLevel = rs.RequiredLevel
+                    RequiredLevel = rs.RequiredLevel,
+                    Aliases = aliasLookup.ContainsKey(rs.SkillId) ? aliasLookup[rs.SkillId] : new List<string>()
                 }).ToList()
             }).ToList();
 

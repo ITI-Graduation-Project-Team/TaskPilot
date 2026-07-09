@@ -113,7 +113,13 @@ public class AssignmentScoringService : IAssignmentScoringService
                 var skillGaps = new List<SkillGapDto>();
                 foreach (var requiredSkill in task.RequiredSkills)
                 {
-                    var devSkill = developer.Skills.FirstOrDefault(s => s.SkillName.Equals(requiredSkill.SkillName, StringComparison.OrdinalIgnoreCase));
+                    var requiredNormalized = TaskPilot.Services.Helpers.SkillNormalizer.Normalize(requiredSkill.SkillName);
+                    var devSkill = developer.Skills.FirstOrDefault(s => 
+                        (s.SkillId > 0 && s.SkillId == requiredSkill.SkillId) ||
+                        TaskPilot.Services.Helpers.SkillNormalizer.Normalize(s.SkillName) == requiredNormalized ||
+                        requiredSkill.Aliases.Any(a => TaskPilot.Services.Helpers.SkillNormalizer.Normalize(a) == TaskPilot.Services.Helpers.SkillNormalizer.Normalize(s.SkillName))
+                    );
+
                     if (devSkill == null || devSkill.Level < requiredSkill.RequiredLevel)
                     {
                         skillGaps.Add(new SkillGapDto

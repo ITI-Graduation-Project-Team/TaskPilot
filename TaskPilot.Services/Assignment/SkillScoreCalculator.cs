@@ -14,7 +14,12 @@ public class SkillScoreCalculator : IScoreCalculator
         
         foreach (var requiredSkill in task.RequiredSkills)
         {
-            var developerSkill = developer.Skills?.FirstOrDefault(s => s.SkillName.Equals(requiredSkill.SkillName, System.StringComparison.OrdinalIgnoreCase));
+            var requiredNormalized = TaskPilot.Services.Helpers.SkillNormalizer.Normalize(requiredSkill.SkillName);
+            var developerSkill = developer.Skills?.FirstOrDefault(s => 
+                (s.SkillId > 0 && s.SkillId == requiredSkill.SkillId) || 
+                TaskPilot.Services.Helpers.SkillNormalizer.Normalize(s.SkillName) == requiredNormalized ||
+                requiredSkill.Aliases.Any(a => TaskPilot.Services.Helpers.SkillNormalizer.Normalize(a) == TaskPilot.Services.Helpers.SkillNormalizer.Normalize(s.SkillName))
+            );
             
             if (developerSkill != null)
             {
