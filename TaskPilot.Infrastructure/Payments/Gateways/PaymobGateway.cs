@@ -40,22 +40,39 @@ namespace TaskPilot.Infrastructure.Payments.Gateways
             {
                 var client = _httpClientFactory.CreateClient();
                 
-                var authRequest = new { api_key = _options.ApiKey };
+                var authRequest = new 
+                { 
+                    username = _options.Username,
+                    password = _options.Password,
+                    source = "merchant"
+                };
                 var authResponse = await client.PostAsync($"{_baseUrl}/auth/tokens", new StringContent(JsonSerializer.Serialize(authRequest), System.Text.Encoding.UTF8, "application/json"), ct);
-                authResponse.EnsureSuccessStatusCode();
                 var authContent = await authResponse.Content.ReadAsStringAsync(ct);
+                if (!authResponse.IsSuccessStatusCode)
+                {
+                    _logger.LogError(
+                        "Paymob {Step} failed. " +
+                        "StatusCode: {StatusCode}. " +
+                        "Response: {Response}",
+                        "GetAuthToken",
+                        (int)authResponse.StatusCode,
+                        authContent);
+                    throw new InvalidOperationException(
+                        $"Paymob error ({(int)authResponse.StatusCode}): {authContent}");
+                }
                 var token = JsonDocument.Parse(authContent).RootElement.GetProperty("token").GetString();
 
                 if (!_options.PlanMappings.TryGetValue(planId, out var mapping))
                 {
+                    _logger.LogError(
+                        "Paymob: No mapping found for planId '{PlanId}'. " +
+                        "Available keys: {Keys}",
+                        planId,
+                        string.Join(", ", _options.PlanMappings.Keys));
                     return new GatewaySubscriptionResult { Status = "failed", ErrorMessage = $"No mapping found for plan '{planId}' in Paymob settings." };
                 }
 
-                var priceStr = interval == BillingCycle.Monthly ? mapping.MonthlyPriceId : mapping.AnnualPriceId;
-                if (!int.TryParse(priceStr, out var amountCents))
-                {
-                    amountCents = 10000;
-                }
+                var amountCents = interval == BillingCycle.Monthly ? mapping.MonthlyAmountCents : mapping.AnnualAmountCents;
 
                 var orderRequest = new
                 {
@@ -67,9 +84,31 @@ namespace TaskPilot.Infrastructure.Payments.Gateways
                 };
 
                 var orderResponse = await client.PostAsync($"{_baseUrl}/ecommerce/orders", new StringContent(JsonSerializer.Serialize(orderRequest), System.Text.Encoding.UTF8, "application/json"), ct);
-                orderResponse.EnsureSuccessStatusCode();
                 var orderContent = await orderResponse.Content.ReadAsStringAsync(ct);
+                if (!orderResponse.IsSuccessStatusCode)
+                {
+                    _logger.LogError(
+                        "Paymob {Step} failed. " +
+                        "StatusCode: {StatusCode}. " +
+                        "Response: {Response}",
+                        "CreateOrder",
+                        (int)orderResponse.StatusCode,
+                        orderContent);
+                    throw new InvalidOperationException(
+                        $"Paymob error ({(int)orderResponse.StatusCode}): {orderContent}");
+                }
                 var orderId = JsonDocument.Parse(orderContent).RootElement.GetProperty("id").GetInt32();
+
+                var integrationId = mapping.IntegrationId;
+                if (!int.TryParse(integrationId, out var integrationIdInt))
+                {
+                    _logger.LogError(
+                        "Paymob IntegrationId '{Id}' is not a valid integer",
+                        integrationId);
+                    throw new InvalidOperationException(
+                        $"Paymob IntegrationId '{integrationId}' " +
+                        "is not a valid integer. Check appsettings.json.");
+                }
 
                 var paymentKeyRequest = new
                 {
@@ -94,12 +133,23 @@ namespace TaskPilot.Infrastructure.Payments.Gateways
                         state = "NA"
                     },
                     currency = "EGP",
-                    integration_id = _options.IntegrationId
+                    integration_id = integrationIdInt
                 };
 
                 var paymentKeyResponse = await client.PostAsync($"{_baseUrl}/acceptance/payment_keys", new StringContent(JsonSerializer.Serialize(paymentKeyRequest), System.Text.Encoding.UTF8, "application/json"), ct);
-                paymentKeyResponse.EnsureSuccessStatusCode();
                 var paymentKeyContent = await paymentKeyResponse.Content.ReadAsStringAsync(ct);
+                if (!paymentKeyResponse.IsSuccessStatusCode)
+                {
+                    _logger.LogError(
+                        "Paymob {Step} failed. " +
+                        "StatusCode: {StatusCode}. " +
+                        "Response: {Response}",
+                        "GetPaymentKey",
+                        (int)paymentKeyResponse.StatusCode,
+                        paymentKeyContent);
+                    throw new InvalidOperationException(
+                        $"Paymob error ({(int)paymentKeyResponse.StatusCode}): {paymentKeyContent}");
+                }
                 var paymentToken = JsonDocument.Parse(paymentKeyContent).RootElement.GetProperty("token").GetString();
 
                 var iframeUrl = $"https://accept.paymob.com/api/acceptance/iframes/{_options.IframeId}?payment_token={paymentToken}";
@@ -113,8 +163,15 @@ namespace TaskPilot.Infrastructure.Payments.Gateways
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Paymob CreateSubscriptionAsync error");
-                return new GatewaySubscriptionResult { Status = "failed", ErrorMessage = ex.Message };
+                _logger.LogError(ex,
+                    "Paymob CreateSubscriptionAsync failed: {Message}",
+                    ex.Message);
+                return new GatewaySubscriptionResult
+                {
+                    Status = "failed",
+                    ErrorMessage = ex.Message,
+                    ClientSecret = null
+                };
             }
         }
 
