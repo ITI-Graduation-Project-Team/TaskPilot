@@ -94,8 +94,8 @@ namespace TaskPilot.Services
             if (!Enum.TryParse<BillingCycle>(dto.BillingCycle, out var billingCycle))
                 return Result.Failure<UserSubscriptionDto>(UserSubscriptionErrors.InvalidBillingCycle);
 
-            // Expire current pending/active subscriptions
-            var activeSubs = await _subscriptionRepo.FindAsync(s => s.ProjectManagerId == projectManagerId && (s.Status == SubscriptionStatus.Active || s.Status == SubscriptionStatus.Pending));
+            // Expire current pending subscriptions only (leave active untouched until confirmed)
+            var activeSubs = await _subscriptionRepo.FindAsync(s => s.ProjectManagerId == projectManagerId && s.Status == SubscriptionStatus.Pending);
             foreach (var sub in activeSubs)
             {
                 sub.Status = SubscriptionStatus.Expired;

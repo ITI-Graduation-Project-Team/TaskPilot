@@ -66,6 +66,22 @@ namespace TaskPilot.Services.Payments
                             sub.CanceledAt = DateTime.UtcNow;
                             _subRepo.Update(sub);
 
+                            // Check if user already has an Active subscription
+                            var existingActive = await _subRepo.FindSingleAsync(
+                                s => s.ProjectManagerId == sub.ProjectManagerId &&
+                                     s.Status == SubscriptionStatus.Active &&
+                                     s.Id != sub.Id);
+
+                            if (existingActive != null)
+                            {
+                                _logger.LogInformation(
+                                    "Payment failed for subscription {Id} but " +
+                                    "user {UserId} still has active subscription " +
+                                    "{ActiveId} — skipping Free plan assignment",
+                                    sub.Id, sub.ProjectManagerId, existingActive.Id);
+                                return Result.Success();
+                            }
+
                             var freePlan = await _planRepo.FindSingleAsync(p => p.MonthlyPrice == 0 && p.AnnualPrice == 0);
                             if (freePlan == null)
                             {
@@ -122,6 +138,24 @@ namespace TaskPilot.Services.Payments
                             _subRepo.Update(sub);
                             _logger.LogInformation("Subscription {SubscriptionId} transitioned to {NewStatus} via {Gateway} webhook event {EventType}", sub.Id, sub.Status, gatewayName, result.EventType);
                             
+                            // Find previous Active subscription (different from the one we just activated)
+                            var previousActive = await _subRepo.FindSingleAsync(
+                                s => s.ProjectManagerId == sub.ProjectManagerId &&
+                                     s.Status == SubscriptionStatus.Active &&
+                                     s.Id != sub.Id);
+
+                            if (previousActive != null)
+                            {
+                                previousActive.Status = SubscriptionStatus.Expired;
+                                previousActive.EndDate = DateTime.UtcNow;
+                                _subRepo.Update(previousActive);
+                                _logger.LogInformation(
+                                    "Previous subscription {Id} expired after " +
+                                    "new payment confirmed for user {UserId}",
+                                    previousActive.Id, 
+                                    sub.ProjectManagerId);
+                            }
+
                             var payment = new Payment
                             {
                                 ProjectManagerId = sub.ProjectManagerId,
@@ -163,6 +197,24 @@ namespace TaskPilot.Services.Payments
                             _logger.LogInformation(
                                 "Paymob payment success for order {Id}", 
                                 result.SubscriptionId);
+
+                            // Find previous Active subscription (different from the one we just activated)
+                            var previousActive = await _subRepo.FindSingleAsync(
+                                s => s.ProjectManagerId == sub.ProjectManagerId &&
+                                     s.Status == SubscriptionStatus.Active &&
+                                     s.Id != sub.Id);
+
+                            if (previousActive != null)
+                            {
+                                previousActive.Status = SubscriptionStatus.Expired;
+                                previousActive.EndDate = DateTime.UtcNow;
+                                _subRepo.Update(previousActive);
+                                _logger.LogInformation(
+                                    "Previous subscription {Id} expired after " +
+                                    "new payment confirmed for user {UserId}",
+                                    previousActive.Id, 
+                                    sub.ProjectManagerId);
+                            }
 
                             var payment = new Payment
                             {
