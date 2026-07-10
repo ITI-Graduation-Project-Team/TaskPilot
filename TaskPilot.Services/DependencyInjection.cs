@@ -55,6 +55,7 @@ namespace TaskPilot.Services
             services.AddScoped<ISkillRepository, SkillRepository>();
             services.AddScoped<ISprintRetrospectiveService, SprintRetrospectiveService>();
 
+            services.AddScoped<ISprintLifecycleService, SprintLifecycleService>();
             services.AddScoped<IProjectTeamService, ProjectTeamService>();
             services.AddScoped<ICompanyService,CompanyService>();
 
@@ -63,6 +64,7 @@ namespace TaskPilot.Services
             services.AddScoped<ISprintRiskService, SprintRiskService>();
             services.AddTransient<TaskPilot.Services.BackgroundJobs.SprintRiskDetectionJob>();
 
+            services.AddTransient<TaskPilot.Services.BackgroundJobs.SprintCompletionJob>();
             //Current User Service
             services.AddHttpContextAccessor();
             return services;
