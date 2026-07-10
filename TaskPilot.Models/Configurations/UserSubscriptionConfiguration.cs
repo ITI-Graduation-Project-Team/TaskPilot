@@ -50,6 +50,10 @@ public class UserSubscriptionConfiguration
         builder.HasIndex(s => s.SubscriptionPlanId);
         builder.HasIndex(s => s.Status);
 
+        builder.HasIndex(s => s.ProjectManagerId, "IX_UserSubscriptions_PM_Pending")
+            .IsUnique()
+            .HasFilter("[Status] = 'Pending'");
+
         builder.Property(s => s.GatewaySubscriptionId)
             .HasMaxLength(255);
             

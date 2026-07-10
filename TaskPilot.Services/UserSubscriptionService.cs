@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using TaskPilot.Data.Repositories;
 using TaskPilot.DTOs.UserSubscriptions;
 using TaskPilot.Models.Common.Errors;
@@ -21,19 +23,22 @@ namespace TaskPilot.Services
         private readonly IRepository<ProjectManager> _pmRepo;
         private readonly IPaymentGatewayFactory _gatewayFactory;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly ILogger<UserSubscriptionService> _logger;
 
         public UserSubscriptionService(
             IRepository<UserSubscription> subscriptionRepo,
             IRepository<SubscriptionPlan> planRepo,
             IRepository<ProjectManager> pmRepo,
             IPaymentGatewayFactory gatewayFactory,
-            IUnitOfWork unitOfWork)
+            IUnitOfWork unitOfWork,
+            ILogger<UserSubscriptionService> logger)
         {
             _subscriptionRepo = subscriptionRepo;
             _planRepo = planRepo;
             _pmRepo = pmRepo;
             _gatewayFactory = gatewayFactory;
             _unitOfWork = unitOfWork;
+            _logger = logger;
         }
 
         public async Task<Result<UserSubscriptionDto>> GetByIdAsync(Guid id)
@@ -174,7 +179,36 @@ namespace TaskPilot.Services
             };
 
             await _subscriptionRepo.AddAsync(newSubscription);
-            await _unitOfWork.SaveChangesAsync(); // Ensure Id is populated
+            
+            try
+            {
+                await _unitOfWork.SaveChangesAsync(); // Ensure Id is populated
+            }
+            catch (DbUpdateException ex) when (ex.InnerException?.Message.Contains("IX_UserSubscriptions_PM_Pending") == true)
+            {
+                var existingPending = (await _subscriptionRepo.FindAsync(
+                    s => s.ProjectManagerId == projectManagerId &&
+                         s.Status == SubscriptionStatus.Pending)).FirstOrDefault();
+
+                if (existingPending != null)
+                {
+                    _logger.LogInformation(
+                        "Returning existing Pending subscription {Id} for user {UserId} after concurrent request blocked",
+                        existingPending.Id, projectManagerId);
+                    
+                    var existingDto = MapToDto(existingPending);
+                    existingDto.ClientSecret = existingPending.ClientSecret;
+                    return Result.Success(existingDto);
+                }
+
+                _logger.LogWarning(
+                    "Duplicate pending subscription attempt for user {UserId} — concurrent request blocked",
+                    projectManagerId);
+                return Result.Failure<UserSubscriptionDto>(
+                    new Error("ConcurrencyError", 
+                        ErrorType.Conflict,
+                        "A payment is already in progress. Please complete or cancel it first."));
+            }
 
             var resultDto = MapToDto(newSubscription);
             resultDto.ClientSecret = gatewayResult.ClientSecret;
