@@ -64,6 +64,21 @@ namespace TaskPilot.Services.BackgroundJobs
                 count++;
             }
 
+            var stalePendingCutoff = DateTime.UtcNow.AddHours(-2);
+            var stalePending = await repo.FindAsync(
+                s => s.Status == SubscriptionStatus.Pending &&
+                     s.CreatedAt < stalePendingCutoff);
+
+            foreach (var pending in stalePending)
+            {
+                pending.Status = SubscriptionStatus.Canceled;
+                repo.Update(pending);
+                count++;
+                _logger.LogInformation(
+                    "Stale Pending subscription {Id} for user {UserId} canceled after 2-hour TTL",
+                    pending.Id, pending.ProjectManagerId);
+            }
+
             if (count > 0)
             {
                 await unitOfWork.SaveChangesAsync(stoppingToken);

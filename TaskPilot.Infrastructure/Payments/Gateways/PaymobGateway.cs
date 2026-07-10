@@ -3,6 +3,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System;
 using System.Net.Http;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -198,24 +200,87 @@ namespace TaskPilot.Infrastructure.Payments.Gateways
         {
             try
             {
-                var doc = JsonDocument.Parse(payload);
-                var type = doc.RootElement.GetProperty("type").GetString();
-                var obj = doc.RootElement.GetProperty("obj");
-                var orderId = obj.GetProperty("order").GetProperty("id").GetInt32().ToString();
-                var success = obj.GetProperty("success").GetBoolean();
+                var receivedHmac = headers.TryGetValue("hmac", out var hmacVal) 
+                    ? hmacVal.ToString() 
+                    : string.Empty;
                 
+                if (string.IsNullOrEmpty(receivedHmac))
+                {
+                    receivedHmac = headers.TryGetValue("x-paymob-hmac", out var xHmacVal)
+                        ? xHmacVal.ToString()
+                        : string.Empty;
+                }
+
+                if (string.IsNullOrEmpty(receivedHmac))
+                {
+                    _logger.LogWarning("Paymob webhook missing HMAC header");
+                    return Task.FromResult(new WebhookParseResult { IsValid = false });
+                }
+
+                var doc = JsonDocument.Parse(payload);
+                var obj = doc.RootElement.GetProperty("obj");
+
+                string GetStr(JsonElement el, string prop) =>
+                    el.TryGetProperty(prop, out var val) 
+                        ? val.ToString() 
+                        : string.Empty;
+
+                var concat = string.Concat(
+                    GetStr(obj, "amount_cents"),
+                    GetStr(obj, "created_at"),
+                    GetStr(obj, "currency"),
+                    GetStr(obj, "error_occured"),
+                    GetStr(obj, "has_parent_transaction"),
+                    GetStr(obj, "id"),
+                    GetStr(obj, "integration_id"),
+                    GetStr(obj, "is_3d_secure"),
+                    GetStr(obj, "is_auth"),
+                    GetStr(obj, "is_capture"),
+                    GetStr(obj, "is_refunded"),
+                    GetStr(obj, "is_standalone_payment"),
+                    GetStr(obj, "is_voided"),
+                    GetStr(obj.GetProperty("order"), "id"),
+                    GetStr(obj, "owner"),
+                    GetStr(obj, "pending"),
+                    GetStr(obj.GetProperty("source_data"), "pan"),
+                    GetStr(obj.GetProperty("source_data"), "sub_type"),
+                    GetStr(obj.GetProperty("source_data"), "type"),
+                    GetStr(obj, "success")
+                );
+
+                using var hmac = new HMACSHA512(Encoding.UTF8.GetBytes(_options.HmacSecret));
+                var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(concat));
+                var computedHmac = Convert.ToHexString(hash).ToLower();
+
+                if (computedHmac != receivedHmac.ToLower())
+                {
+                    _logger.LogWarning("Paymob webhook HMAC mismatch.");
+                    return Task.FromResult(new WebhookParseResult { IsValid = false });
+                }
+
+                var success = obj.GetProperty("success").GetBoolean();
+                var orderId = obj.GetProperty("order").GetProperty("id").GetInt64().ToString();
+                var transactionId = GetStr(obj, "id");
+                
+                decimal amount = 0;
+                if (obj.TryGetProperty("amount_cents", out var amountCentsEl) && amountCentsEl.TryGetInt32(out var amountCents))
+                {
+                    amount = amountCents / 100m;
+                }
+
                 return Task.FromResult(new WebhookParseResult
                 {
                     IsValid = true,
                     EventType = success ? "transaction.success" : "transaction.failed",
                     SubscriptionId = orderId,
-                    PaymentId = obj.GetProperty("id").GetInt32().ToString(),
-                    Amount = obj.GetProperty("amount_cents").GetInt32() / 100m,
+                    PaymentId = transactionId,
+                    Amount = amount,
                     Status = success ? "success" : "failed"
                 });
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogError(ex, "Paymob HMAC verification failed");
                 return Task.FromResult(new WebhookParseResult { IsValid = false });
             }
         }

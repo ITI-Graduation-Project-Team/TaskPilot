@@ -53,6 +53,8 @@ namespace TaskPilot.Services.Payments
 
             try
             {
+                await _unitOfWork.BeginTransactionAsync(default);
+
                 _logger.LogInformation("Webhook received: {EventType} from {Gateway}", result.EventType, gatewayName);
 
                 if (!string.IsNullOrEmpty(result.SubscriptionId))
@@ -62,9 +64,38 @@ namespace TaskPilot.Services.Payments
                     {
                         if (result.EventType == "BILLING.SUBSCRIPTION.CANCELLED")
                         {
+                            if (sub.Status == SubscriptionStatus.Expired)
+                            {
+                                _logger.LogInformation("Duplicate BILLING.SUBSCRIPTION.CANCELLED ignored — subscription {Id} already Expired", sub.Id);
+                                await _unitOfWork.CommitTransactionAsync(default);
+                                return Result.Success();
+                            }
+
                             sub.Status = SubscriptionStatus.Expired;
                             sub.CanceledAt = DateTime.UtcNow;
                             _subRepo.Update(sub);
+
+                            var freePlan = await _planRepo.FindSingleAsync(p => p.MonthlyPrice == 0 && p.AnnualPrice == 0);
+                            if (freePlan == null)
+                            {
+                                _logger.LogError("Free plan not found when transitioning subscription {SubscriptionId}", sub.Id);
+                                await _unitOfWork.RollbackTransactionAsync(default);
+                                return Result.Failure(CommonErrors.ServerError("Free plan not found"));
+                            }
+
+                            var existingFreeSub = await _subRepo.FindSingleAsync(
+                                s => s.ProjectManagerId == sub.ProjectManagerId &&
+                                     s.Status == SubscriptionStatus.Active &&
+                                     s.SubscriptionPlanId == freePlan.Id &&
+                                     s.Id != sub.Id);
+
+                            if (existingFreeSub != null)
+                            {
+                                _logger.LogInformation("Free plan already assigned for user {UserId} — skipping duplicate Free plan creation", sub.ProjectManagerId);
+                                await _unitOfWork.SaveChangesAsync(default);
+                                await _unitOfWork.CommitTransactionAsync(default);
+                                return Result.Success();
+                            }
 
                             // Check if user already has an Active subscription
                             var existingActive = await _subRepo.FindSingleAsync(
@@ -79,15 +110,12 @@ namespace TaskPilot.Services.Payments
                                     "user {UserId} still has active subscription " +
                                     "{ActiveId} — skipping Free plan assignment",
                                     sub.Id, sub.ProjectManagerId, existingActive.Id);
+                                await _unitOfWork.SaveChangesAsync(default);
+                                await _unitOfWork.CommitTransactionAsync(default);
                                 return Result.Success();
                             }
 
-                            var freePlan = await _planRepo.FindSingleAsync(p => p.MonthlyPrice == 0 && p.AnnualPrice == 0);
-                            if (freePlan == null)
-                            {
-                                _logger.LogError("Free plan not found when transitioning subscription {SubscriptionId}", sub.Id);
-                                return Result.Failure(CommonErrors.ServerError("Free plan not found"));
-                            }
+
 
                             var freeSub = new UserSubscription
                             {
@@ -235,6 +263,22 @@ namespace TaskPilot.Services.Payments
                             sub.Status = SubscriptionStatus.Canceled;
                             sub.CanceledAt = DateTime.UtcNow;
                             _subRepo.Update(sub);
+                            
+                            var existingActive = await _subRepo.FindSingleAsync(
+                                s => s.ProjectManagerId == sub.ProjectManagerId &&
+                                     s.Status == SubscriptionStatus.Active &&
+                                     s.Id != sub.Id);
+
+                            if (existingActive != null)
+                            {
+                                _logger.LogInformation(
+                                    "Paymob payment failed for subscription {Id} but user {UserId} still has active plan {ActiveId} — skipping Free plan assignment",
+                                    sub.Id, sub.ProjectManagerId, existingActive.Id);
+                                await _unitOfWork.SaveChangesAsync(default);
+                                await _unitOfWork.CommitTransactionAsync(default);
+                                return Result.Success();
+                            }
+
                             _logger.LogInformation(
                                 "Paymob payment failed for order {Id}", 
                                 result.SubscriptionId);
@@ -247,11 +291,13 @@ namespace TaskPilot.Services.Payments
                 }
 
                 await _unitOfWork.SaveChangesAsync(default);
+                await _unitOfWork.CommitTransactionAsync(default);
 
                 return Result.Success();
             }
             catch (Exception ex)
             {
+                await _unitOfWork.RollbackTransactionAsync(default);
                 _logger.LogError(ex, "Webhook processing failed for event {EventType}: {ErrorMessage}", result.EventType, ex.Message);
                 return Result.Failure(CommonErrors.ServerError("Webhook processing failed"));
             }
