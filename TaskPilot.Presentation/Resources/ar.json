@@ -179,7 +179,7 @@
   "CALENDAR_EVENT_RETRIEVED": "تم استرجاع تفاصيل الحدث بنجاح.",
   "CALENDAR_EVENT_CREATED": "تم إنشاء الحدث بنجاح.",
   "CALENDAR_EVENT_RESCHEDULED": "تم إعادة جدولة الحدث بنجاح.",
-  "CALENDAR_WORKLOAD_RETRIEVED": "تم استرجاع ملخص عبء العمل بنجاح."
+  "CALENDAR_WORKLOAD_RETRIEVED": "تم استرجاع ملخص عبء العمل بنجاح.",
   // identity describer
   "PASS_REQ_NON_ALPHANUMERIC": "يجب أن تحتوي كلمة المرور على رمز واحد على الأقل غير أبجدي رقمي.",
   "PASS_REQ_DIGIT": "يجب أن تحتوي كلمة المرور على رقم واحد على الأقل ('0'-'9').",
