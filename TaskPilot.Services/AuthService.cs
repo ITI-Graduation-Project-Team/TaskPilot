@@ -8,6 +8,7 @@ using TaskPilot.Models.Entities;
 using TaskPilot.Models.Enums;
 using TaskPilot.Services.Interfaces.External;
 using TaskPilot.Services.Interfaces;
+using Microsoft.AspNetCore.Identity.Data;
 
 namespace TaskPilot.Services
 {
@@ -20,7 +21,7 @@ namespace TaskPilot.Services
         private readonly IGoogleAuthService _googleAuthService;
         private readonly IRepository<SubscriptionPlan> _planRepo;
         private readonly IRepository<EmployeeInvitation> _invitationRepository;
-        private readonly ILocalizationService _localizationService;
+        private readonly TaskPilot.Models.Common.ILocalizationService _localizationService;
 
         private readonly IRefreshTokenService _refreshTokenService;
         public AuthService(
@@ -31,7 +32,7 @@ namespace TaskPilot.Services
             IGoogleAuthService googleAuthService,
             IRepository<SubscriptionPlan> planRepo,
             IRepository<EmployeeInvitation> invitationRepository,
-            ILocalizationService localizationService,
+            TaskPilot.Models.Common.ILocalizationService localizationService,
             IRefreshTokenService refreshTokenService)
         {
             _identityService = identityService;
@@ -162,6 +163,7 @@ namespace TaskPilot.Services
                 Roles = roles,
                 Token = token,
                 UserId = userResult.Value.Id,
+                IsProfileCompleted = user is Employee emp ? emp.IsProfileCompleted : user.CompanyId.HasValue
             };
 
             return response;
@@ -199,7 +201,7 @@ namespace TaskPilot.Services
                 RefreshToken = refreshToken.Value,
                 UserId = user.Id,
                 Roles = roles,
-                IsProfileCompleted = user is Employee emp ? emp.IsProfileCompleted : true
+                IsProfileCompleted = user is Employee emp ? emp.IsProfileCompleted : user.CompanyId.HasValue
             };
             return response;
         }
@@ -297,15 +299,16 @@ namespace TaskPilot.Services
                 Token = token,
                 Roles = roles,
                 UserId = user.Id,
-                RefreshToken = refreshToken.Value
+                RefreshToken = refreshToken.Value,
+                IsProfileCompleted = user is Employee emp ? emp.IsProfileCompleted : user.CompanyId.HasValue
             };
             return response;
 
         }
 
-        public async Task<Result> ForgotPasswordAsync(string email)
+        public async Task<Result> ForgotPasswordAsync(ForgotPasswordDto dto)
         {
-            var userResult = await _identityService.FindByEmailAsync(email);
+            var userResult = await _identityService.FindByEmailAsync(dto.Email);
             if (userResult.IsFailure)
             {
                 return Result.Success();

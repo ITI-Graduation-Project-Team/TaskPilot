@@ -14,6 +14,6 @@ namespace TaskPilot.DTOs.SubscriptionPlans
         public bool HasAi { get; set; }
         public bool HasAdvancedAnalytics { get; set; }
         public bool HasTrial { get; set; }
-        public int? TrialDays { get; set; }
+        public int TrialDays { get; set; }
     }
 }

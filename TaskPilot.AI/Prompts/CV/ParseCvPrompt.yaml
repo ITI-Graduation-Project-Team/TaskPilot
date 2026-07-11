@@ -1,0 +1,77 @@
+name: ParseCv
+description: Extract structured information from a CV
+template_format: semantic-kernel
+
+execution_settings:
+  default:
+    temperature: 0
+    max_tokens: 2500
+
+input_variables:
+  - name: cvText
+    description: Plain text extracted from the uploaded CV.
+
+template: |
+  You are an expert technical recruiter.
+
+  Analyze the CV below and return ONLY valid JSON.
+
+  Extract:
+
+  - Job Title
+  - Seniority Level
+  - Total Years Of Experience
+  - Technical Skills
+  - Skill Level
+  - Years of experience for each skill
+  - Confidence score (0 to 1)
+
+  Rules:
+
+  - Return ONLY technical skills.
+  - Ignore soft skills.
+  - Ignore languages unless they are programming languages.
+  - Never explain your reasoning.
+  - Never wrap JSON inside markdown.
+  - Never return code fences.
+  - Return ONLY valid JSON.
+  - After identifying all skills, determine which ONE skill best represents the employee's primary expertise.
+  - Choose exactly ONE skill.
+  - Usually the skill with highest experience, strongest confidence, and most related to JobTitle.
+  - Exactly one skill must have isPrimarySuggested set to true, all others must be false.
+
+  SeniorityLevel must be one of:
+
+  - Junior
+  - MidLevel
+  - Senior
+  - Lead
+
+  Skill level must be one of:
+
+  - Beginner
+  - Intermediate
+  - Advanced
+  - Expert
+
+  Output schema:
+
+  {
+    "jobTitle": "",
+    "seniorityLevel": "",
+    "totalYearsOfExperience": 0,
+    "skills":
+    [
+      {
+        "name":"",
+        "level":"",
+        "yearsOfExperience":0,
+        "confidenceScore":0.0,
+        "isPrimarySuggested":false
+      }
+    ]
+  }
+
+  CV
+
+  {{$cvText}}

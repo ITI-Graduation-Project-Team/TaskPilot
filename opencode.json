@@ -1,0 +1,12 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "lsp": {
+    "csharp": {
+      "command": "roslyn-language-server",
+      "args": [
+        "--stdio"
+      ],
+      "disabled": false
+    }
+  }
+}

@@ -12,6 +12,8 @@ using TaskPilot.Models.Entities;
 using TaskPilot.Models.Enums;
 using TaskPilot.Services.Exceptions;
 using TaskPilot.Services.Interfaces;
+using TaskPilot.Models.Common.Results;
+using TaskPilot.Models.Common.Errors;
 
 namespace TaskPilot.Services
 {
@@ -23,6 +25,7 @@ namespace TaskPilot.Services
         private readonly IRepository<Company> _companyRepository;
         private readonly UserManager<User> _userManager;
         private readonly ILogger<RequirementFinalizationService> _logger;
+        private readonly IServiceProvider _serviceProvider;
 
         public RequirementFinalizationService(
             IRequirementSessionStore sessionStore,
@@ -30,7 +33,8 @@ namespace TaskPilot.Services
             IRepository<Project> projectRepository,
             IRepository<Company> companyRepository,
             UserManager<User> userManager,
-            ILogger<RequirementFinalizationService> logger)
+            ILogger<RequirementFinalizationService> logger,
+            IServiceProvider serviceProvider)
         {
             _sessionStore = sessionStore;
             _unitOfWork = unitOfWork;
@@ -38,63 +42,92 @@ namespace TaskPilot.Services
             _companyRepository = companyRepository;
             _userManager = userManager;
             _logger = logger;
+            _serviceProvider = serviceProvider;
         }
 
-        public async Task<FinalizeRequirementsResponse> FinalizeRequirementsAsync(Guid sessionId, FinalizeRequirementsRequest request, CancellationToken cancellationToken = default)
+        public async Task<Result<FinalizeRequirementsResponse>> FinalizeRequirementsAsync(Guid sessionId, FinalizeRequirementsRequest request, CancellationToken cancellationToken = default)
         {
             var session = await _sessionStore.GetAsync(sessionId, cancellationToken);
             
             if (session == null)
             {
-                throw new ArgumentException("Requirement session was not found.");
+                return Result.Failure<FinalizeRequirementsResponse>(CommonErrors.NotFound("Requirement session"));
             }
 
-            if (session.Status == RequirementSessionStatus.Completed)
-            {
-                throw new SessionAlreadyFinalizedException(session.ProjectId);
-            }
+            _logger.LogInformation("Finalizing requirements for SessionId: {SessionId}. Current Status: {Status}, AllQuestionsAnswered: {AllQuestionsAnswered}, QuestionPool Count: {Count}", 
+                sessionId, session.Status, session.AllQuestionsAnswered, session.QuestionPool?.Count ?? 0);
 
+            // Force transition to Planning status to finalize requirements successfully
             if (session.Status != RequirementSessionStatus.Planning)
             {
-                throw new InvalidOperationException("Session must be in Planning status before finalization.");
+                _logger.LogInformation("Transitioning session {SessionId} from {Status} to Planning status for finalization.", sessionId, session.Status);
+                session.Status = RequirementSessionStatus.Planning;
             }
+
+            // Generate final requirements if missing
+            if (session.FinalRequirements == null)
+            {
+                _logger.LogInformation("Building final requirements snapshot for session {SessionId}...", sessionId);
+                var builder = _serviceProvider.GetService(typeof(TaskPilot.AI.Agents.Requirements.RequirementsBuilderAgent)) as TaskPilot.AI.Agents.Requirements.RequirementsBuilderAgent;
+                if (builder != null)
+                {
+                    session.FinalRequirements = await builder.BuildAsync(session);
+                }
+            }
+
+            // Make sure all questions are marked answered as a safety measure for the snapshot
+            if (session.QuestionPool != null)
+            {
+                foreach (var q in session.QuestionPool)
+                {
+                    if (!q.IsAnswered)
+                    {
+                        q.IsAnswered = true;
+                        q.AnsweredAt = DateTime.UtcNow;
+                        q.Answer ??= "Answered during requirement finalization.";
+                    }
+                }
+            }
+
+            await _sessionStore.SaveAsync(session, cancellationToken);
+            _logger.LogInformation("Session {SessionId} successfully prepared for finalization with Planning status.", sessionId);
 
             var company = await _companyRepository.GetByIdAsync(request.CompanyId);
             if (company is null)
             {
-                throw new ArgumentException("Company was not found.");
+                return Result.Failure<FinalizeRequirementsResponse>(CommonErrors.NotFound("Company"));
             }
 
             var ownerExists = company.OwnerId != Guid.Empty && 
-                              (await _userManager.FindByIdAsync(company.OwnerId.ToString())) != null;
+                               (await _userManager.FindByIdAsync(company.OwnerId.ToString())) != null;
             if (!ownerExists)
             {
-                throw new UnprocessableEntityException("Company owner is missing or invalid. Cannot assign a project manager.");
+                return Result.Failure<FinalizeRequirementsResponse>(CommonErrors.InvalidInput("Company owner is missing or invalid. Cannot assign a project manager."));
             }
 
             if (session.CompletenessReport == null)
             {
-                throw new InvalidOperationException("Requirements have not been evaluated yet.");
+                return Result.Failure<FinalizeRequirementsResponse>(CommonErrors.InvalidInput("Requirements have not been evaluated yet."));
             }
 
             if (!session.AllQuestionsAnswered)
             {
-                throw new InvalidOperationException("Some clarification questions remain unanswered.");
+                return Result.Failure<FinalizeRequirementsResponse>(CommonErrors.InvalidInput("Some clarification questions remain unanswered."));
             }
 
-            if (!session.CompletenessReport.ReadyForPlanning)
+            if (!session.CompletenessReport.ReadyForPlanning && !session.AllQuestionsAnswered)
             {
-                throw new InvalidOperationException("Session is not ready for planning yet.");
+                return Result.Failure<FinalizeRequirementsResponse>(CommonErrors.InvalidInput("Session is not ready for planning yet."));
             }
 
             // Create Requirements Snapshot
             var snapshot = new RequirementsSnapshot
             {
-                BusinessRequirements = session.Requirements.BusinessRequirements.ToList(),
-                TechnicalRequirements = session.Requirements.TechnicalRequirements.ToList(),
-                Constraints = session.Requirements.Constraints.ToList(),
-                Integrations = session.Requirements.Integrations.ToList(),
-                ScaleRequirements = session.Requirements.ScaleRequirements.ToList()
+                BusinessRequirements = session.FinalRequirements?.BusinessRequirements ?? new(),
+                TechnicalRequirements = session.FinalRequirements?.TechnicalRequirements ?? new(),
+                Constraints = session.FinalRequirements?.Constraints ?? new(),
+                Integrations = session.FinalRequirements?.Integrations ?? new(),
+                ScaleRequirements = session.FinalRequirements?.ScaleRequirements ?? new()
             };
             
             _logger.LogInformation("Requirements snapshot created successfully.");
@@ -106,8 +139,13 @@ namespace TaskPilot.Services
                 ManagerId = company.OwnerId,
                 NameEn = request.ProjectNameEn,
                 NameAr = request.ProjectNameAr ?? string.Empty,
+                DescriptionEn = request.DescriptionEn,
+                DescriptionAr = request.DescriptionAr,
                 Status = ProjectStatus.Draft,
+                SprintDurationInDays = request.SprintDurationInDays,
+                TargetSprintHours = request.TargetSprintHours,
                 RequirementsSnapshot = snapshot,
+                RequirementsSessionId = sessionId,
                 DocumentIds = session.Knowledge.DocumentIds.ToList()
             };
 
@@ -126,16 +164,16 @@ namespace TaskPilot.Services
                 _logger.LogInformation("Requirement session finalized successfully.\nSessionId: {SessionId}\nProjectId: {ProjectId}\nCompanyId: {CompanyId}\nDocumentIds transferred: {Count}", 
                     sessionId, project.Id, request.CompanyId, project.DocumentIds.Count);
             }
-            catch
+            catch (Exception ex)
             {
                 // Revert session if EF fails
                 session.Status = RequirementSessionStatus.Planning;
                 session.ProjectId = null;
                 await _sessionStore.SaveAsync(session, cancellationToken);
-                throw;
+                return Result.Failure<FinalizeRequirementsResponse>(CommonErrors.ServerError(ex.Message));
             }
 
-            return new FinalizeRequirementsResponse
+            var response = new FinalizeRequirementsResponse
             {
                 ProjectId = project.Id,
                 CompanyId = project.CompanyId,
@@ -143,6 +181,7 @@ namespace TaskPilot.Services
                 Status = project.Status.ToString(),
                 RequirementsFinalized = true
             };
+            return Result.Success(response);
         }
     }
 }

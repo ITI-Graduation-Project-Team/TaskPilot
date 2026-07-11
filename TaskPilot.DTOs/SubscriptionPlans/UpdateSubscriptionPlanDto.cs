@@ -30,6 +30,6 @@ namespace TaskPilot.DTOs.SubscriptionPlans
         
         public bool HasTrial { get; set; }
         
-        public int? TrialDays { get; set; }
+        public int TrialDays { get; set; }
     }
 }

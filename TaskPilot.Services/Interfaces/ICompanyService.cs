@@ -1,5 +1,9 @@
-﻿using TaskPilot.DTOs.Company;
+using TaskPilot.DTOs.Company;
 using TaskPilot.Models.Common.Results;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Collections.Generic;
+using System;
 
 namespace TaskPilot.Services.Interfaces
 {
@@ -10,8 +14,27 @@ namespace TaskPilot.Services.Interfaces
                 SetupCompanyRequest request,
                 Guid ownerId);
 
+        Task<Result<InviteEmployeesResponse>>
+            InviteEmployeesAsync(
+                InviteEmployeesRequest request,
+                Guid ownerId);
+
         Task<Result<List<EmployeeSuggestionDTO>>>
          SearchEmployeesAsync(
-           string query);
+           string query, Guid ownerId);
+
+        Task<Result<PagedResult<CompanyInvitationDto>>>
+            GetInvitationsAsync(Guid ownerId, TaskPilot.Models.Enums.InvitationStatus status = TaskPilot.Models.Enums.InvitationStatus.All, int page = 1, int pageSize = 20);
+
+        Task<Result<bool>>
+            CancelInvitationAsync(Guid invitationId, Guid ownerId);
+
+        Task<Result<bool>>
+            ResendInvitationAsync(Guid invitationId, Guid ownerId);
+
+        Task<Result<List<CompanyEmployeeDto>>>
+            GetCompanyEmployeesAsync(
+                Guid companyId,
+                CancellationToken cancellationToken = default);
     }
 }

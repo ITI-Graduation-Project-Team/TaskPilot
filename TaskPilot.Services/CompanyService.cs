@@ -1,4 +1,5 @@
-﻿using TaskPilot.Data.Repositories;
+using Microsoft.EntityFrameworkCore;
+using TaskPilot.Data.Repositories;
 using TaskPilot.DTOs;
 using TaskPilot.DTOs.Company;
 using TaskPilot.Models.Common.Errors;
@@ -38,6 +39,9 @@ namespace TaskPilot.Services
         private readonly IFileStorageService
             _fileStorage;
 
+        private readonly IUnitOfWork
+            _unitOfWork;
+
         public CompanyService(
             IRepository<Company> companyRepository,
             IRepository<ProjectManager>
@@ -48,7 +52,8 @@ namespace TaskPilot.Services
             IEmailService emailService,
             IEmailBodyService emailBodyService,
             IFileStorageService fileStorage,
-            IRepository<Employee> employeeRepository)
+            IRepository<Employee> employeeRepository,
+            IUnitOfWork unitOfWork)
         {
             _companyRepository =
                 companyRepository;
@@ -73,23 +78,35 @@ namespace TaskPilot.Services
 
             _fileStorage =
                 fileStorage;
+
+            _unitOfWork =
+                unitOfWork;
         }
 
-        public async Task<Result<CompanyResponse>>
-            SetupCompanyAsync(
-                SetupCompanyRequest request,
-                Guid ownerId)
+        public async Task<Result<CompanyResponse>> SetupCompanyAsync(
+    SetupCompanyRequest request,
+    Guid ownerId)
         {
+            // Get Owner
 
-            var ownerExists =
+            var owner =
                 await _projectManagerRepository
-                    .AnyAsync(x => x.Id == ownerId);
+                    .GetByIdAsync(ownerId);
 
-            if (!ownerExists)
+            if (owner is null)
             {
                 return Result<CompanyResponse>
                     .Failure(
                         CompanyErrors.InvalidOwner);
+            }
+
+            // Prevent creating more than one company
+
+            if (owner.CompanyId.HasValue)
+            {
+                return Result<CompanyResponse>
+                    .Failure(
+                        CompanyErrors.ProjectManagerAlreadyHasCompany);
             }
 
             // Normalize Company Name
@@ -99,37 +116,24 @@ namespace TaskPilot.Services
                     .Trim()
                     .ToLower();
 
-            // Check Existing Company
-
-            var companyExists =
-                await _companyRepository
-                    .AnyAsync(x =>
-                        x.Name.ToLower()
-                        == normalizedCompanyName);
-
-            if (companyExists)
-            {
-                return Result<CompanyResponse>
-                    .Failure(
-                        CompanyErrors
-                            .CompanyAlreadyExists);
-            }
-
+            // Create Company
 
             var company = new Company
             {
                 Name = request.CompanyName.Trim(),
-
                 OwnerId = ownerId
             };
 
             await _companyRepository
                 .AddAsync(company);
 
+            // Link Owner To Company
+
+            owner.CompanyId = company.Id;
+
             // Upload Policy Document
 
             string? documentUrl = null;
-
             string? documentPublicId = null;
 
             if (request.PolicyDocument != null)
@@ -138,13 +142,12 @@ namespace TaskPilot.Services
                     await _fileStorage
                         .UploadFileAsync(
                             request.PolicyDocument,
-                           $"taskpilot/companies/{company.Id}/policies");
+                            $"taskpilot/companies/{company.Id}/policies");
 
                 if (!uploadResult.IsSuccess)
                 {
                     return Result<CompanyResponse>
-                        .Failure(
-                            uploadResult.Error!);
+                        .Failure(uploadResult.Error!);
                 }
 
                 documentUrl =
@@ -156,15 +159,9 @@ namespace TaskPilot.Services
 
             // Create Default Policy
 
-            if (
-                !string.IsNullOrWhiteSpace(
-                    request.PolicyContentEn)
-                ||
-                !string.IsNullOrWhiteSpace(
-                    request.PolicyContentAr)
-                ||
-                request.PolicyDocument != null
-            )
+            if (!string.IsNullOrWhiteSpace(request.PolicyContentEn)
+                || !string.IsNullOrWhiteSpace(request.PolicyContentAr)
+                || request.PolicyDocument != null)
             {
                 var policy = new Policy
                 {
@@ -204,98 +201,67 @@ namespace TaskPilot.Services
                     .AddAsync(policy);
             }
 
-            // Employee Invitations
+            // Employee Invitations — save all DB records first, then send emails
 
-            request.EmployeeEmails ??=
-                new List<string>();
+            request.EmployeeEmails ??= new List<string>();
 
             var emails =
                 request.EmployeeEmails
-                    .Select(x =>
-                        x.Trim().ToLower())
+                    .Select(x => x.Trim().ToLower())
                     .Distinct()
                     .ToList();
 
+            // Collect valid invitations to send in memory before saving
+            var pendingInvitations = new List<(string email, EmployeeInvitation invitation)>();
+
             foreach (var email in emails)
             {
-                // Check Existing Pending Invitation
+                var normalizedEmail = email.Trim().ToLower();
 
-                var invitationExists =
-                    await _invitationRepository
-                        .AnyAsync(x =>
-                            x.Email == email
-                            &&
-                            x.CompanyId
-                                == company.Id
-                            &&
-                            !x.IsAccepted);
+                var alreadyInCompany = await _employeeRepository
+                    .AnyAsync(x => x.Email == normalizedEmail && x.CompanyId == company.Id);
+                if (alreadyInCompany) continue;
 
-                if (invitationExists)
-                    continue;
+                var invitationExists = await _invitationRepository
+                    .AnyAsync(x => x.Email == normalizedEmail && x.CompanyId == company.Id && !x.IsAccepted);
+                if (invitationExists) continue;
 
-                // Create Invitation
+                var invitation = new EmployeeInvitation
+                {
+                    Email = normalizedEmail,
+                    CompanyId = company.Id,
+                    InvitedById = ownerId,
+                    Token = InvitationTokenGenerator.Generate(),
+                    ExpiresAt = DateTime.UtcNow.AddDays(7)
+                };
 
-                var invitation =
-                    new EmployeeInvitation
-                    {
-                        Email = email,
-
-                        CompanyId = company.Id,
-
-                        InvitedById = ownerId,
-
-                        Token =
-                            InvitationTokenGenerator
-                                .Generate(),
-
-                        ExpiresAt =
-                            DateTime.UtcNow
-                                .AddDays(7)
-                    };
-
-                await _invitationRepository
-                    .AddAsync(invitation);
-
-                // Invitation Link
-
-                var invitationLink =
-                    $"https://localhost:4200/" +
-                    $"accept-invitation" +
-                    $"?token={invitation.Token}";
-
-                // Generate Email Body
-
-                var body =
-                    _emailBodyService
-                        .GenerateEmployeeInvitationBody(
-                            email,
-                            company.Name,
-                            invitationLink);
-
-                // Send Email
-
-                await _emailService
-                    .SendEmailAsync(
-                        new EmailRequest
-                        {
-                            To = email,
-
-                            Subject =
-                                $"Invitation to join {company.Name}",
-
-                            Body = body
-                        });
+                await _invitationRepository.AddAsync(invitation);
+                pendingInvitations.Add((normalizedEmail, invitation));
             }
 
-            // Response
+            // Flush all invitation records to DB before sending emails
+            if (pendingInvitations.Count > 0)
+            {
+                await _unitOfWork.SaveChangesAsync();
+
+                foreach (var (email, invitation) in pendingInvitations)
+                {
+                    var invitationLink = $"https://taskpilot.vercel.app/accept-invitation?token={invitation.Token}";
+                    var body = _emailBodyService.GenerateEmployeeInvitationBody(email, company.Name, invitationLink);
+                    await _emailService.SendEmailAsync(new EmailRequest
+                    {
+                        To = email,
+                        Subject = $"You're invited to join {company.Name} on TaskPilot",
+                        Body = body
+                    });
+                }
+            }
 
             var response =
                 new CompanyResponse
                 {
                     Id = company.Id,
-
                     Name = company.Name,
-
                     OwnerId = company.OwnerId
                 };
 
@@ -306,64 +272,338 @@ namespace TaskPilot.Services
         public async Task<
             Result<List<EmployeeSuggestionDTO>>>
             SearchEmployeesAsync(
-                string query)
+                string query, Guid ownerId)
         {
+            var owner = await _projectManagerRepository.GetByIdAsync(ownerId);
+            if (owner is null) return Result<List<EmployeeSuggestionDTO>>.Failure(CompanyErrors.InvalidOwner);
+            if (owner.CompanyId is null) return Result<List<EmployeeSuggestionDTO>>.Failure(CompanyErrors.NotFound);
+
+            var companyId = owner.CompanyId.Value;
+
             if (string.IsNullOrWhiteSpace(query))
             {
                 return new List<EmployeeSuggestionDTO>();
             }
 
-            query =
-                query.Trim().ToLower();
+            query = query.Trim().ToLower();
 
-            var employees =
-                await _employeeRepository
-                    .FindAsync(e =>
+            var employees = await _employeeRepository.FindAsync(e =>
+                e.Email != null &&
+                (e.Email.ToLower().Contains(query) ||
+                 e.FirstNameEn.ToLower().Contains(query) ||
+                 e.LastNameEn.ToLower().Contains(query) ||
+                 (e.FirstNameEn + " " + e.LastNameEn).ToLower().Contains(query)));
 
-                        e.CompanyId == null
+            var result = new List<EmployeeSuggestionDTO>();
+            foreach (var e in employees.Take(10))
+            {
+                var status = EmployeeSearchStatus.Available;
+                string? statusMessage = "Ready to invite.";
 
-                        &&
+                if (e.CompanyId != null)
+                {
+                    status = EmployeeSearchStatus.AlreadyInCompany;
+                    statusMessage = "Already belongs to another company.";
+                }
+                else
+                {
+                    var isPending = await _invitationRepository.AnyAsync(x => x.Email == e.Email && !x.IsAccepted);
+                    if (isPending)
+                    {
+                        status = EmployeeSearchStatus.PendingInvitation;
+                        statusMessage = "Invitation already pending.";
+                    }
+                }
 
-                        e.Email != null
-
-                        &&
-
-                        (
-                            e.Email.ToLower()
-                                .Contains(query)
-
-                            ||
-
-                            e.FirstNameEn
-                                .ToLower()
-                                .Contains(query)
-
-                            ||
-
-                            e.LastNameEn
-                                .ToLower()
-                                .Contains(query)
-                        ));
-
-            var result =
-                employees
-                    .Take(10)
-                    .Select(e =>
-                        new EmployeeSuggestionDTO
-                        {
-                            Id = e.Id,
-
-                            FullName =
-                                $"{e.FirstNameEn} {e.LastNameEn}",
-
-                            Email = e.Email!,
-
-                            HasCompany =
-                                e.CompanyId != null
-                        })
-                    .ToList();
+                result.Add(new EmployeeSuggestionDTO
+                {
+                    Id = e.Id,
+                    FullName = $"{e.FirstNameEn} {e.LastNameEn}",
+                    Email = e.Email!,
+                    Status = status,
+                    StatusMessage = statusMessage
+                });
+            }
 
             return result;
+        }
+
+        public async Task<Result<List<CompanyEmployeeDto>>> GetCompanyEmployeesAsync(
+            Guid companyId,
+            CancellationToken cancellationToken = default)
+        {
+            var companyExists = await _companyRepository.AnyAsync(c => c.Id == companyId);
+            if (!companyExists)
+                return Result<List<CompanyEmployeeDto>>.Failure(new Error("Company.NotFound", ErrorType.NotFound, "Company not found."));
+
+            var employees = await _employeeRepository.GetQueryable()
+                .Include(e => e.UserSkills)
+                    .ThenInclude(us => us.Skill)
+                .Include(e => e.ProjectEmployees)
+                    .ThenInclude(pe => pe.Project)
+                .Include(e => e.AssignedTasks)
+                    .ThenInclude(t => t.Sprint)
+                .Where(e => e.CompanyId == companyId)
+                .ToListAsync(cancellationToken);
+
+            var dtos = employees.Select(e => {
+                var activeProjectsCount = e.ProjectEmployees.Count(pe => pe.Project != null && pe.Project.Status != ProjectStatus.Completed);
+                var fullName = $"{e.FirstNameEn} {e.LastNameEn}".Trim();
+                if (string.IsNullOrEmpty(fullName))
+                {
+                    fullName = e.Email ?? string.Empty;
+                }
+                return new CompanyEmployeeDto
+                {
+                    EmployeeId = e.Id,
+                    FullName = fullName,
+                    Email = e.Email ?? string.Empty,
+                    JobTitle = e.JobTitle ?? string.Empty,
+                    SeniorityLevel = e.SeniorityLevel?.ToString() ?? string.Empty,
+                    ActiveProjectsCount = activeProjectsCount,
+                    CurrentAssignedTasksCount = e.AssignedTasks.Count(t => t.SprintId != null && t.Status != TaskItemStatus.Done && (t.Sprint == null || t.Sprint.Status == SprintStatus.Active)),
+                    AvailabilityStatus = EmployeeAvailabilityHelper.ComputeAvailabilityStatus(activeProjectsCount),
+                    Skills = e.UserSkills.Select(us => us.Skill.Name).ToList()
+                };
+            }).ToList();
+
+            return Result<List<CompanyEmployeeDto>>.Success(dtos);
+        }
+        public async Task<Result<InviteEmployeesResponse>> InviteEmployeesAsync(
+            InviteEmployeesRequest request,
+            Guid ownerId)
+        {
+            var owner = await _projectManagerRepository.GetByIdAsync(ownerId);
+            if (owner is null)
+                return Result<InviteEmployeesResponse>.Failure(CompanyErrors.InvalidOwner);
+
+            if (owner.CompanyId is null)
+                return Result<InviteEmployeesResponse>.Failure(CompanyErrors.NotFound);
+
+            if (request.Emails is null || !request.Emails.Any())
+                return Result<InviteEmployeesResponse>.Failure(CompanyErrors.NoEmployeesSpecified);
+
+            var company = await _companyRepository.GetByIdAsync(owner.CompanyId.Value);
+            if (company is null)
+                return Result<InviteEmployeesResponse>.Failure(CompanyErrors.NotFound);
+
+            var emails = request.Emails
+                .Where(e => EmailValidator.IsValid(e))
+                .Select(e => e.Trim().ToLower())
+                .Distinct()
+                .ToList();
+
+            var response = new InviteEmployeesResponse();
+
+            foreach (var email in emails)
+            {
+                var result = await CreateInvitationAsync(email, company, ownerId);
+                
+                if (result.IsSuccess)
+                {
+                    response.InvitedEmails.Add(email);
+                    response.SentCount++;
+                }
+                else
+                {
+                    response.SkippedEmployees.Add(new SkippedEmployeeDto
+                    {
+                        Email = email,
+                        Reason = result.Error?.Code ?? "UnknownError"
+                    });
+                }
+            }
+
+            var originalEmails = request.Emails.Where(e => !string.IsNullOrWhiteSpace(e)).ToList();
+            var processedSet = new HashSet<string>();
+
+            foreach (var email in originalEmails)
+            {
+                var normalized = email.Trim().ToLower();
+                if (!EmailValidator.IsValid(normalized))
+                {
+                    response.SkippedEmployees.Add(new SkippedEmployeeDto
+                    {
+                        Email = email,
+                        Reason = "INVALID_EMAIL"
+                    });
+                    continue;
+                }
+
+                if (!processedSet.Add(normalized))
+                {
+                    response.SkippedEmployees.Add(new SkippedEmployeeDto
+                    {
+                        Email = email,
+                        Reason = "DUPLICATE_IN_REQUEST"
+                    });
+                }
+            }
+
+            return Result<InviteEmployeesResponse>.Success(response);
+        }
+
+        private async Task<Result<bool>> CreateInvitationAsync(
+            string email,
+            Company company,
+            Guid ownerId)
+        {
+            var normalizedEmail = email.Trim().ToLower();
+
+            var alreadyInCompany = await _employeeRepository
+                .AnyAsync(x => x.Email == normalizedEmail && x.CompanyId == company.Id);
+
+            if (alreadyInCompany)
+                return Result<bool>.Failure(CompanyErrors.EmployeeAlreadyInCompany);
+
+            var invitationExists = await _invitationRepository
+                .AnyAsync(x =>
+                    x.Email == normalizedEmail &&
+                    x.CompanyId == company.Id &&
+                    !x.IsAccepted);
+
+            if (invitationExists)
+                return Result<bool>.Failure(CompanyErrors.InvitationAlreadySent);
+
+            var invitation = new EmployeeInvitation
+            {
+                Email = normalizedEmail,
+                CompanyId = company.Id,
+                InvitedById = ownerId,
+                Token = InvitationTokenGenerator.Generate(),
+                ExpiresAt = DateTime.UtcNow.AddDays(7)
+            };
+
+            await _invitationRepository.AddAsync(invitation);
+
+            var invitationLink = $"http://localhost:4200/accept-invitation?token={invitation.Token}";
+
+            var body = _emailBodyService.GenerateEmployeeInvitationBody(
+                normalizedEmail,
+                company.Name,
+                invitationLink);
+
+            var emailResult = await _emailService.SendEmailAsync(new EmailRequest
+            {
+                To = normalizedEmail,
+                Subject = $"Invitation to join {company.Name}",
+                Body = body
+            });
+
+            if (emailResult.IsFailure)
+            {
+                return Result<bool>.Failure(emailResult.Error!);
+            }
+
+            return Result<bool>.Success(true);
+        }
+
+        public async Task<Result<PagedResult<CompanyInvitationDto>>> GetInvitationsAsync(Guid ownerId, InvitationStatus status = InvitationStatus.All, int page = 1, int pageSize = 20)
+        {
+            var owner = await _projectManagerRepository.GetByIdAsync(ownerId);
+            if (owner is null) return Result<PagedResult<CompanyInvitationDto>>.Failure(CompanyErrors.InvalidOwner);
+            if (owner.CompanyId is null) return Result<PagedResult<CompanyInvitationDto>>.Failure(CompanyErrors.NotFound);
+
+            var companyId = owner.CompanyId.Value;
+            var utcNow = DateTime.UtcNow;
+
+            var query = _invitationRepository.GetQueryable().Where(x => x.CompanyId == companyId &&
+                (
+                    status == InvitationStatus.All ||
+                    (status == InvitationStatus.Pending && !x.IsAccepted && x.ExpiresAt > utcNow) ||
+                    (status == InvitationStatus.Accepted && x.IsAccepted) ||
+                    (status == InvitationStatus.Expired && !x.IsAccepted && x.ExpiresAt <= utcNow)
+                ));
+
+            var totalItems = await query.CountAsync();
+            var totalPages = totalItems == 0 ? 0 : (int)Math.Ceiling(totalItems / (double)pageSize);
+
+            var invitations = await query
+                .OrderByDescending(x => x.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            var items = invitations.Select(i => new CompanyInvitationDto
+            {
+                Id = i.Id,
+                Email = i.Email,
+                InvitedAt = i.CreatedAt,
+                ExpiresAt = i.ExpiresAt,
+                Accepted = i.IsAccepted,
+                InvitedBy = owner.FirstNameEn + " " + owner.LastNameEn
+            }).ToList();
+
+            var pagedResult = new PagedResult<CompanyInvitationDto>
+            {
+                Items = items,
+                Page = page,
+                PageSize = pageSize,
+                TotalItems = totalItems,
+                TotalPages = totalPages,
+                HasPreviousPage = page > 1,
+                HasNextPage = page < totalPages
+            };
+
+            return Result<PagedResult<CompanyInvitationDto>>.Success(pagedResult);
+        }
+
+        public async Task<Result<bool>> CancelInvitationAsync(Guid invitationId, Guid ownerId)
+        {
+            var owner = await _projectManagerRepository.GetByIdAsync(ownerId);
+            if (owner is null) return Result<bool>.Failure(CompanyErrors.InvalidOwner);
+            if (owner.CompanyId is null) return Result<bool>.Failure(CompanyErrors.NotFound);
+
+            var invitation = await _invitationRepository.GetByIdAsync(invitationId);
+            if (invitation == null || invitation.CompanyId != owner.CompanyId.Value)
+            {
+                return Result<bool>.Failure(CommonErrors.NotFound("Invitation"));
+            }
+
+            if (invitation.IsAccepted)
+            {
+                return Result<bool>.Failure(CompanyErrors.InvitationAlreadyAccepted);
+            }
+
+            _invitationRepository.Delete(invitation);
+            return Result<bool>.Success(true);
+        }
+
+        public async Task<Result<bool>> ResendInvitationAsync(Guid invitationId, Guid ownerId)
+        {
+            var owner = await _projectManagerRepository.GetByIdAsync(ownerId);
+            if (owner is null) return Result<bool>.Failure(CompanyErrors.InvalidOwner);
+            if (owner.CompanyId is null) return Result<bool>.Failure(CompanyErrors.NotFound);
+
+            var invitation = await _invitationRepository.GetByIdAsync(invitationId);
+            if (invitation == null || invitation.CompanyId != owner.CompanyId.Value)
+            {
+                return Result<bool>.Failure(CommonErrors.NotFound("Invitation"));
+            }
+
+            if (invitation.IsAccepted)
+            {
+                return Result<bool>.Failure(CompanyErrors.InvitationAlreadyAccepted);
+            }
+
+            if (invitation.ExpiresAt < DateTime.UtcNow.AddDays(-30))
+            {
+                return Result<bool>.Failure(CompanyErrors.InvitationExpired);
+            }
+
+            var company = await _companyRepository.GetByIdAsync(owner.CompanyId.Value);
+
+            var invitationLink = $"https://localhost:4200/accept-invitation?token={invitation.Token}";
+            var body = _emailBodyService.GenerateEmployeeInvitationBody(invitation.Email, company!.Name, invitationLink);
+
+            await _emailService.SendEmailAsync(new EmailRequest
+            {
+                To = invitation.Email,
+                Subject = $"Invitation to join {company.Name}",
+                Body = body
+            });
+
+            return Result<bool>.Success(true);
         }
     }
 }

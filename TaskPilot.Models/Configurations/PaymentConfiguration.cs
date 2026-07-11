@@ -24,16 +24,16 @@ namespace TaskPilot.Models.Configurations
 
             builder.Property(p => p.Status)
                 .IsRequired()
-                .HasConversion<int>();
+                .HasConversion<string>();
 
             builder.Property(p => p.PaymentGateway)
                 .IsRequired()
-                .HasConversion<int>();
+                .HasConversion<string>();
                 
 
             builder.Property(p => p.PaymentMethod)
                 .IsRequired()
-                .HasConversion<int>();
+                .HasConversion<string>();
 
             builder.Property(p => p.GatewayTransactionId)
                 .HasMaxLength(200);

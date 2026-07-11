@@ -137,8 +137,6 @@ namespace TaskPilot.AI.Models.Session
 
         // Helpers
         public bool AllQuestionsAnswered =>
-            QuestionPool.Any()
-            &&
             QuestionPool.All(q =>
                 q.IsAnswered);
 

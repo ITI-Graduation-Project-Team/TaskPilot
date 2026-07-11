@@ -4,6 +4,7 @@ using Microsoft.OpenApi;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Security.Claims;
 using TaskPilot.AI.Extensions;
 using TaskPilot.Data;
 using TaskPilot.Infrastructure.Extensions;
@@ -14,6 +15,8 @@ using TaskPilot.Presentation.Middlewares;
 using TaskPilot.Presentation.Models;
 using TaskPilot.Services;
 using TaskPilot.Services.Interfaces;
+using Hangfire;
+
 namespace TaskPilot.Presentation
 {
     public class Program
@@ -23,9 +26,12 @@ namespace TaskPilot.Presentation
             var builder = WebApplication.CreateBuilder(args);
             builder.Services.AddData(builder.Configuration);
             builder.Services.AddServices(builder.Configuration);
+            builder.Services.AddScoped<TaskPilot.Services.Interfaces.IAgileCoachService, TaskPilot.Services.Implementations.AgileCoachService>();
             builder.Services.AddAiLayer(builder.Configuration);
+            builder.Services.AddScoped<TaskPilot.AI.Agents.AgileCoachAgent>();
             builder.Services.AddInfrastructure(
     builder.Configuration);
+            builder.Services.AddPaymentLayer(builder.Configuration);
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("AllowAll", policy =>
@@ -35,12 +41,35 @@ namespace TaskPilot.Presentation
                           .AllowAnyHeader();
                 });
             });
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowFrontend", policy =>
+                {
+                    policy
+                        .WithOrigins(
+                            "http://localhost:4200",        // Angular dev
+                            "http://localhost:4000",        // any other local port
+                            "https://taskpilotapi.runasp.net" // production (adjust to real frontend URL)
+                        )
+                        .AllowAnyHeader()
+                        .AllowAnyMethod()
+                        .AllowCredentials();  // now valid because origin is explicit
+                });
+            });
             builder.Services.AddControllers()
                 .AddJsonOptions(options =>
                 {
                     options.JsonSerializerOptions.Converters
                         .Add(new JsonStringEnumConverter());
                 });
+
+            builder.Services.AddHangfire(config => config
+                .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+                .UseSimpleAssemblyNameTypeSerializer()
+                .UseRecommendedSerializerSettings()
+                .UseSqlServerStorage(builder.Configuration.GetConnectionString("DefaultConnection")));
+            
+            builder.Services.AddHangfireServer();
 
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen(options =>
@@ -77,14 +106,11 @@ namespace TaskPilot.Presentation
                    ValidIssuer = builder.Configuration["JWTSettings:Issuer"],
                    ValidAudience = builder.Configuration["JWTSettings:Audience"],
 
-                   IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JWTSettings:Key"]))
+                   IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JWTSettings:Key"])),
+
+                   RoleClaimType = ClaimTypes.Role,
+                   NameClaimType = ClaimTypes.NameIdentifier
                };
-        
-            o.Events = new JwtBearerEvents
-                {
-                    OnChallenge = context =>
-                    {
-                        context.HandleResponse();
 
                         context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                         context.Response.ContentType = "application/json";
@@ -98,6 +124,22 @@ namespace TaskPilot.Presentation
                     }
                 };
             });
+               o.Events = new JwtBearerEvents
+               {
+                   OnChallenge = context =>
+                   {
+                       context.HandleResponse();
+
+                       context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                       context.Response.ContentType = "application/json";
+
+                       var error = CommonErrors.Unauthorized();
+                       var response = Result.Failure(error);
+
+                       return context.Response.WriteAsync(JsonSerializer.Serialize(response));
+                   }
+               };
+           });
             builder.Services.AddAuthorization(options =>
             {
                 options.AddPolicy("ProfileComplete", policy =>
@@ -108,11 +150,19 @@ namespace TaskPilot.Presentation
             });
             var app = builder.Build();
 
+
+            app.UseSwagger();
+            app.UseSwaggerUI();
             
-                app.UseSwagger();
-                app.UseSwaggerUI();
-            
-            app.UseCors("AllowAll");
+            app.UseHangfireDashboard("/hangfire");
+            RecurringJob.AddOrUpdate<TaskPilot.Services.BackgroundJobs.SprintRiskDetectionJob>(
+                "SprintRiskDetectionJob",
+                job => job.ExecuteAsync(CancellationToken.None),
+                Cron.Daily);
+
+            //app.UseCors("AllowAll");
+            app.UseCors("AllowFrontend");
+
             app.UseHttpsRedirection();
 
             app.UseMiddleware<LanguageMiddleware>();

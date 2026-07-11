@@ -1,0 +1,56 @@
+name: WhatIfSimulation
+description: Generates what-if scenarios to resolve a sprint risk
+template_format: semantic-kernel
+
+execution_settings:
+  default:
+    temperature: 0.2
+    max_tokens: 2500
+
+input_variables:
+  - name: riskAlert
+    description: Serialized JSON of the detected risk
+  - name: sprintContext
+    description: Serialized JSON of SprintRiskContext
+
+template: |
+  You are an expert Agile Project Manager.
+  
+  Review the detected Sprint Risk and the current Sprint Context.
+  Generate 2-3 concrete what-if scenarios to resolve the risk.
+  Return ONLY valid JSON.
+  
+  Rules:
+  - Generate scenarios matching these ActionTypes if applicable: Reassign, DropScope, ExtendSprint.
+  - For Reassign: Suggest only employees with the required skills and free calendar capacity.
+  - For DropScope: Suggest dropping only low/medium priority stories.
+  - For ExtendSprint: Suggest this as a last resort.
+  - ProjectedImpact should reference concrete numbers (e.g. hours freed, completion probability).
+  - Never wrap JSON inside markdown.
+  - Never return code fences.
+  - Return ONLY valid JSON.
+  
+  Output schema:
+  {
+    "scenarios": [
+      {
+        "titleEn": "",
+        "titleAr": "",
+        "descriptionEn": "",
+        "descriptionAr": "",
+        "projectedImpactEn": "",
+        "projectedImpactAr": "",
+        "actionType": "",
+        "targetTaskId": null,
+        "suggestedEmployeeId": null,
+        "extensionDays": null,
+        "storyToDropId": null
+      }
+    ]
+  }
+
+  Risk Alert:
+  {{$riskAlert}}
+
+  Sprint Context:
+  {{$sprintContext}}

@@ -13,13 +13,12 @@ public class ProjectEmployeeConfiguration : IEntityTypeConfiguration<ProjectEmpl
         builder.HasOne(pe => pe.Project)
             .WithMany(p => p.ProjectEmployees)
             .HasForeignKey(pe => pe.ProjectId)
-            .OnDelete(DeleteBehavior.Restrict);
+            .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasOne(pe => pe.Employee)
             .WithMany(e => e.ProjectEmployees)
-             .HasForeignKey(pe => pe.EmployeeId)
-              .IsRequired(false)
-              .OnDelete(DeleteBehavior.Restrict);
+            .HasForeignKey(pe => pe.EmployeeId)
+            .OnDelete(DeleteBehavior.Restrict);
 
   
         builder.Property(pe => pe.Role)

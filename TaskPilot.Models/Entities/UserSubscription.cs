@@ -13,6 +13,13 @@ namespace TaskPilot.Models.Entities
         public bool AutoRenew { get; set; }
         public bool IsTrial { get; set; }
         public DateTime? TrialEndDate { get; set; }
+        public bool CancelAtPeriodEnd { get; set; } = false;
+        
+        public string? GatewaySubscriptionId { get; set; }
+        public string? GatewayCustomerId { get; set; }
+        public PaymentGateway Gateway { get; set; }
+        public string? ClientSecret { get; set; }
+        public DateTime? CanceledAt { get; set; }
 
         public ProjectManager ProjectManager { get; set; } = null!;
         public SubscriptionPlan Plan { get; set; } = null!;

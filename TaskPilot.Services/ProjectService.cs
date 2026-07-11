@@ -1,6 +1,7 @@
 using TaskPilot.Models.Common.Errors;
 using TaskPilot.Models.Common.Results;
 using TaskPilot.Services.Interfaces;
+using TaskPilot.Models.Common;
 using TaskPilot.Models.Entities;
 using TaskPilot.Data.Repositories;
 using TaskPilot.DTOs.Projects;
@@ -43,7 +44,10 @@ namespace TaskPilot.Services
                     Name = isArabic ? p.NameAr : p.NameEn,
                     Description = isArabic ? p.DescriptionAr : p.DescriptionEn,
                     CompanyId = p.CompanyId,
-                    ManagerId = p.ManagerId
+                    ManagerId = p.ManagerId,
+                    TechStack = p.TechStack,
+                    PlatformTargets = p.PlatformTargets,
+                    ProjectType = p.ProjectType
                 })
                 .FirstOrDefaultAsync();
 

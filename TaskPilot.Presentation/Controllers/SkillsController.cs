@@ -21,14 +21,14 @@ namespace TaskPilot.Presentation.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAll()
+        public async Task<ActionResult> GetAll()
         {
             var result = await _skillService.GetAllAsync();
             return HandleResult(result, SuccessCodes.Skill.Retrieved);
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create([FromBody] string name)
+        public async Task<ActionResult> Create([FromBody] string name)
         {
             var result = await _skillService.CreateAsync(name);
 
@@ -39,7 +39,7 @@ namespace TaskPilot.Presentation.Controllers
         }
 
         [HttpDelete("{id:int}")]
-        public async Task<IActionResult> Delete(int id)
+        public async Task<ActionResult> Delete(int id)
         {
             var result = await _skillService.DeleteAsync(id);
 
@@ -49,7 +49,7 @@ namespace TaskPilot.Presentation.Controllers
             return HandleResult(result, SuccessCodes.Skill.Deleted);
         }
         [HttpPost("bulk")]
-        public async Task<IActionResult> CreateBulk([FromBody] List<string> names)
+        public async Task<ActionResult> CreateBulk([FromBody] List<string> names)
         {
             var result = await _skillService.CreateBulkAsync(names);
 

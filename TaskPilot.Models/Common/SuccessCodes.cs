@@ -24,6 +24,7 @@ namespace TaskPilot.Models.Common
         {
             public const string Setup = "COMPANY_SETUP_SUCCESS";
             public const string EmployeesSearched = "COMPANY_EMPLOYEES_SEARCHED";
+            public const string EmployeeInvitationsSent = "EMPLOYEE_INVITATIONS_SENT_SUCCESS";
         }
 
         public static class Project
@@ -97,6 +98,23 @@ namespace TaskPilot.Models.Common
             public const string EventRescheduled = "CALENDAR_EVENT_RESCHEDULED";
 
             public const string WorkloadRetrieved = "CALENDAR_WORKLOAD_RETRIEVED";
+
+        public static class Sprint
+        {
+            public const string RiskAlertsRetrieved = "SPRINT_RISK_ALERTS_RETRIEVED";
+            public const string AlertDismissed = "SPRINT_RISK_ALERT_DISMISSED";
+            public const string SimulationGenerated = "SPRINT_RISK_SIMULATION_GENERATED";
+        }
+
+        public static class AgileCoach
+        {
+            public const string SummaryGenerated = "AGILE_COACH_SUMMARY_GENERATED";
+            public const string SummaryRetrieved = "AGILE_COACH_SUMMARY_RETRIEVED";
+            public const string ChatTurnCompleted = "AGILE_COACH_CHAT_TURN_COMPLETED";
+        }
+        public static class Assignment
+        {
+            public const string ScoringCompleted = "ASSIGNMENT_SCORING_COMPLETED";
         }
     }
 }

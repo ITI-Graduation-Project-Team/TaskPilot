@@ -4,6 +4,7 @@ namespace TaskPilot.Models.Enums
     {
         Planned = 0,
         Active = 1,
-        Completed = 2
+        Completed = 2,
+        Cancelled = 3   
     }
 }

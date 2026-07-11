@@ -1,9 +1,1 @@
-namespace TaskPilot.Services.Interfaces
-{
-    public interface ILocalizationService
-    {
-        string GetString(string key);
-        //string GetLocalizedProperty(string enValue, string arValue);
-        string CurrentLanguage { get; }
-    }
-}
+// Replaced by TaskPilot.Models.Common.ILocalizationService to avoid Circular Dependency

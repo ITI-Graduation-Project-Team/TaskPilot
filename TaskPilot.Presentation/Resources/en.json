@@ -40,7 +40,7 @@
   "GOOGLE_AUTHENTICATION_FAILED": "Google authentication failed.",
 
   //success
-  "REGISTER_SUCCESS": "User registered successfully.",
+  "REGISTER_SUCCESS": "otp has been sent to your email",
   "LOGIN_SUCCESS": "Logged in successfully.",
   "EMAIL_CONFIRMED_SUCCESS": "Email confirmed successfully.",
   "OTP_SENT_SUCCESS": "OTP sent successfully.",
@@ -51,6 +51,17 @@
 
   // company
   "COMPANY_NOT_FOUND": "Company was not found.",
+  "PROJECT_MANAGER_ALREADY_HAS_COMPANY": "The project manager already has a company.",
+  "INVITATION_ALREADY_SENT": "An invitation has already been sent to this email.",
+  "EMPLOYEE_ALREADY_IN_COMPANY": "This employee is already in the company.",
+  "INVALID_EMAIL": "Invalid email address.",
+  "NO_EMPLOYEES_SPECIFIED": "No employees were specified.",
+  "DUPLICATE_IN_REQUEST": "Email is duplicated in the request.",
+  "INVITATION_EXPIRED": "Invitation has expired.",
+  "INVITATION_ALREADY_ACCEPTED": "Invitation is already accepted.",
+  "INVALID_INVITATION_STATUS": "Invalid invitation status.",
+  "INVALID_PAGE_NUMBER": "Invalid page number.",
+  "INVALID_PAGE_SIZE": "Invalid page size.",
 
   // skill
   "SKILL_NOT_FOUND": "Skill was not found.",
@@ -89,10 +100,34 @@
   "INVALID_CV_FILE": "Invalid CV file.",
   "CV_FILE_TOO_LARGE": "CV file is too large.",
   "CV_UNSUPPORTED_FORMAT": "Unsupported CV format.",
+  "PRIMARY_SKILL_REQUIRED": "Please choose one primary skill.",
+  "MULTIPLE_PRIMARY_SKILLS": "Only one primary skill is allowed.",
+
+  // assignment
+  "ASSIGNMENT_PROJECT_NOT_FOUND": "Project not found.",
+  "ASSIGNMENT_SPRINT_NOT_FOUND": "Sprint not found.",
+  "SPRINT_DOES_NOT_BELONG_TO_PROJECT": "The sprint does not belong to the specified project.",
+  "SPRINT_CANCELLED": "Cannot build snapshot for a cancelled sprint.",
+  "NO_PROJECT_TEAM": "The project has no assigned team members.",
+  "HOURS_EXCEEDED": "Total sprint task hours exceed the available team capacity.",
+  "NO_UNASSIGNED_TASKS": "There are no unassigned tasks in this sprint.",
+  "HIGH_UTILIZATION": "The sprint is close to the team's maximum capacity.",
+  "HIGH_TASK_COUNT": "The average number of tasks per developer is high.",
+  "SNAPSHOT_UNAVAILABLE": "Unable to build sprint snapshot.",
+  "INVALID_PROJECT": "Invalid project.",
+  "INVALID_SPRINT": "Invalid sprint.",
+  "SNAPSHOT_NOT_FOUND": "Sprint snapshot not found.",
+  "CAPACITY_VALIDATION_FAILED": "Capacity validation failed.",
+  "SCORING_CONFIGURATION_INVALID": "Scoring configuration is invalid.",
+  "ASSIGNMENT_SCORING_COMPLETED": "Assignment scoring completed successfully.",
 
   // company success
   "COMPANY_SETUP_SUCCESS": "Company setup completed successfully.",
   "COMPANY_EMPLOYEES_SEARCHED": "Employees searched successfully.",
+  "EMPLOYEE_INVITATIONS_SENT_SUCCESS": "Employee invitations sent successfully.",
+  "INVITATIONS_RETRIEVED_SUCCESS": "Invitations retrieved successfully.",
+  "INVITATION_CANCELLED_SUCCESS": "Invitation cancelled successfully.",
+  "INVITATION_RESENT_SUCCESS": "Invitation resent successfully.",
 
   // project success
   "PROJECT_CREATED_SUCCESS": "Project created successfully.",
@@ -145,4 +180,20 @@
   "CALENDAR_EVENT_RESCHEDULED": "Calendar event rescheduled successfully.",
   "CALENDAR_WORKLOAD_RETRIEVED": "Employee workload retrieved successfully."
 
+  // identity describer
+  "PASS_REQ_NON_ALPHANUMERIC": "Passwords must have at least one non-alphanumeric character.",
+  "PASS_REQ_DIGIT": "Passwords must have at least one digit ('0'-'9').",
+  "PASS_REQ_LOWER": "Passwords must have at least one lowercase ('a'-'z').",
+  "PASS_REQ_UPPER": "Passwords must have at least one uppercase ('A'-'Z').",
+  "PASS_TOO_SHORT": "Passwords must be at least {0} characters.",
+  "PASS_REQ_UNIQUE_CHARS": "Passwords must use at least {0} unique characters.",
+  "INVALID_TOKEN": "Invalid token.",
+
+  // sprint risk alerts
+  "SPRINT_RISK_ALERTS_RETRIEVED": "Sprint risk alerts retrieved successfully.",
+  "SPRINT_RISK_ALERT_DISMISSED": "Sprint risk alert dismissed successfully.",
+  "SPRINT_RISK_SIMULATION_GENERATED": "Sprint risk simulation generated successfully.",
+  "SPRINT_RISK_ALERT_NOT_FOUND": "Sprint risk alert was not found.",
+  "SPRINT_NOT_ACTIVE": "The sprint is not active.",
+  "RISK_SIMULATION_FAILED": "Failed to generate risk simulation."
 }
