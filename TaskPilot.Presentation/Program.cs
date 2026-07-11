@@ -16,6 +16,7 @@ using TaskPilot.Presentation.Models;
 using TaskPilot.Services;
 using TaskPilot.Services.Interfaces;
 using Hangfire;
+using TaskPilot.Models.Common;
 
 namespace TaskPilot.Presentation
 {
@@ -112,18 +113,9 @@ namespace TaskPilot.Presentation
                    NameClaimType = ClaimTypes.NameIdentifier
                };
 
-                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                        context.Response.ContentType = "application/json";
-                        var localizer = context.HttpContext.RequestServices.GetRequiredService<ILocalizationService>();
-                        Error error = CommonErrors.Unauthorized();
-                       var  description = localizer.GetString(error.Code);
-                        var response = ApiResponse.Fail(
-                            error.Code,
-                            description);
-                        return context.Response.WriteAsync(JsonSerializer.Serialize(response));
-                    }
-                };
-            });
+
+                    
+       
                o.Events = new JwtBearerEvents
                {
                    OnChallenge = context =>
@@ -133,9 +125,13 @@ namespace TaskPilot.Presentation
                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                        context.Response.ContentType = "application/json";
 
-                       var error = CommonErrors.Unauthorized();
-                       var response = Result.Failure(error);
 
+                       var localizer = context.HttpContext.RequestServices.GetRequiredService<ILocalizationService>();
+                       Error error = CommonErrors.Unauthorized();
+                       var description = localizer.GetString(error.Code);
+                       var response = ApiResponse.Fail(
+                           error.Code,
+                           description);
                        return context.Response.WriteAsync(JsonSerializer.Serialize(response));
                    }
                };

@@ -98,7 +98,7 @@ namespace TaskPilot.Models.Common
             public const string EventRescheduled = "CALENDAR_EVENT_RESCHEDULED";
 
             public const string WorkloadRetrieved = "CALENDAR_WORKLOAD_RETRIEVED";
-
+        }
         public static class Sprint
         {
             public const string RiskAlertsRetrieved = "SPRINT_RISK_ALERTS_RETRIEVED";
@@ -118,3 +118,4 @@ namespace TaskPilot.Models.Common
         }
     }
 }
+
