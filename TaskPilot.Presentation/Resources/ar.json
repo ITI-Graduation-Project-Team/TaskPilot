@@ -1,6 +1,7 @@
 {
   "Welcome": "مرحباً",
   "Success": "تمت العملية بنجاح.",
+  //
   "Error": "حدث خطأ.",
   "UNAUTHORIZED": "يجب تسجيل الدخول أولاً.",
   "FORBIDDEN": "ليس لديك صلاحية لتنفيذ هذا الإجراء.",
@@ -171,6 +172,14 @@
   "AI_PROJECT_GENERATED": "تم إنشاء مسودة المشروع بنجاح.",
   "AI_PROJECT_CONFIRMED": "تم تأكيد المشروع بنجاح.",
 
+
+  //calender
+  "CalendarNotFoundOrUnauthorized": "الحدث غير موجود أو لا تملك صلاحية تعديله.",
+  "CALENDAR_EVENTS_RETRIEVED": "تم استرجاع أحداث التقويم بنجاح.",
+  "CALENDAR_EVENT_RETRIEVED": "تم استرجاع تفاصيل الحدث بنجاح.",
+  "CALENDAR_EVENT_CREATED": "تم إنشاء الحدث بنجاح.",
+  "CALENDAR_EVENT_RESCHEDULED": "تم إعادة جدولة الحدث بنجاح.",
+  "CALENDAR_WORKLOAD_RETRIEVED": "تم استرجاع ملخص عبء العمل بنجاح."
   // identity describer
   "PASS_REQ_NON_ALPHANUMERIC": "يجب أن تحتوي كلمة المرور على رمز واحد على الأقل غير أبجدي رقمي.",
   "PASS_REQ_DIGIT": "يجب أن تحتوي كلمة المرور على رقم واحد على الأقل ('0'-'9').",

@@ -1,7 +1,7 @@
 {
   "Welcome": "Welcome",
   "Success": "Operation completed successfully.",
-
+ 
   // auth 
   "Error": "An error occurred.",
   "UNAUTHORIZED": "Authentication is required.",
@@ -171,6 +171,14 @@
   // ai project success
   "AI_PROJECT_GENERATED": "Project draft generated successfully.",
   "AI_PROJECT_CONFIRMED": "Project confirmed successfully.",
+
+  // calender
+  "CalendarNotFoundOrUnauthorized": "calender not found or youare unahtorized",
+  "CALENDAR_EVENTS_RETRIEVED": "Calendar events retrieved successfully.",
+  "CALENDAR_EVENT_RETRIEVED": "Calendar event retrieved successfully.",
+  "CALENDAR_EVENT_CREATED": "Calendar event created successfully.",
+  "CALENDAR_EVENT_RESCHEDULED": "Calendar event rescheduled successfully.",
+  "CALENDAR_WORKLOAD_RETRIEVED": "Employee workload retrieved successfully."
 
   // identity describer
   "PASS_REQ_NON_ALPHANUMERIC": "Passwords must have at least one non-alphanumeric character.",

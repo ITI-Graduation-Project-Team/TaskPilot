@@ -12,7 +12,9 @@ using TaskPilot.Models.Common.Errors;
 using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Enums;
 using TaskPilot.Presentation.Middlewares;
+using TaskPilot.Presentation.Models;
 using TaskPilot.Services;
+using TaskPilot.Services.Interfaces;
 using Hangfire;
 
 namespace TaskPilot.Presentation
@@ -110,6 +112,18 @@ namespace TaskPilot.Presentation
                    NameClaimType = ClaimTypes.NameIdentifier
                };
 
+                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                        context.Response.ContentType = "application/json";
+                        var localizer = context.HttpContext.RequestServices.GetRequiredService<ILocalizationService>();
+                        Error error = CommonErrors.Unauthorized();
+                       var  description = localizer.GetString(error.Code);
+                        var response = ApiResponse.Fail(
+                            error.Code,
+                            description);
+                        return context.Response.WriteAsync(JsonSerializer.Serialize(response));
+                    }
+                };
+            });
                o.Events = new JwtBearerEvents
                {
                    OnChallenge = context =>

@@ -41,6 +41,7 @@ namespace TaskPilot.Data.Context
 
         public DbSet<TaskRequiredSkill> TaskRequiredSkills => Set<TaskRequiredSkill>();
         public DbSet<SkillAlias> SkillAliases => Set<SkillAlias>();
+        public DbSet<CalenderEvent>CalenderEvents => Set<CalenderEvent>();
         public DbSet<SprintRetrospective> SprintRetrospectives => Set<SprintRetrospective>();
         public DbSet<SprintRiskAlert> SprintRiskAlerts => Set<SprintRiskAlert>();
         public DbSet<TaskAiSummary> TaskAiSummaries => Set<TaskAiSummary>();
