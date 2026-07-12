@@ -15,5 +15,9 @@ namespace TaskPilot.Data.Repositories.Interfaces
         Task<List<TaskItem>> GetByUserStoryIdAsync(
             Guid userStoryId,
             CancellationToken cancellationToken = default);
+
+        Task<List<TaskItem>> GetBySprintIdAsync(
+            Guid sprintId,
+            CancellationToken cancellationToken = default);
     }
 }

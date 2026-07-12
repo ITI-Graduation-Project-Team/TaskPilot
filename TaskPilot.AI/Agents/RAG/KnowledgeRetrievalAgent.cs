@@ -1,4 +1,5 @@
 using System;
+using TaskPilot.Models.Enums;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -6,6 +7,8 @@ using Microsoft.Extensions.Logging;
 using TaskPilot.AI.Enums;
 using TaskPilot.AI.Models.Ingestion;
 using TaskPilot.AI.Services.Interfaces;
+using TaskPilot.Models.Common.Results;
+using TaskPilot.Models.Common.Errors;
 
 namespace TaskPilot.AI.Agents.RAG
 {
@@ -22,28 +25,36 @@ namespace TaskPilot.AI.Agents.RAG
             _logger = logger;
         }
 
-        public async Task<List<KnowledgeChunk>> RetrieveAsync(
-            Guid sessionId,
+        public async Task<Result<List<KnowledgeChunk>>> RetrieveAsync(
+            KnowledgeCollectionType collectionType,
+            Guid? requirementSessionId,
+            Guid? projectId,
+            Guid? companyId,
             string question,
             int topK = 5,
+            float scoreThreshold = 0.75f,
             DocumentCategory? category = null,
             CancellationToken cancellationToken = default)
         {
-            if (sessionId == Guid.Empty)
+            if (requirementSessionId == null && projectId == null && companyId == null)
             {
-                throw new ArgumentException("SessionId cannot be empty.", nameof(sessionId));
+                return Result.Failure<List<KnowledgeChunk>>(KnowledgeErrors.MissingTenantIsolation);
             }
 
-            _logger.LogInformation("Retrieving knowledge chunks for session {sessionId}. Question: \"{question}\"", sessionId, question);
+            _logger.LogInformation("Retrieving knowledge chunks for Collection {collectionType}. Question: \"{question}\"", collectionType, question);
 
             var chunks = await _vectorStore.SearchAsync(
-                sessionId,
+                collectionType,
+                requirementSessionId,
+                projectId,
+                companyId,
                 question,
                 topK,
+                scoreThreshold,
                 category,
                 cancellationToken);
 
-            _logger.LogInformation("Retrieved {count} chunks for session {sessionId}", chunks.Count, sessionId);
+            _logger.LogInformation("Retrieved {count} chunks for Collection {collectionType}", chunks.Count, collectionType);
             if (chunks.Count == 0)
             {
                 _logger.LogInformation("No relevant chunks found.\nReturning no-information response.");
@@ -53,7 +64,7 @@ namespace TaskPilot.AI.Agents.RAG
             // The prompt says "Top similarity score: {score}" in the log but `KnowledgeChunk` doesn't include it.
             // I'll leave the basic logging as required but the score might not be available easily.
 
-            return chunks;
+            return Result.Success(chunks);
         }
     }
 }

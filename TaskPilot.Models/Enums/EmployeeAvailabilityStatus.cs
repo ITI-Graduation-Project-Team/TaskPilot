@@ -4,5 +4,6 @@ public enum EmployeeAvailabilityStatus
 {
     Available,
     PartiallyBusy,
-    Busy
+    Busy,
+    Overloaded
 }

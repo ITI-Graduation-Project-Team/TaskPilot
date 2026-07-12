@@ -40,6 +40,7 @@ namespace TaskPilot.Models.Common
             public const string Created = "SKILL_CREATED_SUCCESS";
             public const string Deleted = "SKILL_DELETED_SUCCESS";
             public const string Retrieved = "SKILL_RETRIEVED_SUCCESS";
+            public const string Migrated = "SKILL_MIGRATED_SUCCESS";
         }
 
         public static class Role
@@ -115,6 +116,17 @@ namespace TaskPilot.Models.Common
         public static class Assignment
         {
             public const string ScoringCompleted = "ASSIGNMENT_SCORING_COMPLETED";
+            public const string ExplanationsGenerated = "ASSIGNMENT_EXPLANATIONS_GENERATED";
+            public const string ExplanationFallback = "ASSIGNMENT_EXPLANATION_FALLBACK";
+            public const string AssignmentsConfirmed = "ASSIGNMENT_ASSIGNMENTS_CONFIRMED";
+            public const string TaskUnassigned = "ASSIGNMENT_TASK_UNASSIGNED";
+        }
+
+        public static class Wbs
+        {
+            public const string SkillsEnriched = "WBS_SKILLS_ENRICHED";
+            public const string SkillCreated = "WBS_SKILL_CREATED";
+            public const string RequiredSkillsCompleted = "WBS_REQUIRED_SKILLS_COMPLETED";
         }
     }
 }

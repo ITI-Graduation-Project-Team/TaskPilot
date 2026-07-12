@@ -12,11 +12,13 @@ namespace TaskPilot.Presentation.Controllers
     public class SkillsController : ApiControllerBase
     {
         private readonly ISkillService _skillService;
+        private readonly ISkillMigrationService _skillMigrationService;
         private readonly IUnitOfWork _unitOfWork;
 
-        public SkillsController(ISkillService skillService, IUnitOfWork unitOfWork)
+        public SkillsController(ISkillService skillService, ISkillMigrationService skillMigrationService, IUnitOfWork unitOfWork)
         {
             _skillService = skillService;
+            _skillMigrationService = skillMigrationService;
             _unitOfWork = unitOfWork;
         }
 
@@ -57,6 +59,17 @@ namespace TaskPilot.Presentation.Controllers
                 await _unitOfWork.SaveChangesAsync();
 
             return HandleResult(result, SuccessCodes.Skill.Created);
+        }
+
+        [HttpPost("migrate")]
+        public async Task<ActionResult> MigrateSkills([FromBody] TaskPilot.DTOs.Skills.SkillMergeRequestDto request)
+        {
+            var result = await _skillMigrationService.MergeSkillsAsync(request);
+
+            if (result.IsSuccess)
+                await _unitOfWork.SaveChangesAsync();
+
+            return HandleResult(result, SuccessCodes.Skill.Migrated); // We'll add this SuccessCode later
         }
     }
 }

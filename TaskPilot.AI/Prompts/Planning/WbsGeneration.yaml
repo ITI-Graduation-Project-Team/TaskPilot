@@ -7,7 +7,7 @@ template_format: semantic-kernel
 execution_settings:
   default:
     temperature: 0.3
-    max_tokens: 4000
+    max_tokens: 6000
 
 input_variables:
   - name: businessRequirements
@@ -33,6 +33,9 @@ input_variables:
 
   - name: projectType
     description: Project classification
+
+  - name: availableSkills
+    description: Existing company skills to prioritize
 
 template: |
 
@@ -91,6 +94,16 @@ template: |
   Project Type
 
   {{$projectType}}
+
+  --------------------------------------------------------
+  AVAILABLE SKILLS
+  --------------------------------------------------------
+
+  The company currently has developers with the following skills:
+
+  {{$availableSkills}}
+
+  Whenever appropriate, prefer these existing company skills when generating required skills for tasks.
 
   --------------------------------------------------------
   TECHNOLOGY RULES
@@ -200,7 +213,8 @@ template: |
   USER STORY DESIGN RULES
   --------------------------------------------------------
 
-  Generate between 5 and 12 User Stories depending on the project scope.
+  Generate between 4 and 8 User Stories depending on project complexity.
+  Large projects may reach 8. Small projects should produce fewer.
 
   A User Story represents ONE user goal that delivers ONE business value.
 
@@ -368,7 +382,10 @@ template: |
   TASK RULES
   --------------------------------------------------------
 
-  Every User Story must contain between 2 and 5 implementation Tasks.
+  Every User Story must contain between 2 and 4 Tasks Maximum.
+  
+  Only create implementation tasks.
+  Avoid unnecessary task splitting.
 
   Tasks describe HOW the story is implemented.
 
@@ -525,14 +542,22 @@ template: |
   --------------------------------------------------------
 
   Acceptance Criteria must be written as one string.
+  
+  Limit AcceptanceCriteria to maximum 2 items.
+  Limit AcceptanceCriteriaAr to maximum 2 items.
+  Each sentence should be concise. Avoid paragraphs.
+  
+  Task descriptions should be 1–2 sentences only.
+  Avoid long explanations.
+  
+  Keep titles concise.
+  Avoid repeating information already present in the User Story.
 
   Example
 
   1. User can register successfully.
 
   2. Validation prevents duplicate records.
-
-  3. Success message is displayed.
 
   Never return JSON arrays for Acceptance Criteria.
 
@@ -552,6 +577,13 @@ template: |
   --------------------------------------------------------
 
   Always return ONE complete JSON object.
+  
+  Target approximately 3000 output tokens.
+  Always prioritize returning COMPLETE valid JSON.
+  If there is any risk of truncation, reduce the number of User Stories before reducing response quality.
+  Never return partial JSON.
+  Never return incomplete arrays.
+  Never return incomplete objects.
 
   The response MUST fit within the model output limit.
 
@@ -653,7 +685,7 @@ template: |
 
   □ Every User Story is independently implementable.
 
-  □ Every User Story contains between 2 and 5 Tasks.
+  □ Every User Story contains between 2 and 4 Tasks.
 
   □ Tasks are implementation work rather than business features.
 
@@ -675,7 +707,17 @@ template: |
 
   □ The JSON exactly matches the required schema.
 
-  □ The JSON is completely parseable by System.Text.Json.
+  □ Entire JSON is valid.
+  
+  □ No trailing commas.
+  
+  □ Every array is closed.
+  
+  □ Every object is closed.
+  
+  □ Entire response fits within the configured output limit.
+
+  If necessary, reduce the number of User Stories before generating the final response.
 
   Only after every validation succeeds,
   output the final JSON object.

@@ -8,6 +8,7 @@ using TaskPilot.AI.Persistence.Interfaces;
 using TaskPilot.AI.Services.Interfaces;
 using TaskPilot.AI.Agents.Requirements;
 using Microsoft.Extensions.Logging;
+using TaskPilot.Models.Enums;
 
 namespace TaskPilot.AI.Orchestrators
 {
@@ -65,6 +66,21 @@ namespace TaskPilot.AI.Orchestrators
 
             try
             {
+                var existingDoc = session.Knowledge.Documents.FirstOrDefault(d => d.FileName == file.FileName && d.FileSize == file.Length);
+                if (existingDoc != null)
+                {
+                    _logger.LogInformation("Document {FileName} already exists in session {SessionId}. Skipping ingestion.", file.FileName, sessionId);
+                    return new DocumentIngestionResult
+                    {
+                        Success = true,
+                        DocumentId = existingDoc.Id,
+                        Category = existingDoc.Category,
+                        ChunksCreated = 0,
+                        QuestionsAutoResolved = 0,
+                        Message = "Document already ingested."
+                    };
+                }
+
                 // 1. Find matched extractor
                 var extractor = _extractors.FirstOrDefault(e => e.CanHandle(file.ContentType, file.FileName));
                 if (extractor == null)
@@ -89,7 +105,9 @@ namespace TaskPilot.AI.Orchestrators
                 var category = await _categorizationAgent.CategorizeAsync(file.FileName, extractedText, cancellationToken);
 
                 // 4. Create Ingested Document
-                var documentId = Guid.NewGuid();
+                using var md5Doc = System.Security.Cryptography.MD5.Create();
+                var hashInput = $"{sessionId}_{extractedText}";
+                var documentId = new Guid(md5Doc.ComputeHash(System.Text.Encoding.UTF8.GetBytes(hashInput)));
                 var document = new IngestedDocument
                 {
                     Id = documentId,
@@ -124,12 +142,14 @@ namespace TaskPilot.AI.Orchestrators
                 // 6.5 Vector Store Upsert
                 foreach (var chunk in chunks)
                 {
-                    chunk.SessionId = sessionId;
+                    chunk.RequirementSessionId = sessionId;
                     chunk.Category = category;
+                    chunk.SourceFile = file.FileName;
+                    chunk.DocumentType = file.ContentType;
                 }
                 
                 _logger.LogInformation("Preparing to store {Count} chunks in vector store", chunks.Count);
-                await _vectorStore.UpsertAsync(chunks, cancellationToken);
+                await _vectorStore.UpsertAsync(KnowledgeCollectionType.ProjectPolicies, chunks, cancellationToken);
                 _logger.LogInformation("Successfully stored {Count} chunks in vector store", chunks.Count);
 
                 session.AddDecision(

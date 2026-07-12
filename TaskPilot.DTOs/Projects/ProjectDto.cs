@@ -1,4 +1,5 @@
 using System;
+using TaskPilot.Models.Enums;
 
 namespace TaskPilot.DTOs.Projects
 {
@@ -12,5 +13,6 @@ namespace TaskPilot.DTOs.Projects
         public System.Collections.Generic.List<string> TechStack { get; set; } = new();
         public System.Collections.Generic.List<string> PlatformTargets { get; set; } = new();
         public string ProjectType { get; set; } = string.Empty;
+        public ProjectStatus status { get; set; }
     }
 }

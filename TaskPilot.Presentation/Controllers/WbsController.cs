@@ -20,14 +20,20 @@ namespace TaskPilot.Presentation.Controllers
     public class WbsController : ApiControllerBase
     {
         private readonly IWbsGenerationService _wbsGenerationService;
+        private readonly IWbsSkillEnrichmentService _wbsSkillEnrichmentService;
         private readonly IUserStoryRepository _userStoryRepository;
+        private readonly IUnitOfWork _unitOfWork;
 
         public WbsController(
             IWbsGenerationService wbsGenerationService,
-            IUserStoryRepository userStoryRepository)
+            IWbsSkillEnrichmentService wbsSkillEnrichmentService,
+            IUserStoryRepository userStoryRepository,
+            IUnitOfWork unitOfWork)
         {
             _wbsGenerationService = wbsGenerationService;
+            _wbsSkillEnrichmentService = wbsSkillEnrichmentService;
             _userStoryRepository = userStoryRepository;
+            _unitOfWork = unitOfWork;
         }
 
         [HttpPost("generate")]
@@ -36,7 +42,24 @@ namespace TaskPilot.Presentation.Controllers
             CancellationToken cancellationToken)
         {
             var result = await _wbsGenerationService.GenerateAsync(projectId, cancellationToken);
+            if (result.IsSuccess)
+            {
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+            }
             return HandleResult(result);
+        }
+
+        [HttpPost("enrich-skills")]
+        public async Task<ActionResult> EnrichSkills(
+            Guid projectId,
+            CancellationToken cancellationToken)
+        {
+            var result = await _wbsSkillEnrichmentService.EnrichProjectTasksAsync(projectId, cancellationToken);
+            if (result.IsSuccess)
+            {
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+            }
+            return HandleResult(result, TaskPilot.Models.Common.SuccessCodes.Wbs.SkillsEnriched);
         }
 
         [HttpGet]

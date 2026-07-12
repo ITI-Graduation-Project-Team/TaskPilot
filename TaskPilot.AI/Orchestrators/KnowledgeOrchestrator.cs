@@ -1,4 +1,5 @@
 using System;
+using TaskPilot.Models.Enums;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -8,6 +9,8 @@ using TaskPilot.AI.Agents.RAG;
 using TaskPilot.AI.Enums;
 using TaskPilot.AI.Models.RAG;
 using TaskPilot.AI.Persistence.Interfaces;
+using TaskPilot.Models.Common.Results;
+using TaskPilot.Models.Common.Errors;
 
 namespace TaskPilot.AI.Orchestrators
 {
@@ -30,45 +33,47 @@ namespace TaskPilot.AI.Orchestrators
             _logger = logger;
         }
 
-        public async Task<KnowledgeAnswerResult> AskAsync(
-            Guid sessionId,
+        public async Task<Result<KnowledgeAnswerResult>> AskAsync(
+            KnowledgeCollectionType collectionType,
+            Guid? requirementSessionId,
+            Guid? projectId,
+            Guid? companyId,
             string question,
             int topK = 5,
+            float scoreThreshold = 0.75f,
             DocumentCategory? category = null,
             CancellationToken cancellationToken = default)
         {
-            var chunks = await _retrievalAgent.RetrieveAsync(
-                sessionId, 
+            var chunksResult = await _retrievalAgent.RetrieveAsync(
+                collectionType, 
+                requirementSessionId,
+                projectId, 
+                companyId,
                 question, 
                 topK, 
+                scoreThreshold,
                 category, 
                 cancellationToken);
 
+            if (chunksResult.IsFailure)
+            {
+                return Result.Failure<KnowledgeAnswerResult>(chunksResult.Error);
+            }
+
+            var chunks = chunksResult.Value;
+
             if (chunks.Count == 0)
             {
-                return new KnowledgeAnswerResult
+                return Result.Success(new KnowledgeAnswerResult
                 {
                     Answer = "The uploaded documents do not contain enough information.",
                     Sources = new List<KnowledgeSource>()
-                };
+                });
             }
 
             var answer = await _answerAgent.GenerateAsync(question, chunks, cancellationToken);
 
             var sources = new List<KnowledgeSource>();
-            
-            // To prevent N+1 document fetch problem, group by DocumentId and fetch unique documents
-            var distinctDocumentIds = chunks.Select(c => c.DocumentId).Distinct().ToList();
-            var documentMap = new Dictionary<Guid, string>();
-            
-            foreach (var docId in distinctDocumentIds)
-            {
-                var doc = await _documentStore.GetDocumentAsync(docId, cancellationToken);
-                if (doc != null)
-                {
-                    documentMap[docId] = doc.FileName;
-                }
-            }
 
             foreach (var chunk in chunks)
             {
@@ -76,18 +81,18 @@ namespace TaskPilot.AI.Orchestrators
                 {
                     DocumentId = chunk.DocumentId,
                     ChunkId = chunk.Id,
-                    FileName = documentMap.TryGetValue(chunk.DocumentId, out var fileName) ? fileName : string.Empty,
+                    FileName = chunk.SourceFile,
                     Category = chunk.Category
                 });
             }
 
             _logger.LogInformation("Sources used: {sourceCount}", sources.Count);
 
-            return new KnowledgeAnswerResult
+            return Result.Success(new KnowledgeAnswerResult
             {
                 Answer = answer,
                 Sources = sources
-            };
+            });
         }
     }
 }

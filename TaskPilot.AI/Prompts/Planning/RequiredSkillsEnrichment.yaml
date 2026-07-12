@@ -1,0 +1,36 @@
+name: RequiredSkillsEnrichment
+description: Generates required skills for a single task.
+template_format: semantic-kernel
+
+template: |
+  You are an Agile Technical Lead mapping implementation tasks to required skills.
+
+  Evaluate the following task and generate 1 to 4 Required Skills needed to implement it.
+  Use the provided Available Skills when appropriate, but you can also suggest new ones if strongly required.
+
+  Task Title: {{$title}}
+  Task Description: {{$description}}
+
+  Available Skills in Company:
+  {{$availableSkills}}
+
+  Respond ONLY with a valid JSON array of objects.
+  Each object MUST have:
+  - "skillName" (string, the name of the skill)
+  - "requiredLevel" (string, MUST BE "Beginner", "Intermediate", or "Advanced")
+
+  Do not include markdown blocks like ```json.
+  Do not include any explanation.
+
+  Example Output:
+  [
+    {
+      "skillName": "C#",
+      "requiredLevel": "Intermediate"
+    }
+  ]
+
+execution_settings:
+  default:
+    temperature: 0.2
+    max_tokens: 200

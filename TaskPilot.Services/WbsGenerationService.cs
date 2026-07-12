@@ -15,17 +15,20 @@ namespace TaskPilot.Services
     {
         private readonly IRepository<Project> _projectRepository;
         private readonly IRepository<UserStory> _userStoryRepository;
+        private readonly IRepository<Skill> _skillRepository;
         private readonly WBSGenerationAgent _wbsAgent;
         private readonly IWbsPersistenceService _wbsPersistenceService;
 
         public WbsGenerationService(
             IRepository<Project> projectRepository,
             IRepository<UserStory> userStoryRepository,
+            IRepository<Skill> skillRepository,
             WBSGenerationAgent wbsAgent,
             IWbsPersistenceService wbsPersistenceService)
         {
             _projectRepository = projectRepository;
             _userStoryRepository = userStoryRepository;
+            _skillRepository = skillRepository;
             _wbsAgent = wbsAgent;
             _wbsPersistenceService = wbsPersistenceService;
         }
@@ -51,11 +54,15 @@ namespace TaskPilot.Services
                    ));
             }
 
+            var skills = await _skillRepository.GetAllAsync();
+            var availableSkills = System.Linq.Enumerable.Select(skills, s => s.Name).ToList();
+
             var wbs = await _wbsAgent.GenerateAsync(
                 project.RequirementsSnapshot,
                 project.TechStack,
                 project.PlatformTargets,
                 project.ProjectType,
+                availableSkills,
                 cancellationToken);
 
             return await _wbsPersistenceService.PersistAsync(projectId, wbs, cancellationToken);

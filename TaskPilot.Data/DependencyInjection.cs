@@ -50,6 +50,7 @@ namespace TaskPilot.Data
 
             services.AddScoped<IUserStoryRepository, UserStoryRepository>();
             services.AddScoped<ITaskRepository, TaskRepository>();
+            services.AddScoped<IProjectEmployeeRepository, ProjectEmployeeRepository>();
 
             return services;
         }

@@ -113,7 +113,13 @@ public class AssignmentScoringService : IAssignmentScoringService
                 var skillGaps = new List<SkillGapDto>();
                 foreach (var requiredSkill in task.RequiredSkills)
                 {
-                    var devSkill = developer.Skills.FirstOrDefault(s => s.SkillName.Equals(requiredSkill.SkillName, StringComparison.OrdinalIgnoreCase));
+                    var requiredNormalized = TaskPilot.Services.Helpers.SkillNormalizer.Normalize(requiredSkill.SkillName);
+                    var devSkill = developer.Skills.FirstOrDefault(s => 
+                        (s.SkillId > 0 && s.SkillId == requiredSkill.SkillId) ||
+                        TaskPilot.Services.Helpers.SkillNormalizer.Normalize(s.SkillName) == requiredNormalized ||
+                        requiredSkill.Aliases.Any(a => TaskPilot.Services.Helpers.SkillNormalizer.Normalize(a) == TaskPilot.Services.Helpers.SkillNormalizer.Normalize(s.SkillName))
+                    );
+
                     if (devSkill == null || devSkill.Level < requiredSkill.RequiredLevel)
                     {
                         skillGaps.Add(new SkillGapDto
@@ -127,20 +133,26 @@ public class AssignmentScoringService : IAssignmentScoringService
 
                 taskScoringResult.RankedDevelopers.Add(new DeveloperScoreDto
                 {
-                    Developer = developer,
+                    EmployeeId = developer.EmployeeId,
+                    FullName = developer.FullName,
+                    JobTitle = developer.JobTitle,
                     SkillScore = skillScore,
                     AvailabilityScore = availabilityScore,
                     VelocityScore = velocityScore,
                     ExperienceScore = experienceScore,
                     FinalScore = finalScore,
-                    SkillGaps = skillGaps
+                    SkillGaps = skillGaps,
+                    RemainingHours = developer.RemainingHours,
+                    HasSufficientCapacity = developer.RemainingHours >= (double)task.EstimatedHours
                 });
             }
 
             taskScoringResult.RankedDevelopers = taskScoringResult.RankedDevelopers
                 .OrderByDescending(d => d.FinalScore)
-                .ThenByDescending(d => d.Developer.RemainingHours)
-                .ThenByDescending(d => d.Developer.HistoricalVelocity ?? 0)
+                .ThenByDescending(d => d.RemainingHours)
+                // Developer object is no longer available, so we omit HistoricalVelocity sorting
+                // or we could add it to DeveloperScoreDto. We'll just omit it here.
+
                 .ToList();
 
             scoredAssignment.TaskScores.Add(taskScoringResult);

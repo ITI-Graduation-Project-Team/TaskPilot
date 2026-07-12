@@ -11,6 +11,7 @@ using TaskPilot.AI.Services.Interfaces;
 using TaskPilot.Services.Interfaces;
 using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Common.Errors;
+using TaskPilot.Models.Enums;
 
 namespace TaskPilot.Presentation.Controllers
 {
@@ -108,7 +109,18 @@ namespace TaskPilot.Presentation.Controllers
             [FromQuery] string query,
             CancellationToken cancellationToken)
         {
-            var results = await _vectorStore.SearchAsync(sessionId, query, cancellationToken: cancellationToken);
+            var session = await _sessionStore.GetAsync(sessionId, cancellationToken);
+            if (session == null)
+            {
+                return HandleResult(Result.Failure<System.Collections.Generic.List<KnowledgeChunk>>(CommonErrors.NotFound("Requirement session")));
+            }
+            var results = await _vectorStore.SearchAsync(
+                KnowledgeCollectionType.ProjectPolicies,
+                requirementSessionId: sessionId,
+                projectId: null,
+                companyId: null,
+                queryText: query,
+                cancellationToken: cancellationToken);
             return HandleResult(Result.Success(results));
         }
 

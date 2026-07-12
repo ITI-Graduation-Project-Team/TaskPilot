@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using TaskPilot.AI.Models.Planning;
@@ -11,6 +12,7 @@ using TaskPilot.Services.DTOs;
 using TaskPilot.Services.Interfaces;
 using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Common.Errors;
+using TaskPilot.Services.Helpers;
 
 namespace TaskPilot.Services
 {
@@ -18,16 +20,13 @@ namespace TaskPilot.Services
     {
         private readonly IUserStoryRepository _userStoryRepository;
         private readonly ITaskRepository _taskRepository;
-        private readonly IUnitOfWork _unitOfWork;
 
         public WbsPersistenceService(
             IUserStoryRepository userStoryRepository,
-            ITaskRepository taskRepository,
-            IUnitOfWork unitOfWork)
+            ITaskRepository taskRepository)
         {
             _userStoryRepository = userStoryRepository;
             _taskRepository = taskRepository;
-            _unitOfWork = unitOfWork;
         }
 
         public async Task<Result<WbsPersistenceResult>> PersistAsync(
@@ -60,7 +59,7 @@ namespace TaskPilot.Services
 
                     foreach (var generatedTask in generatedStory.Tasks)
                     {
-                        tasks.Add(new TaskItem
+                        var taskItem = new TaskItem
                         {
                             UserStory = story,
                             SprintId = null,
@@ -76,14 +75,13 @@ namespace TaskPilot.Services
                             EstimatedHours = generatedTask.EstimatedHours,
                             Status = TaskItemStatus.ToDo,
                             ActualHours = 0
-                        });
+                        };
+                        tasks.Add(taskItem);
                     }
                 }
 
-                await _userStoryRepository.AddRangeAsync(userStories, cancellationToken);
-                await _taskRepository.AddRangeAsync(tasks, cancellationToken);
-
-                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                await _userStoryRepository.AddRangeAsync(userStories);
+                await _taskRepository.AddRangeAsync(tasks);
 
                 var wbsResult = new WbsPersistenceResult
                 {

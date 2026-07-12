@@ -1,0 +1,33 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
+using TaskPilot.Data.Context;
+using TaskPilot.Data.Repositories.Interfaces;
+
+namespace TaskPilot.Data.Repositories
+{
+    public class ProjectEmployeeRepository : IProjectEmployeeRepository
+    {
+        private readonly ApplicationDbContext _context;
+
+        public ProjectEmployeeRepository(ApplicationDbContext context)
+        {
+            _context = context;
+        }
+
+        public async Task<HashSet<Guid>> GetEmployeeIdsByProjectAsync(
+            Guid projectId,
+            CancellationToken cancellationToken = default)
+        {
+            var ids = await _context.ProjectEmployees
+                .Where(pe => pe.ProjectId == projectId)
+                .Select(pe => pe.EmployeeId)
+                .ToListAsync(cancellationToken);
+
+            return ids.ToHashSet();
+        }
+    }
+}

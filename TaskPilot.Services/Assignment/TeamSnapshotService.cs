@@ -19,6 +19,7 @@ public class TeamSnapshotService : ITeamSnapshotService
     private readonly IRepository<ProjectEmployee> _projectEmployeeRepository;
     private readonly IRepository<UserSkill> _userSkillRepository;
     private readonly IRepository<TaskItem> _taskRepository;
+    private readonly IRepository<SkillAlias> _skillAliasRepository;
     private readonly ILogger<TeamSnapshotService> _logger;
 
     public TeamSnapshotService(
@@ -27,6 +28,7 @@ public class TeamSnapshotService : ITeamSnapshotService
         IRepository<ProjectEmployee> projectEmployeeRepository,
         IRepository<UserSkill> userSkillRepository,
         IRepository<TaskItem> taskRepository,
+        IRepository<SkillAlias> skillAliasRepository,
         ILogger<TeamSnapshotService> logger)
     {
         _projectRepository = projectRepository;
@@ -34,6 +36,7 @@ public class TeamSnapshotService : ITeamSnapshotService
         _projectEmployeeRepository = projectEmployeeRepository;
         _userSkillRepository = userSkillRepository;
         _taskRepository = taskRepository;
+        _skillAliasRepository = skillAliasRepository;
         _logger = logger;
     }
 
@@ -67,6 +70,12 @@ public class TeamSnapshotService : ITeamSnapshotService
             .Where(t => t.SprintId == sprintId)
             .ToListAsync(cancellationToken);
 
+        var requiredSkillIds = sprintTasks.SelectMany(t => t.RequiredSkills).Select(rs => rs.SkillId).Distinct().ToList();
+        var skillAliases = await _skillAliasRepository.GetQueryable()
+            .Where(a => requiredSkillIds.Contains(a.SkillId))
+            .ToListAsync(cancellationToken);
+        var aliasLookup = skillAliases.GroupBy(a => a.SkillId).ToDictionary(g => g.Key, g => g.Select(a => a.Alias).ToList());
+
         var unassignedTasks = sprintTasks
             .Where(t => t.EmployeeId == null)
             .Select(t => new TaskSnapshotDto
@@ -82,7 +91,8 @@ public class TeamSnapshotService : ITeamSnapshotService
                 {
                     SkillId = rs.SkillId,
                     SkillName = rs.Skill?.Name ?? string.Empty,
-                    RequiredLevel = rs.RequiredLevel
+                    RequiredLevel = rs.RequiredLevel,
+                    Aliases = aliasLookup.ContainsKey(rs.SkillId) ? aliasLookup[rs.SkillId] : new List<string>()
                 }).ToList()
             }).ToList();
 
@@ -127,9 +137,6 @@ public class TeamSnapshotService : ITeamSnapshotService
         foreach (var pe in projectEmployees)
         {
             var empId = pe.EmployeeId;
-            var activeProjectsCount = activeProjectsCounts.ContainsKey(empId) ? activeProjectsCounts[empId] : 0;
-            var availabilityString = EmployeeAvailabilityHelper.ComputeAvailabilityStatus(activeProjectsCount);
-            Enum.TryParse<EmployeeAvailabilityStatus>(availabilityString, out var availabilityStatus);
 
             var empSkills = userSkills.Where(us => us.UserId == empId)
                 .Select(us => new DeveloperSkillDto
@@ -147,10 +154,16 @@ public class TeamSnapshotService : ITeamSnapshotService
                 .Where(t => t.EmployeeId == empId && t.SprintId == sprintId)
                 .Sum(t => t.EstimatedHours);
 
-            var remainingHours = Math.Max(0, maxSprintHours - currentAssignedHours);
+            var remainingHours = maxSprintHours - currentAssignedHours;
 
             var workloadPercentage = maxSprintHours > 0 ? (currentAssignedHours / maxSprintHours) * 100 : 0;
-            workloadPercentage = Math.Min(100, workloadPercentage);
+
+            if (remainingHours < 0 || workloadPercentage < 0 || workloadPercentage > 100)
+            {
+                return Result<SprintAssignmentSnapshotDto>.Failure(AssignmentErrors.InvalidAvailabilityState);
+            }
+
+            var availabilityStatus = ComputeAvailabilityStatus(workloadPercentage);
 
             var activeTasksCount = allAssignedTasks.Count(t => t.EmployeeId == empId && t.Status != TaskItemStatus.Done);
 
@@ -187,6 +200,7 @@ public class TeamSnapshotService : ITeamSnapshotService
             {
                 EmployeeId = empId,
                 FullName = pe.Employee.FirstNameEn + " " + pe.Employee.LastNameEn,
+                JobTitle = pe.Employee.JobTitle ?? string.Empty,
                 ProjectRole = pe.Role,
                 SeniorityLevel = pe.Employee.SeniorityLevel ?? SeniorityLevel.Junior,
                 AvailabilityStatus = availabilityStatus,
@@ -216,5 +230,13 @@ public class TeamSnapshotService : ITeamSnapshotService
             projectId, sprintId, teamSnapshot.Developers.Count, unassignedTasks.Count);
 
         return Result<SprintAssignmentSnapshotDto>.Success(result);
+    }
+
+    private EmployeeAvailabilityStatus ComputeAvailabilityStatus(double workloadPercentage)
+    {
+        if (workloadPercentage <= 30) return EmployeeAvailabilityStatus.Available;
+        if (workloadPercentage <= 70) return EmployeeAvailabilityStatus.PartiallyBusy;
+        if (workloadPercentage <= 90) return EmployeeAvailabilityStatus.Busy;
+        return EmployeeAvailabilityStatus.Overloaded;
     }
 }
