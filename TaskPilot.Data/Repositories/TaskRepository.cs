@@ -34,5 +34,14 @@ namespace TaskPilot.Data.Repositories
                 .Where(x => x.UserStoryId == userStoryId)
                 .ToListAsync(cancellationToken);
         }
+
+        public async Task<List<TaskItem>> GetBySprintIdAsync(
+            Guid sprintId,
+            CancellationToken cancellationToken = default)
+        {
+            return await _context.TaskItems
+                .Where(t => t.SprintId == sprintId)
+                .ToListAsync(cancellationToken);
+        }
     }
 }

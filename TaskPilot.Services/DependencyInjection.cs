@@ -25,6 +25,7 @@ namespace TaskPilot.Services
             services.AddScoped<IUserSubscriptionService, UserSubscriptionService>();
             services.AddScoped<ILocalizationService, LocalizationService>();
             services.AddScoped<IRequirementFinalizationService, RequirementFinalizationService>();
+            services.AddScoped<ICompanyPolicyService, CompanyPolicyService>();
             services.AddScoped<IWbsSkillEnrichmentService, WbsSkillEnrichmentService>();
             services.AddScoped<IWbsPersistenceService, WbsPersistenceService>();
             services.AddScoped<IBacklogService, BacklogService>();
@@ -40,7 +41,8 @@ namespace TaskPilot.Services
             services.AddScoped<TaskPilot.Services.Assignment.IScoreCalculator, TaskPilot.Services.Assignment.VelocityScoreCalculator>();
             services.AddScoped<TaskPilot.Services.Assignment.IScoreCalculator, TaskPilot.Services.Assignment.ExperienceScoreCalculator>();
             services.AddScoped<TaskPilot.Services.Assignment.IAssignmentScoringService, TaskPilot.Services.Assignment.AssignmentScoringService>();
-            
+            services.AddScoped<TaskPilot.Services.Assignment.IAssignmentExplanationService, TaskPilot.Services.Assignment.AssignmentExplanationService>();
+            services.AddScoped<TaskPilot.Services.Assignment.IAssignmentConfirmationService, TaskPilot.Services.Assignment.AssignmentConfirmationService>();
             // الآن التكوين (configuration) متاح للاستخدام
             services.Configure<AssignmentOptions>(configuration.GetSection(AssignmentOptions.SectionName));
             services.Configure<TaskPilot.Services.Assignment.ScoringWeights>(configuration.GetSection("Assignment:Scoring"));

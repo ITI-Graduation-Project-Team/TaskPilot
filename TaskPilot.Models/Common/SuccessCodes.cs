@@ -92,6 +92,10 @@ namespace TaskPilot.Models.Common
         public static class Assignment
         {
             public const string ScoringCompleted = "ASSIGNMENT_SCORING_COMPLETED";
+            public const string ExplanationsGenerated = "ASSIGNMENT_EXPLANATIONS_GENERATED";
+            public const string ExplanationFallback = "ASSIGNMENT_EXPLANATION_FALLBACK";
+            public const string AssignmentsConfirmed = "ASSIGNMENT_ASSIGNMENTS_CONFIRMED";
+            public const string TaskUnassigned = "ASSIGNMENT_TASK_UNASSIGNED";
         }
 
         public static class Wbs

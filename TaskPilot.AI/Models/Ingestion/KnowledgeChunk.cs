@@ -8,9 +8,17 @@ namespace TaskPilot.AI.Models.Ingestion
 
         public Guid DocumentId { get; set; }
 
-        public Guid SessionId { get; set; }
+        public Guid? RequirementSessionId { get; set; }
+
+        public Guid? ProjectId { get; set; }
+
+        public Guid? CompanyId { get; set; }
 
         public TaskPilot.AI.Enums.DocumentCategory Category { get; set; }
+
+        public string SourceFile { get; set; } = string.Empty;
+
+        public string DocumentType { get; set; } = string.Empty;
 
         public string Content { get; set; } = string.Empty;
 

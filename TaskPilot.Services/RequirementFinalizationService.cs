@@ -150,6 +150,28 @@ namespace TaskPilot.Services
             {
                 await _projectRepository.AddAsync(project);
                 
+                var vectorStore = _serviceProvider.GetService(typeof(TaskPilot.AI.Services.Interfaces.IVectorStore)) as TaskPilot.AI.Services.Interfaces.IVectorStore;
+                var documentStore = _serviceProvider.GetService(typeof(TaskPilot.AI.Persistence.Interfaces.IDocumentStore)) as TaskPilot.AI.Persistence.Interfaces.IDocumentStore;
+
+                if (vectorStore != null && documentStore != null)
+                {
+                    var allChunkIds = new System.Collections.Generic.List<Guid>();
+                    foreach (var docId in session.Knowledge.DocumentIds)
+                    {
+                        var chunks = await documentStore.GetChunksAsync(docId, cancellationToken);
+                        allChunkIds.AddRange(System.Linq.Enumerable.Select(chunks, c => c.Id));
+                    }
+                    
+                    if (System.Linq.Enumerable.Any(allChunkIds))
+                    {
+                        await vectorStore.PromoteKnowledgeAsync(
+                            TaskPilot.Models.Enums.KnowledgeCollectionType.ProjectPolicies,
+                            project.Id,
+                            allChunkIds,
+                            cancellationToken);
+                    }
+                }
+                
                 // Update Session Status
                 session.Status = RequirementSessionStatus.Completed;
                 session.ProjectId = project.Id;

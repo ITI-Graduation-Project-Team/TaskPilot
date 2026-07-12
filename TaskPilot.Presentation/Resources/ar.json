@@ -1,4 +1,4 @@
-﻿{
+{
   "Welcome": "ظ…ط±ط­ط¨ط§ظ‹",
   "Success": "طھظ…طھ ط§ظ„ط¹ظ…ظ„ظٹط© ط¨ظ†ط¬ط§ط­.",
   "Error": "ط­ط¯ط« ط®ط·ط£.",
@@ -125,6 +125,26 @@
   "CAPACITY_VALIDATION_FAILED": "ظپط´ظ„ ط§ظ„طھط­ظ‚ظ‚ ظ…ظ† ط§ظ„ظ‚ط¯ط±ط©.",
   "SCORING_CONFIGURATION_INVALID": "طھظƒظˆظٹظ† ط§ظ„طھظ‚ظٹظٹظ… ط؛ظٹط± طµط§ظ„ط­.",
   "ASSIGNMENT_SCORING_COMPLETED": "طھظ… ط¥ظƒظ…ط§ظ„ طھظ‚ظٹظٹظ… ط§ظ„طھط¹ظٹظٹظ†ط§طھ ط¨ظ†ط¬ط§ط­.",
+  "assignment.suggestionsGenerated": "تم إنشاء الاقتراحات بنجاح.",
+  "assignment.explanationsGenerated": "تم إنشاء التفسيرات بنجاح.",
+  "assignment.explanationFallback": "تم إنشاء التفسيرات باستخدام آلية الطوارئ.",
+  "assignment.invalidExplanationInput": "المدخلات المقدمة لتفسير التعيين غير صالحة.",
+  "assignment.explanationParsingFailed": "فشل تحليل التفسيرات المولدة من الذكاء الاصطناعي.",
+  "assignment.explanationGenerationFailed": "فشل إنشاء التفسيرات.",
+  "SCORE_NOT_FOUND": "لم يتم العثور على نتيجة التقييم.",
+  "INVALID_EXPLANATION_INPUT": "مدخلات التفسير غير صالحة.",
+  "INVALID_DEVELOPER_CONTEXT": "سياق المطور غير صالح.",
+  "EXPLANATION_PARSING_FAILED": "فشل تحليل التفسير.",
+  "EXPLANATION_GENERATION_FAILED": "فشل إنشاء التفسير.",
+  "ASSIGNMENT_EXPLANATIONS_GENERATED": "تم إنشاء التفسيرات بنجاح.",
+  "ASSIGNMENT_EXPLANATION_FALLBACK": "تم إنشاء التفسيرات باستخدام آلية الطوارئ.",
+  "ASSIGNMENT_ASSIGNMENTS_CONFIRMED": "تم تأكيد التعيينات بنجاح.",
+  "ASSIGNMENT_TASK_UNASSIGNED": "تم إلغاء تعيين المهمة بنجاح.",
+  
+  "assignment.warnings.noAssignmentsProvided": "لم يتم توفير تعيينات.",
+  "assignment.warnings.taskNotFound": "المهمة {0} غير موجودة في السباق {1}. تم التخطي.",
+  "assignment.warnings.employeeNotInProject": "الموظف {0} ليس عضواً في هذا المشروع. تم التخطي.",
+  "assignment.warnings.insufficientCapacity": "الموظف المعين للمهمة '{0}' قد تكون ساعاته المتبقية غير كافية ({1} ساعة متبقية، {2} ساعة مطلوبة). تم حفظ التعيين.",
 
   // company success
   "COMPANY_SETUP_SUCCESS": "طھظ… ط¥ط¹ط¯ط§ط¯ ط§ظ„ط´ط±ظƒط© ط¨ظ†ط¬ط§ط­.",

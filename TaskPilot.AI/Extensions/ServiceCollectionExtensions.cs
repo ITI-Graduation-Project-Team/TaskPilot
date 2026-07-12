@@ -117,6 +117,9 @@ namespace TaskPilot.AI.Extensions
                 SprintRetrospectiveAgent>();
             services.AddScoped<
                 RequiredSkillsEnrichmentAgent>();
+            services.AddScoped<
+                TaskPilot.AI.Agents.Assignment.IAssignmentExplanationAgent,
+                TaskPilot.AI.Agents.Assignment.AssignmentExplanationAgent>();
 
             return services;
         }

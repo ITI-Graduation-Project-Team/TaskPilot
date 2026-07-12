@@ -9,8 +9,8 @@ namespace TaskPilot.AI.Agents.Ingestion
         public Task<List<KnowledgeChunk>> ChunkContentAsync(
             Guid documentId,
             string text,
-            int chunkSize = 1000,
-            int overlap = 200,
+            int chunkSize = 1200,
+            int overlap = 300,
             CancellationToken cancellationToken = default)
         {
             var chunks = new List<KnowledgeChunk>();
@@ -22,14 +22,19 @@ namespace TaskPilot.AI.Agents.Ingestion
             var lines = TextChunker.SplitPlainTextLines(text, 100);
             var paragraphs = TextChunker.SplitPlainTextParagraphs(lines, chunkSize, overlap);
 
+            using var md5 = System.Security.Cryptography.MD5.Create();
+
             int index = 0;
             foreach (var chunkText in paragraphs)
             {
                 if (!string.IsNullOrWhiteSpace(chunkText))
                 {
+                    var hashData = System.Text.Encoding.UTF8.GetBytes($"{documentId}_{index}");
+                    var chunkId = new Guid(md5.ComputeHash(hashData));
+
                     chunks.Add(new KnowledgeChunk
                     {
-                        Id = Guid.NewGuid(),
+                        Id = chunkId,
                         DocumentId = documentId,
                         Content = chunkText.Trim(),
                         ChunkIndex = index++,

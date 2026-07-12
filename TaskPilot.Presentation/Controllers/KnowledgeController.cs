@@ -26,19 +26,23 @@ namespace TaskPilot.Presentation.Controllers
             [FromBody] KnowledgeAskRequest request,
             CancellationToken cancellationToken)
         {
-            if (request.SessionId == Guid.Empty)
+            if (request.RequirementSessionId == null && request.ProjectId == null && request.CompanyId == null)
             {
-                return HandleResult(Result.Failure<KnowledgeAnswerResult>(KnowledgeErrors.EmptySessionId));
+                return HandleResult(Result.Failure<KnowledgeAnswerResult>(KnowledgeErrors.MissingTenantIsolation));
             }
 
             var result = await _orchestrator.AskAsync(
-                request.SessionId,
+                request.CollectionType,
+                request.RequirementSessionId,
+                request.ProjectId,
+                request.CompanyId,
                 request.Question,
                 topK: 5,
+                scoreThreshold: 0.75f,
                 category: null,
                 cancellationToken: cancellationToken);
 
-            return HandleResult(Result.Success(result));
+            return HandleResult(result);
         }
     }
 }

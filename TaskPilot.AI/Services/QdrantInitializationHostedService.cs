@@ -20,7 +20,7 @@ namespace TaskPilot.AI.Services
         {
             using var scope = _serviceProvider.CreateScope();
             var vectorStore = scope.ServiceProvider.GetRequiredService<IVectorStore>();
-            await vectorStore.EnsureCollectionAsync(cancellationToken);
+            await vectorStore.EnsureCollectionsAsync(cancellationToken);
         }
 
         public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
