@@ -12,6 +12,8 @@ using TaskPilot.Services.Interfaces;
 using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Common.Errors;
 
+using Hangfire;
+using TaskPilot.Services.BackgroundJobs;
 namespace TaskPilot.Services
 {
     public class SprintConfirmationService : ISprintConfirmationService
@@ -22,18 +24,21 @@ namespace TaskPilot.Services
         private readonly IRepository<Sprint> _sprintRepository;
         private readonly IUnitOfWork _unitOfWork;
 
+        private readonly IBackgroundJobClient _backgroundJobClient;
         public SprintConfirmationService(
             IRepository<Project> projectRepository,
             IUserStoryRepository userStoryRepository,
             ITaskRepository taskRepository,
             IRepository<Sprint> sprintRepository,
-            IUnitOfWork unitOfWork)
+            IUnitOfWork unitOfWork,
+            IBackgroundJobClient backgroundJobClient)
         {
             _projectRepository = projectRepository;
             _userStoryRepository = userStoryRepository;
             _taskRepository = taskRepository;
             _sprintRepository = sprintRepository;
             _unitOfWork = unitOfWork;
+            _backgroundJobClient = backgroundJobClient;
         }
 
         public async Task<Result<ConfirmSprintResult>> ConfirmAsync(
@@ -110,6 +115,12 @@ namespace TaskPilot.Services
 
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
                 await _unitOfWork.CommitTransactionAsync(cancellationToken);
+
+                // Schedule only after committing, so Hangfire can never receive an ID
+                // for a sprint that was rolled back.
+                _backgroundJobClient.Schedule<SprintCompletionJob>(
+                    job => job.ExecuteAsync(sprint.Id),
+                    new DateTimeOffset(DateTime.SpecifyKind(sprint.EndDate, DateTimeKind.Utc)));
 
                 var confirmResult = new ConfirmSprintResult
                 {

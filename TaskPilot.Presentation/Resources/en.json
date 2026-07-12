@@ -1,7 +1,7 @@
 {
   "Welcome": "Welcome",
   "Success": "Operation completed successfully.",
-
+ 
   // auth 
   "Error": "An error occurred.",
   "UNAUTHORIZED": "Authentication is required.",
@@ -199,6 +199,14 @@
   "AI_PROJECT_GENERATED": "Project draft generated successfully.",
   "AI_PROJECT_CONFIRMED": "Project confirmed successfully.",
 
+  // calender
+  "CalendarNotFoundOrUnauthorized": "calender not found or youare unahtorized",
+  "CALENDAR_EVENTS_RETRIEVED": "Calendar events retrieved successfully.",
+  "CALENDAR_EVENT_RETRIEVED": "Calendar event retrieved successfully.",
+  "CALENDAR_EVENT_CREATED": "Calendar event created successfully.",
+  "CALENDAR_EVENT_RESCHEDULED": "Calendar event rescheduled successfully.",
+  "CALENDAR_WORKLOAD_RETRIEVED": "Employee workload retrieved successfully.",
+
   // identity describer
   "PASS_REQ_NON_ALPHANUMERIC": "Passwords must have at least one non-alphanumeric character.",
   "PASS_REQ_DIGIT": "Passwords must have at least one digit ('0'-'9').",
@@ -249,4 +257,11 @@
   "wbs.invalidGeneratedSkillJson": "Failed to parse generated skill JSON.",
   "INVALID_GENERATED_SKILL_JSON": "Failed to parse generated skill JSON.",
   "wbs.requiredSkillsCompleted": "Required skills completed."
+  // sprint risk alerts
+  "SPRINT_RISK_ALERTS_RETRIEVED": "Sprint risk alerts retrieved successfully.",
+  "SPRINT_RISK_ALERT_DISMISSED": "Sprint risk alert dismissed successfully.",
+  "SPRINT_RISK_SIMULATION_GENERATED": "Sprint risk simulation generated successfully.",
+  "SPRINT_RISK_ALERT_NOT_FOUND": "Sprint risk alert was not found.",
+  "SPRINT_NOT_ACTIVE": "The sprint is not active.",
+  "RISK_SIMULATION_FAILED": "Failed to generate risk simulation."
 }

@@ -18,7 +18,6 @@ namespace TaskPilot.DTOs.UserSubscriptions
         public bool CancelAtPeriodEnd { get; set; }
         
         public string? ClientSecret { get; set; }
-        public bool IsSetupIntent { get; set; }
         public TaskPilot.Models.Enums.PaymentGateway? Gateway { get; set; }
     }
 }

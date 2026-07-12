@@ -139,10 +139,13 @@ namespace TaskPilot.Services
                 ManagerId = company.OwnerId,
                 NameEn = request.ProjectNameEn,
                 NameAr = request.ProjectNameAr ?? string.Empty,
+                DescriptionEn = request.DescriptionEn,
+                DescriptionAr = request.DescriptionAr,
                 Status = ProjectStatus.Draft,
                 SprintDurationInDays = request.SprintDurationInDays,
                 TargetSprintHours = request.TargetSprintHours,
                 RequirementsSnapshot = snapshot,
+                RequirementsSessionId = sessionId,
                 DocumentIds = session.Knowledge.DocumentIds.ToList()
             };
 

@@ -12,7 +12,12 @@ using TaskPilot.Models.Common.Errors;
 using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Enums;
 using TaskPilot.Presentation.Middlewares;
+using TaskPilot.Presentation.Models;
 using TaskPilot.Services;
+using TaskPilot.Services.Interfaces;
+using Hangfire;
+using TaskPilot.Models.Common;
+
 namespace TaskPilot.Presentation
 {
     public class Program
@@ -22,7 +27,9 @@ namespace TaskPilot.Presentation
             var builder = WebApplication.CreateBuilder(args);
             builder.Services.AddData(builder.Configuration);
             builder.Services.AddServices(builder.Configuration);
+            builder.Services.AddScoped<TaskPilot.Services.Interfaces.IAgileCoachService, TaskPilot.Services.Implementations.AgileCoachService>();
             builder.Services.AddAiLayer(builder.Configuration);
+            builder.Services.AddScoped<TaskPilot.AI.Agents.AgileCoachAgent>();
             builder.Services.AddInfrastructure(
     builder.Configuration);
             builder.Services.AddPaymentLayer(builder.Configuration);
@@ -56,6 +63,14 @@ namespace TaskPilot.Presentation
                     options.JsonSerializerOptions.Converters
                         .Add(new JsonStringEnumConverter());
                 });
+
+            builder.Services.AddHangfire(config => config
+                .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+                .UseSimpleAssemblyNameTypeSerializer()
+                .UseRecommendedSerializerSettings()
+                .UseSqlServerStorage(builder.Configuration.GetConnectionString("DefaultConnection")));
+            
+            builder.Services.AddHangfireServer();
 
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen(options =>
@@ -98,6 +113,9 @@ namespace TaskPilot.Presentation
                    NameClaimType = ClaimTypes.NameIdentifier
                };
 
+
+                    
+       
                o.Events = new JwtBearerEvents
                {
                    OnChallenge = context =>
@@ -107,9 +125,13 @@ namespace TaskPilot.Presentation
                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                        context.Response.ContentType = "application/json";
 
-                       var error = CommonErrors.Unauthorized();
-                       var response = Result.Failure(error);
 
+                       var localizer = context.HttpContext.RequestServices.GetRequiredService<ILocalizationService>();
+                       Error error = CommonErrors.Unauthorized();
+                       var description = localizer.GetString(error.Code);
+                       var response = ApiResponse.Fail(
+                           error.Code,
+                           description);
                        return context.Response.WriteAsync(JsonSerializer.Serialize(response));
                    }
                };
@@ -127,6 +149,12 @@ namespace TaskPilot.Presentation
 
             app.UseSwagger();
             app.UseSwaggerUI();
+            
+            app.UseHangfireDashboard("/hangfire");
+            RecurringJob.AddOrUpdate<TaskPilot.Services.BackgroundJobs.SprintRiskDetectionJob>(
+                "SprintRiskDetectionJob",
+                job => job.ExecuteAsync(CancellationToken.None),
+                Cron.Daily);
 
             //app.UseCors("AllowAll");
             app.UseCors("AllowFrontend");

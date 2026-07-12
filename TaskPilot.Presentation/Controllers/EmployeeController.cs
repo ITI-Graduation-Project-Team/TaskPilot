@@ -23,6 +23,7 @@ public class EmployeeController : ApiControllerBase
     private readonly ICurrentUserService _currentUser;
     private readonly IRepository<Employee> _employeeRepository;
     private readonly IRepository<User> _userRepository;
+    private readonly IRepository<Company> _companyRepository;
 
     public EmployeeController(
         ICvService cvService,
@@ -30,7 +31,8 @@ public class EmployeeController : ApiControllerBase
         IUnitOfWork unitOfWork,
         ICurrentUserService currentUser,
         IRepository<Employee> employeeRepository,
-        IRepository<User> userRepository
+        IRepository<User> userRepository,
+        IRepository<Company> companyRepository
          )
     {
         _cvService = cvService;
@@ -39,6 +41,7 @@ public class EmployeeController : ApiControllerBase
         _currentUser = currentUser;
         _employeeRepository = employeeRepository;
         _userRepository = userRepository;
+        _companyRepository = companyRepository;
     }
 
     /// <summary>
@@ -159,12 +162,20 @@ public class EmployeeController : ApiControllerBase
                 .ThenInclude(us => us.Skill)
             .FirstOrDefaultAsync(e => e.Id == employeeId, cancellationToken);
 
+        string companyName = string.Empty;
+
         if (employee == null)
         {
             var user = await _userRepository.GetQueryable()
                 .FirstOrDefaultAsync(u => u.Id == employeeId, cancellationToken);
             if (user == null)
                 return HandleResult(Result.Failure(CommonErrors.Unauthorized()));
+
+            if (user.CompanyId.HasValue)
+            {
+                var company = await _companyRepository.GetByIdAsync(user.CompanyId.Value);
+                companyName = company?.Name ?? string.Empty;
+            }
 
             return Ok(new
             {
@@ -177,8 +188,15 @@ public class EmployeeController : ApiControllerBase
                 TotalYearsOfExperience = 0,
                 IsEmployee = false,
                 CompanyId = user.CompanyId,
+                CompanyName = companyName,
                 Skills = new List<string>()
             });
+        }
+
+        if (employee.CompanyId.HasValue)
+        {
+            var company = await _companyRepository.GetByIdAsync(employee.CompanyId.Value);
+            companyName = company?.Name ?? string.Empty;
         }
 
         return Ok(new
@@ -192,6 +210,7 @@ public class EmployeeController : ApiControllerBase
             TotalYearsOfExperience = employee.TotalYearsOfExperience ?? 0,
             IsEmployee = true,
             CompanyId = employee.CompanyId,
+            CompanyName = companyName,
             Skills = employee.UserSkills.Select(us => us.Skill.Name).ToList()
         });
     }

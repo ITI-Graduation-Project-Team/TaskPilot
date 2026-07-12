@@ -121,6 +121,12 @@ namespace TaskPilot.AI.Extensions
                 TaskPilot.AI.Agents.Assignment.IAssignmentExplanationAgent,
                 TaskPilot.AI.Agents.Assignment.AssignmentExplanationAgent>();
 
+            // Sprint Risk agents
+            services.AddScoped<
+                TaskPilot.AI.Agents.Sprint.SprintRiskDetectionAgent>();
+            services.AddScoped<
+                TaskPilot.AI.Agents.Sprint.WhatIfSimulationAgent>();
+
             return services;
         }
     }

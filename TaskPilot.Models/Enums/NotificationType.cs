@@ -21,6 +21,7 @@ namespace TaskPilot.Models.Enums
         PaymentSuccess = 12,
         PaymentFailed = 13,
         BugReported = 14,
+        SprintRiskDetected = 15,
 
     }
 }

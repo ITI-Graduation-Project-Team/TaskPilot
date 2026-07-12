@@ -17,6 +17,25 @@
   "EMAIL_ALREADY_VERIFIED": "طھظ… ط§ظ„طھط­ظ‚ظ‚ ظ…ظ† ظ‡ط°ط§ ط§ظ„ط¨ط±ظٹط¯ ط¨ط§ظ„ظپط¹ظ„. ظٹط±ط¬ظ‰ طھط³ط¬ظٹظ„ ط§ظ„ط¯ط®ظˆظ„.",
   "OPERATION_FAILED": "طھط¹ط°ط± ط¥طھظ…ط§ظ… ط§ظ„ط¹ظ…ظ„ظٹط©.",
   "SERVER_ERROR": "ط­ط¯ط« ط®ط·ط£ ط؛ظٹط± ظ…طھظˆظ‚ط¹.",
+  "Welcome": "مرحباً",
+  "Success": "تمت العملية بنجاح.",
+  //
+  "Error": "حدث خطأ.",
+  "UNAUTHORIZED": "يجب تسجيل الدخول أولاً.",
+  "FORBIDDEN": "ليس لديك صلاحية لتنفيذ هذا الإجراء.",
+  "INVALID_CREDENTIALS": "البريد الإلكتروني أو كلمة المرور غير صحيحة.",
+  "EMAIL_NOT_CONFIRMED": "لم يتم تأكيد البريد الإلكتروني بعد.",
+  "INVALID_REFRESH_TOKEN": "رمز التحديث غير صالح أو منتهي الصلاحية.",
+  "INVALID_INPUT": "قيمة واحدة أو أكثر من المدخلات غير صالحة.",
+  "USER_NOT_FOUND": "المستخدم غير موجود.",
+  "PROJECT_NOT_FOUND": "المشروع غير موجود.",
+  "INVITATION_NOT_FOUND": "الدعوة غير موجودة.",
+  "SAVE_FAILED": "فشل حفظ البيانات.",
+  "CONFLICT": "يوجد تعارض.",
+  "EMAIL_ALREADY_REGISTERED": "هذا البريد الإلكتروني مسجل بالفعل.",
+  "EMAIL_ALREADY_VERIFIED": "تم التحقق من هذا البريد بالفعل. يرجى تسجيل الدخول.",
+  "OPERATION_FAILED": "تعذر إتمام العملية.",
+  "SERVER_ERROR": "حدث خطأ غير متوقع.",
 
   //
   "ROLE_CREATION_FAILED": "ظپط´ظ„ ط¥ظ†ط´ط§ط، ط§ظ„ط¯ظˆط±.",
@@ -198,6 +217,14 @@
   "AI_PROJECT_GENERATED": "طھظ… ط¥ظ†ط´ط§ط، ظ…ط³ظˆط¯ط© ط§ظ„ظ…ط´ط±ظˆط¹ ط¨ظ†ط¬ط§ط­.",
   "AI_PROJECT_CONFIRMED": "طھظ… طھط£ظƒظٹط¯ ط§ظ„ظ…ط´ط±ظˆط¹ ط¨ظ†ط¬ط§ط­.",
 
+
+  //calender
+  "CalendarNotFoundOrUnauthorized": "الحدث غير موجود أو لا تملك صلاحية تعديله.",
+  "CALENDAR_EVENTS_RETRIEVED": "تم استرجاع أحداث التقويم بنجاح.",
+  "CALENDAR_EVENT_RETRIEVED": "تم استرجاع تفاصيل الحدث بنجاح.",
+  "CALENDAR_EVENT_CREATED": "تم إنشاء الحدث بنجاح.",
+  "CALENDAR_EVENT_RESCHEDULED": "تم إعادة جدولة الحدث بنجاح.",
+  "CALENDAR_WORKLOAD_RETRIEVED": "تم استرجاع ملخص عبء العمل بنجاح.",
   // identity describer
   "PASS_REQ_NON_ALPHANUMERIC": "ظٹط¬ط¨ ط£ظ† طھط­طھظˆظٹ ظƒظ„ظ…ط© ط§ظ„ظ…ط±ظˆط± ط¹ظ„ظ‰ ط±ظ…ط² ظˆط§ط­ط¯ ط¹ظ„ظ‰ ط§ظ„ط£ظ‚ظ„ ط؛ظٹط± ط£ط¨ط¬ط¯ظٹ ط±ظ‚ظ…ظٹ.",
   "PASS_REQ_DIGIT": "ظٹط¬ط¨ ط£ظ† طھط­طھظˆظٹ ظƒظ„ظ…ط© ط§ظ„ظ…ط±ظˆط± ط¹ظ„ظ‰ ط±ظ‚ظ… ظˆط§ط­ط¯ ط¹ظ„ظ‰ ط§ظ„ط£ظ‚ظ„ ('0'-'9').",
@@ -248,4 +275,20 @@
   "wbs.invalidGeneratedSkillJson": "فشل تحليل JSON للمهارة المولدة.",
   "INVALID_GENERATED_SKILL_JSON": "فشل تحليل JSON للمهارة المولدة.",
   "wbs.requiredSkillsCompleted": "تم استكمال المهارات المطلوبة."
+}
+  "PASS_REQ_NON_ALPHANUMERIC": "يجب أن تحتوي كلمة المرور على رمز واحد على الأقل غير أبجدي رقمي.",
+  "PASS_REQ_DIGIT": "يجب أن تحتوي كلمة المرور على رقم واحد على الأقل ('0'-'9').",
+  "PASS_REQ_LOWER": "يجب أن تحتوي كلمة المرور على حرف صغير واحد على الأقل ('a'-'z').",
+  "PASS_REQ_UPPER": "يجب أن تحتوي كلمة المرور على حرف كبير واحد على الأقل ('A'-'Z').",
+  "PASS_TOO_SHORT": "يجب أن تتكون كلمة المرور من {0} أحرف على الأقل.",
+  "PASS_REQ_UNIQUE_CHARS": "يجب أن تحتوي كلمة المرور على {0} من الأحرف الفريدة على الأقل.",
+  "INVALID_TOKEN": "رمز غير صالح.",
+
+  // sprint risk alerts
+  "SPRINT_RISK_ALERTS_RETRIEVED": "تم جلب تنبيهات مخاطر السبرينت بنجاح.",
+  "SPRINT_RISK_ALERT_DISMISSED": "تم تجاهل تنبيه مخاطر السبرينت بنجاح.",
+  "SPRINT_RISK_SIMULATION_GENERATED": "تم إنشاء محاكاة مخاطر السبرينت بنجاح.",
+  "SPRINT_RISK_ALERT_NOT_FOUND": "تنبيه مخاطر السبرينت غير موجود.",
+  "SPRINT_NOT_ACTIVE": "السبرينت ليس نشطاً.",
+  "RISK_SIMULATION_FAILED": "فشل توليد محاكاة المخاطر."
 }
