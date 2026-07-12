@@ -12,10 +12,10 @@ using TaskPilot.AI.Orchestrators;
 using TaskPilot.AI.Services.Interfaces;
 using TaskPilot.Data.Repositories;
 using TaskPilot.DTOs.AI.CompanyPolicies;
-using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Entities;
 using TaskPilot.Models.Enums;
 using TaskPilot.Services;
+using TaskPilot.Services.Interfaces.ExternalServicesInterfaces;
 using Xunit;
 
 namespace TaskPilot.Tests.CompanyPolicies
@@ -31,6 +31,7 @@ namespace TaskPilot.Tests.CompanyPolicies
         private readonly Mock<IDocumentTextExtractor> _extractorMock;
         private readonly Mock<KnowledgeOrchestrator> _knowledgeOrchestratorMock;
         private readonly Mock<ILogger<CompanyPolicyService>> _loggerMock;
+        private readonly Mock<IFileStorageService> _fileStorageMock;
         private readonly CompanyPolicyService _service;
 
         public CompanyPolicyServiceTests()
@@ -44,6 +45,7 @@ namespace TaskPilot.Tests.CompanyPolicies
             _extractorMock = new Mock<IDocumentTextExtractor>();
             _knowledgeOrchestratorMock = new Mock<KnowledgeOrchestrator>(MockBehavior.Loose, new object[] { null!, null!, null!, null! });
             _loggerMock = new Mock<ILogger<CompanyPolicyService>>();
+            _fileStorageMock = new Mock<IFileStorageService>();
 
             _extractorMock.Setup(e => e.CanHandle(It.IsAny<string>(), It.IsAny<string>())).Returns(true);
             _extractorMock.Setup(e => e.ExtractTextAsync(It.IsAny<Stream>(), It.IsAny<CancellationToken>())).ReturnsAsync("Extracted Text Content");
@@ -57,10 +59,11 @@ namespace TaskPilot.Tests.CompanyPolicies
                 _policyRepositoryMock.Object,
                 _companyRepositoryMock.Object,
                 _unitOfWorkMock.Object,
+                _fileStorageMock.Object,
                 _loggerMock.Object);
         }
 
-        private UploadCompanyPolicyRequest CreateRequest(Guid companyId, string fileName, string content)
+        private IngestCompanyPolicyRequest CreateRequest(Guid companyId, string fileName, string content)
         {
             var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));
             var fileMock = new Mock<IFormFile>();
@@ -69,10 +72,11 @@ namespace TaskPilot.Tests.CompanyPolicies
             fileMock.Setup(f => f.Length).Returns(stream.Length);
             fileMock.Setup(f => f.ContentType).Returns("application/pdf");
 
-            return new UploadCompanyPolicyRequest
+            return new IngestCompanyPolicyRequest
             {
                 CompanyId = companyId,
-                File = fileMock.Object
+                File = fileMock.Object,
+                SkipCloudUpload = true // Prevent actual upload mocked out
             };
         }
 
@@ -101,7 +105,7 @@ namespace TaskPilot.Tests.CompanyPolicies
             _policyRepositoryMock.Setup(p => p.AddAsync(It.IsAny<Policy>())).Callback<Policy>(p => savedPolicy = p).Returns(Task.CompletedTask);
 
             // Act
-            var result = await _service.UploadAsync(request, saveChangesDelegate, CancellationToken.None);
+            var result = await _service.IngestAsync(request, saveChangesDelegate, CancellationToken.None);
 
             // Assert
             Assert.True(result.IsSuccess);
@@ -132,7 +136,7 @@ namespace TaskPilot.Tests.CompanyPolicies
             Func<CancellationToken, Task> saveChangesDelegate = ct => { saveChangesCalled = true; return Task.CompletedTask; };
 
             // Act
-            var result = await _service.UploadAsync(request, saveChangesDelegate, CancellationToken.None);
+            var result = await _service.IngestAsync(request, saveChangesDelegate, CancellationToken.None);
 
             // Assert
             Assert.True(result.IsSuccess);
@@ -161,7 +165,7 @@ namespace TaskPilot.Tests.CompanyPolicies
             _policyRepositoryMock.Setup(p => p.AddAsync(It.IsAny<Policy>())).Callback<Policy>(p => savedPolicy = p).Returns(Task.CompletedTask);
 
             // Act
-            var result = await _service.UploadAsync(request, ct => Task.CompletedTask, CancellationToken.None);
+            var result = await _service.IngestAsync(request, ct => Task.CompletedTask, CancellationToken.None);
 
             // Assert
             Assert.True(result.IsSuccess);

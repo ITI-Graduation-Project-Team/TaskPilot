@@ -24,8 +24,8 @@ namespace TaskPilot.Services
         private readonly IRepository<Employee>
             _employeeRepository;
 
-        private readonly IRepository<Policy>
-            _policyRepository;
+        private readonly ICompanyPolicyService
+            _companyPolicyService;
 
         private readonly IRepository<EmployeeInvitation>
             _invitationRepository;
@@ -46,7 +46,7 @@ namespace TaskPilot.Services
             IRepository<Company> companyRepository,
             IRepository<ProjectManager>
                 projectManagerRepository,
-            IRepository<Policy> policyRepository,
+            ICompanyPolicyService companyPolicyService,
             IRepository<EmployeeInvitation>
                 invitationRepository,
             IEmailService emailService,
@@ -61,8 +61,8 @@ namespace TaskPilot.Services
             _projectManagerRepository =
                 projectManagerRepository;
 
-            _policyRepository =
-                policyRepository;
+            _companyPolicyService =
+                companyPolicyService;
 
             _invitationRepository =
                 invitationRepository;
@@ -163,42 +163,24 @@ namespace TaskPilot.Services
                 || !string.IsNullOrWhiteSpace(request.PolicyContentAr)
                 || request.PolicyDocument != null)
             {
-                var policy = new Policy
+                var ingestRequest = new TaskPilot.DTOs.AI.CompanyPolicies.IngestCompanyPolicyRequest
                 {
-                    Scope = PolicyScope.Company,
-
                     CompanyId = company.Id,
-
-                    TitleEn =
-                        request.PolicyTitleEn
-                        ?? "General Policy",
-
-                    TitleAr =
-                        request.PolicyTitleAr
-                        ?? "سياسة عامة",
-
-                    ContentEn =
-                        request.PolicyContentEn,
-
-                    ContentAr =
-                        request.PolicyContentAr,
-
-                    DocumentUrl =
-                        documentUrl,
-
-                    DocumentPublicId =
-                        documentPublicId,
-
-                    AiStatus =
-                        AiProcessingStatus.Pending,
-
-                    VersionNumber = 1,
-
-                    IsActive = true
+                    File = request.PolicyDocument,
+                    TitleEn = request.PolicyTitleEn ?? "General Policy",
+                    TitleAr = request.PolicyTitleAr ?? "سياسة عامة",
+                    ContentEn = request.PolicyContentEn,
+                    ContentAr = request.PolicyContentAr,
+                    DocumentUrl = documentUrl,
+                    CloudinaryPublicId = documentPublicId,
+                    SkipCloudUpload = true
                 };
 
-                await _policyRepository
-                    .AddAsync(policy);
+                var ingestResult = await _companyPolicyService.IngestAsync(ingestRequest, ct => Task.CompletedTask);
+                if (!ingestResult.IsSuccess)
+                {
+                    return Result<CompanyResponse>.Failure(ingestResult.Error!);
+                }
             }
 
             // Employee Invitations — save all DB records first, then send emails

@@ -14,6 +14,7 @@ using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Entities;
 using TaskPilot.Models.Enums;
 using TaskPilot.Services.Interfaces;
+using TaskPilot.Services.Interfaces.ExternalServicesInterfaces;
 
 namespace TaskPilot.Services
 {
@@ -27,6 +28,7 @@ namespace TaskPilot.Services
         private readonly IRepository<Policy> _policyRepository;
         private readonly IRepository<Company> _companyRepository;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IFileStorageService _fileStorage;
         private readonly ILogger<CompanyPolicyService> _logger;
 
         private static readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, SemaphoreSlim> _companyLocks = new();
@@ -40,6 +42,7 @@ namespace TaskPilot.Services
             IRepository<Policy> policyRepository,
             IRepository<Company> companyRepository,
             IUnitOfWork unitOfWork,
+            IFileStorageService fileStorage,
             ILogger<CompanyPolicyService> logger)
         {
             _extractors = extractors;
@@ -50,10 +53,11 @@ namespace TaskPilot.Services
             _policyRepository = policyRepository;
             _companyRepository = companyRepository;
             _unitOfWork = unitOfWork;
+            _fileStorage = fileStorage;
             _logger = logger;
         }
 
-        public async Task<Result<UploadCompanyPolicyResponse>> UploadAsync(UploadCompanyPolicyRequest request, Func<CancellationToken, Task> saveChangesAsync, CancellationToken cancellationToken = default)
+        public async Task<Result<UploadCompanyPolicyResponse>> IngestAsync(IngestCompanyPolicyRequest request, Func<CancellationToken, Task> saveChangesAsync, CancellationToken cancellationToken = default)
         {
             var company = await _companyRepository.GetByIdAsync(request.CompanyId);
             if (company == null)
@@ -61,21 +65,34 @@ namespace TaskPilot.Services
                 return Result.Failure<UploadCompanyPolicyResponse>(CommonErrors.NotFound("Company"));
             }
 
-            if (request.File == null || request.File.Length == 0)
+            bool hasFile = request.File != null && request.File.Length > 0;
+            bool hasContent = !string.IsNullOrWhiteSpace(request.ContentEn);
+
+            if (!hasFile && !hasContent)
             {
-                return Result.Failure<UploadCompanyPolicyResponse>(CommonErrors.InvalidInput("File is empty or missing."));
+                return Result.Failure<UploadCompanyPolicyResponse>(CommonErrors.InvalidInput("Both file and content cannot be empty."));
             }
 
-            var extractor = _extractors.FirstOrDefault(e => e.CanHandle(request.File.ContentType, request.File.FileName));
-            if (extractor == null)
-            {
-                return Result.Failure<UploadCompanyPolicyResponse>(CommonErrors.InvalidInput($"Unsupported file type: {request.File.ContentType} ({request.File.FileName})"));
-            }
+            string extractedText = string.Empty;
+            string fileName = request.TitleEn ?? "Policy";
 
-            string extractedText;
-            using (var stream = request.File.OpenReadStream())
+            if (hasFile)
             {
-                extractedText = await extractor.ExtractTextAsync(stream, cancellationToken);
+                fileName = request.TitleEn ?? request.File!.FileName;
+                var extractor = _extractors.FirstOrDefault(e => e.CanHandle(request.File!.ContentType, request.File.FileName));
+                if (extractor == null)
+                {
+                    return Result.Failure<UploadCompanyPolicyResponse>(CommonErrors.InvalidInput($"Unsupported file type: {request.File!.ContentType} ({request.File.FileName})"));
+                }
+
+                using (var stream = request.File!.OpenReadStream())
+                {
+                    extractedText = await extractor.ExtractTextAsync(stream, cancellationToken);
+                }
+            }
+            else
+            {
+                extractedText = request.ContentEn!;
             }
 
             if (string.IsNullOrWhiteSpace(extractedText))
@@ -83,6 +100,7 @@ namespace TaskPilot.Services
                 return Result.Failure<UploadCompanyPolicyResponse>(CommonErrors.InvalidInput("Extracted text is empty."));
             }
 
+            // Generate deterministic ID
             using var md5Doc = System.Security.Cryptography.MD5.Create();
             var hashInput = $"{request.CompanyId}_{extractedText}";
             var documentId = new Guid(md5Doc.ComputeHash(System.Text.Encoding.UTF8.GetBytes(hashInput)));
@@ -92,11 +110,11 @@ namespace TaskPilot.Services
 
             try
             {
-                // Source of truth for duplicates: DocumentPublicId
-                var policyExists = await _policyRepository.FindSingleAsync(p => p.DocumentPublicId == documentId.ToString());
+                // Source of truth for duplicates: DocumentId
+                var policyExists = await _policyRepository.FindSingleAsync(p => p.DocumentId == documentId || p.DocumentPublicId == documentId.ToString());
                 if (policyExists != null)
                 {
-                    _logger.LogInformation("Company Policy document {FileName} already exists for Company {CompanyId} with DocumentId {DocumentId}. Skipping ingestion.", request.File.FileName, request.CompanyId, documentId);
+                    _logger.LogInformation("Company Policy document {FileName} already exists for Company {CompanyId} with DocumentId {DocumentId}. Skipping ingestion.", fileName, request.CompanyId, documentId);
                     return Result.Success(new UploadCompanyPolicyResponse
                     {
                         DocumentId = documentId,
@@ -105,7 +123,22 @@ namespace TaskPilot.Services
                     });
                 }
 
-                var category = await _categorizationAgent.CategorizeAsync(request.File.FileName, extractedText, cancellationToken);
+                // Upload to Cloudinary if needed
+                string? documentUrl = request.DocumentUrl;
+                string? cloudinaryPublicId = request.CloudinaryPublicId;
+
+                if (hasFile && string.IsNullOrEmpty(documentUrl) && !request.SkipCloudUpload)
+                {
+                    var uploadResult = await _fileStorage.UploadFileAsync(request.File!, $"taskpilot/companies/{request.CompanyId}/policies");
+                    if (!uploadResult.IsSuccess)
+                    {
+                        return Result.Failure<UploadCompanyPolicyResponse>(uploadResult.Error!);
+                    }
+                    documentUrl = uploadResult.Value.Url;
+                    cloudinaryPublicId = uploadResult.Value.PublicId;
+                }
+
+                var category = await _categorizationAgent.CategorizeAsync(fileName, extractedText, cancellationToken);
 
                 var chunks = await _chunkingAgent.ChunkContentAsync(documentId, extractedText, cancellationToken: cancellationToken);
 
@@ -113,7 +146,7 @@ namespace TaskPilot.Services
                 {
                     chunk.CompanyId = request.CompanyId;
                     chunk.Category = category;
-                    chunk.SourceFile = request.File.FileName;
+                    chunk.SourceFile = fileName;
                     chunk.DocumentType = "CompanyPolicy";
                 }
 
@@ -126,10 +159,14 @@ namespace TaskPilot.Services
                 {
                     Scope = PolicyScope.Company,
                     CompanyId = request.CompanyId,
-                    TitleEn = request.File.FileName,
-                    TitleAr = request.File.FileName,
-                    ContentEn = extractedText,
-                    DocumentPublicId = documentId.ToString(),
+                    TitleEn = fileName,
+                    TitleAr = request.TitleAr ?? fileName,
+                    ContentEn = request.ContentEn ?? extractedText,
+                    ContentAr = request.ContentAr,
+                    DocumentUrl = documentUrl,
+                    CloudinaryPublicId = cloudinaryPublicId,
+                    DocumentId = documentId,
+                    DocumentPublicId = documentId.ToString(), // Maintain legacy compat
                     AiStatus = AiProcessingStatus.Completed,
                     VersionNumber = nextVersion
                 };

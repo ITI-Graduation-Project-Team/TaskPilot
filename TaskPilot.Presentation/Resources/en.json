@@ -256,7 +256,7 @@
   "wbs.invalidGeneratedSkill": "Generated skill is invalid.",
   "wbs.invalidGeneratedSkillJson": "Failed to parse generated skill JSON.",
   "INVALID_GENERATED_SKILL_JSON": "Failed to parse generated skill JSON.",
-  "wbs.requiredSkillsCompleted": "Required skills completed."
+  "wbs.requiredSkillsCompleted": "Required skills completed.",
   // sprint risk alerts
   "SPRINT_RISK_ALERTS_RETRIEVED": "Sprint risk alerts retrieved successfully.",
   "SPRINT_RISK_ALERT_DISMISSED": "Sprint risk alert dismissed successfully.",
