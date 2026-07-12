@@ -27,7 +27,7 @@ namespace TaskPilot.Presentation
             var builder = WebApplication.CreateBuilder(args);
             builder.Services.AddData(builder.Configuration);
             builder.Services.AddServices(builder.Configuration);
-            builder.Services.AddScoped<TaskPilot.Services.Interfaces.IAgileCoachService, TaskPilot.Services.Implementations.AgileCoachService>();
+           // builder.Services.AddScoped<TaskPilot.Services.Interfaces.IAgileCoachService, TaskPilot.Services.Implementations.AgileCoachService>();
             builder.Services.AddAiLayer(builder.Configuration);
             builder.Services.AddScoped<TaskPilot.AI.Agents.AgileCoachAgent>();
             builder.Services.AddInfrastructure(
