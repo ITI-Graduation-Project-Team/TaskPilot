@@ -26,8 +26,15 @@ namespace TaskPilot.Presentation.Controllers
             [FromForm] UploadCompanyPolicyRequest request,
             CancellationToken cancellationToken)
         {
-            var result = await _companyPolicyService.UploadAsync(
-                request,
+            var ingestRequest = new IngestCompanyPolicyRequest
+            {
+                CompanyId = request.CompanyId,
+                File = request.File,
+                TitleEn = request.File?.FileName
+            };
+
+            var result = await _companyPolicyService.IngestAsync(
+                ingestRequest,
                 async ct => await _unitOfWork.SaveChangesAsync(ct),
                 cancellationToken);
 

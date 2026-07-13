@@ -15,7 +15,16 @@ namespace TaskPilot.Models.Entities
         public string? ContentEn { get; set; }
         public string? ContentAr { get; set; }
         public string? DocumentUrl { get; set; }
-        public string? DocumentPublicId { get; set; }//need to add migration
+        
+        // External ID for Cloudinary asset
+        public string? CloudinaryPublicId { get; set; }
+        
+        // Deterministic ID for Qdrant Vector DB
+        public Guid? DocumentId { get; set; }
+        
+        // Obsolete: Legacy representation
+        public string? DocumentPublicId { get; set; }
+        
         public AiProcessingStatus AiStatus { get; set; } = AiProcessingStatus.Pending;
         public string? AiProcessingError { get; set; }
         public int VersionNumber { get; set; } = 1;
