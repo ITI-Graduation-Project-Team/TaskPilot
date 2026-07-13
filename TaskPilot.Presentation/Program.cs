@@ -57,6 +57,9 @@ namespace TaskPilot.Presentation
                         .AllowCredentials();  // now valid because origin is explicit
                 });
             });
+            builder.Services.AddSignalR();
+            builder.Services.AddScoped<TaskPilot.Services.Interfaces.INotificationNotifier, TaskPilot.Presentation.Services.NotificationNotifier>();
+            
             builder.Services.AddControllers()
                 .AddJsonOptions(options =>
                 {
@@ -168,6 +171,7 @@ namespace TaskPilot.Presentation
             app.UseAuthorization();
 
             app.MapControllers();
+            app.MapHub<TaskPilot.Presentation.Hubs.NotificationHub>("/hubs/notifications");
 
             app.Run();
         }

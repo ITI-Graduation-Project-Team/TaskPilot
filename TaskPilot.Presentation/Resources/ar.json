@@ -290,5 +290,10 @@
   "SPRINT_RISK_SIMULATION_GENERATED": "تم إنشاء محاكاة مخاطر السبرينت بنجاح.",
   "SPRINT_RISK_ALERT_NOT_FOUND": "تنبيه مخاطر السبرينت غير موجود.",
   "SPRINT_NOT_ACTIVE": "السبرينت ليس نشطاً.",
-  "RISK_SIMULATION_FAILED": "فشل توليد محاكاة المخاطر."
+  "RISK_SIMULATION_FAILED": "فشل توليد محاكاة المخاطر.",
+
+  "NOTIFICATION_NOT_FOUND": "الإشعار المطلوب غير موجود.",
+  "NOTIFICATION_RETRIEVED_SUCCESS": "تم جلب الإشعارات بنجاح.",
+  "NOTIFICATION_MARKED_AS_READ_SUCCESS": "تم تحديد الإشعار كمقروء بنجاح.",
+  "NOTIFICATION_SENT_SUCCESS": "تم إرسال الإشعار بنجاح."
 }

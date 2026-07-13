@@ -21,17 +21,20 @@ public class ProjectTeamService : IProjectTeamService
     private readonly IRepository<Project> _projectRepository;
     private readonly IRepository<Employee> _employeeRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly INotificationService _notificationService;
 
     public ProjectTeamService(
         IRepository<ProjectEmployee> projectEmployeeRepository,
         IRepository<Project> projectRepository,
         IRepository<Employee> employeeRepository,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        INotificationService notificationService)
     {
         _projectEmployeeRepository = projectEmployeeRepository;
         _projectRepository = projectRepository;
         _employeeRepository = employeeRepository;
         _unitOfWork = unitOfWork;
+        _notificationService = notificationService;
     }
 
     public async Task<Result> AssignEmployeesAsync(
@@ -78,6 +81,17 @@ public class ProjectTeamService : IProjectTeamService
 
         await _projectEmployeeRepository.AddRangeAsync(newAssignments);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        foreach (var employeeId in employeeIds)
+        {
+            await _notificationService.SendAsync(
+                userId: employeeId,
+                type: NotificationType.UserAddedToProject,
+                messageEn: $"You have been added to project '{project.NameEn}'.",
+                messageAr: $"تمت إضافتك إلى مشروع '{project.NameAr ?? project.NameEn}'.",
+                url: $"/projects/{projectId}"
+            );
+        }
 
         return Result.Success();
     }
