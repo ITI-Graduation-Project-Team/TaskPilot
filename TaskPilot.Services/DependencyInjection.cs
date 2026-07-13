@@ -27,6 +27,7 @@ namespace TaskPilot.Services
             services.AddScoped<IRequirementFinalizationService, RequirementFinalizationService>();
             services.AddScoped<ICompanyPolicyService, CompanyPolicyService>();
             services.AddScoped<IWbsSkillEnrichmentService, WbsSkillEnrichmentService>();
+            services.AddScoped<ICalenderService, CalenderService>();
             services.AddScoped<IWbsPersistenceService, WbsPersistenceService>();
             services.AddScoped<IBacklogService, BacklogService>();
             services.AddScoped<IBacklogRegenerationService, BacklogRegenerationService>();
@@ -60,11 +61,16 @@ namespace TaskPilot.Services
             services.AddScoped<ISkillRepository, SkillRepository>();
             services.AddScoped<ISprintRetrospectiveService, SprintRetrospectiveService>();
 
+            services.AddScoped<ISprintLifecycleService, SprintLifecycleService>();
             services.AddScoped<IProjectTeamService, ProjectTeamService>();
             services.AddScoped<ICompanyService,CompanyService>();
 
             services.AddHostedService<BackgroundJobs.SubscriptionExpiryJob>();
 
+            services.AddScoped<ISprintRiskService, SprintRiskService>();
+            services.AddTransient<TaskPilot.Services.BackgroundJobs.SprintRiskDetectionJob>();
+
+            services.AddTransient<TaskPilot.Services.BackgroundJobs.SprintCompletionJob>();
             //Current User Service
             services.AddHttpContextAccessor();
             return services;

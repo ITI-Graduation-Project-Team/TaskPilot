@@ -86,30 +86,41 @@ namespace TaskPilot.Services
         }
 
         public async Task<Result<SprintStatusDto>> CompleteSprintAsync(Guid projectId, Guid sprintId, CancellationToken cancellationToken = default)
-        {
+    public sealed class SprintLifecycleService(
+        IRepository<Sprint> sprintRepository,
+        IUnitOfWork unitOfWork) : ISprintLifecycleService
+    {
             if (projectId == Guid.Empty) return Result.Failure<SprintStatusDto>(SprintErrors.InvalidProject);
             if (sprintId == Guid.Empty) return Result.Failure<SprintStatusDto>(SprintErrors.InvalidSprint);
 
             var sprint = await _sprintRepository.GetSprintWithTasksAsync(sprintId, cancellationToken);
             if (sprint == null)
-            {
+        public async Task<bool> EnsureCompletedIfDueAsync(Guid sprintId, CancellationToken cancellationToken = default)
+        {
                 return Result.Failure<SprintStatusDto>(SprintErrors.SprintNotFound);
             }
+            var sprint = await sprintRepository.GetByIdAsync(sprintId);
 
             if (sprint.ProjectId != projectId)
             {
                 return Result.Failure<SprintStatusDto>(SprintErrors.SprintDoesNotBelongToProject);
             }
+            if (sprint is null || sprint.IsDeleted || sprint.Status == SprintStatus.Cancelled)
+                return false;
 
             if (sprint.Status == SprintStatus.Completed)
             {
                 return Result.Failure<SprintStatusDto>(SprintErrors.SprintAlreadyCompleted);
             }
+                return true;
 
             if (sprint.Status == SprintStatus.Planned)
             {
                 return Result.Failure<SprintStatusDto>(SprintErrors.SprintNotStarted);
             }
+            // A previously scheduled job must do nothing if the end date was extended.
+            if (sprint.EndDate > DateTime.UtcNow)
+                return false;
 
             if (sprint.Status != SprintStatus.Active)
             {
@@ -168,6 +179,8 @@ namespace TaskPilot.Services
                 var doneTasks = sprintWithTasks.Tasks.Count(t => t.Status == TaskItemStatus.Done);
                 completionPercentage = Math.Round((double)doneTasks / totalTasks * 100, 2);
             }
+            sprintRepository.Update(sprint);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
 
             return Result.Success(new ActiveSprintDto
             {
@@ -179,6 +192,7 @@ namespace TaskPilot.Services
                 DaysRemaining = daysRemaining,
                 CompletionPercentage = completionPercentage
             });
+            return true;
         }
     }
 }

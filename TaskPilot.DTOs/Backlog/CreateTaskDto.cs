@@ -10,6 +10,10 @@ namespace TaskPilot.DTOs.Backlog
         public string? TitleAr { get; set; }
         public string? DescriptionEn { get; set; }
         public string? DescriptionAr { get; set; }
+        public string? TechnicalSummaryEn { get; set; }
+        public string? TechnicalSummaryAr { get; set; }
+        public string? AcceptanceCriteriaEn { get; set; }
+        public string? AcceptanceCriteriaAr { get; set; }
         [Range(0.1, 1000, ErrorMessage = "EstimatedHours must be greater than 0.")]
         public decimal EstimatedHours { get; set; }
         [Required]

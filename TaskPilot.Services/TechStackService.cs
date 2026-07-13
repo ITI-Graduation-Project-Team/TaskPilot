@@ -67,9 +67,9 @@ namespace TaskPilot.Services
                 return Result.Failure<TechStackSuggestion>(
                     CommonErrors.InvalidInput("RequirementsSnapshot is missing."));
 
-            // ✅ بدل GetCompanySkillSummaryAsync
+            // Fetch company-wide skill summary since project is in draft stage and has no team members yet
             var skills = await _skillRepository
-                .GetProjectSkillSummaryAsync(projectId, cancellationToken);
+                .GetCompanySkillSummaryAsync(project.CompanyId, cancellationToken);
 
             var suggestion = await _techStackAdvisorAgent.SuggestAsync(
                 project.RequirementsSnapshot,

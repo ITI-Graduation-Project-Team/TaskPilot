@@ -33,5 +33,6 @@ namespace TaskPilot.Models.Entities
         public ICollection<TaskComment> Comments { get; set; } = new List<TaskComment>();
         public ICollection<TaskAttachment> Attachments { get; set; } = new List<TaskAttachment>();
         public ICollection<TaskRequiredSkill> RequiredSkills { get; set; } = new List<TaskRequiredSkill>();
+        public TaskAiSummary? AiSummary { get; set; }
     }
 }

@@ -21,21 +21,50 @@ namespace TaskPilot.Presentation.Controllers
             _logger = logger;
         }
 
-        [HttpPost("{gateway}")]
-        public async Task<IActionResult> Handle(string gateway)
+        [HttpPost("paymob")]
+        public async Task<IActionResult> HandlePaymob([FromQuery] string hmac)
+        {
+            Request.EnableBuffering();
+            using var reader = new StreamReader(Request.Body);
+            var payload = await reader.ReadToEndAsync();
+            Request.Body.Position = 0;
+
+            var headers = new HeaderDictionary();
+            foreach (var header in Request.Headers)
+                headers.Add(header.Key, header.Value);
+
+            if (!string.IsNullOrEmpty(hmac))
+                headers.Add("hmac", hmac);
+
+            var result = await _webhookService.HandleWebhookAsync("paymob", payload, headers);
+            if (result.IsSuccess)
+                return Ok();
+
+            if (result.Error.Description == "Invalid Signature")
+            {
+                _logger.LogWarning("Invalid webhook signature from Paymob");
+                return BadRequest();
+            }
+
+            _logger.LogError("Webhook processing failed: {Error}", result.Error.Description);
+            return Ok();
+        }
+
+        [HttpPost("paypal")]
+        public async Task<IActionResult> HandlePayPal()
         {
             Request.EnableBuffering();
             using var reader = new StreamReader(Request.Body);
             var payload = await reader.ReadToEndAsync();
             Request.Body.Position = 0;
             
-            var result = await _webhookService.HandleWebhookAsync(gateway, payload, Request.Headers);
+            var result = await _webhookService.HandleWebhookAsync("paypal", payload, Request.Headers);
             if (result.IsSuccess)
                 return Ok();
                 
             if (result.Error.Description == "Invalid Signature")
             {
-                _logger.LogWarning("Invalid webhook signature from gateway {Gateway}", gateway);
+                _logger.LogWarning("Invalid webhook signature from gateway PayPal");
                 return BadRequest();
             }
 

@@ -23,9 +23,5 @@ namespace TaskPilot.Services.Interfaces.Payments
             string userId, string email, CancellationToken ct);
         Task<WebhookParseResult> ParseAndVerifyWebhookAsync(
             string payload, IHeaderDictionary headers, CancellationToken ct);
-        Task<GatewaySubscriptionResult> CreateTrialSubscriptionAsync(
-            string customerId, string priceId, int trialDays,
-            string paymentMethodId, string idempotencyKey,
-            CancellationToken ct);
     }
 }

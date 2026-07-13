@@ -28,17 +28,16 @@ namespace TaskPilot.Services
                 return Result.Failure<SprintRetrospectiveResponseDto>(CommonErrors.NotFound("Sprint"));
             }
 
-            if (sprint.Status == SprintStatus.Planned)
+            if (sprint.Status != SprintStatus.Completed)
             {
                 return Result.Failure<SprintRetrospectiveResponseDto>(
-                    CommonErrors.InvalidInput("Cannot generate a retrospective report for a planned sprint."));
+                    CommonErrors.InvalidInput("A retrospective report can be generated only for a completed sprint."));
             }
 
             var existing = await retrospectiveRepository.FindAsync(sr => sr.SprintId == sprintId);
             if (existing.Any())
             {
-                return Result.Failure<SprintRetrospectiveResponseDto>(
-                    CommonErrors.Conflict("RETROSPECTIVE_ALREADY_EXISTS", "Retrospective already generated for this sprint."));
+                return Result.Success(MapToDto(existing.First()));
             }
 
             var completedTasks = sprint.Tasks.Where(t => t.Status == TaskItemStatus.Done).ToList();
@@ -94,8 +93,6 @@ namespace TaskPilot.Services
             };
 
             await retrospectiveRepository.AddAsync(retrospective);
-            sprint.Status = SprintStatus.Completed;
-            sprintRepository.Update(sprint);
 
             return Result.Success(MapToDto(retrospective));
         }
