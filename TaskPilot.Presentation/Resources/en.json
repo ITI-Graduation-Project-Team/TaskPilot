@@ -1,4 +1,4 @@
-﻿{
+{
   "Welcome": "Welcome",
   "Success": "Operation completed successfully.",
  
@@ -205,6 +205,7 @@
   "CALENDAR_EVENT_RETRIEVED": "Calendar event retrieved successfully.",
   "CALENDAR_EVENT_CREATED": "Calendar event created successfully.",
   "CALENDAR_EVENT_RESCHEDULED": "Calendar event rescheduled successfully.",
+  "CALENDAR_EVENT_UPDATED": "Calendar event updated successfully.",
   "CALENDAR_WORKLOAD_RETRIEVED": "Employee workload retrieved successfully.",
 
   // identity describer

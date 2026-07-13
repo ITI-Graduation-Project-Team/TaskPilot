@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TaskPilot.Data.Repositories;
 using TaskPilot.DTOs.Calender;
@@ -92,6 +92,27 @@ namespace TaskPilot.Presentation.Controllers
             }
 
             return HandleResult(result, SuccessCodes.Calendar.EventRescheduled);
+        }
+
+        [HttpPatch("tasks/{taskId:guid}")]
+        public async Task<IActionResult> UpdateTask(
+            Guid taskId,
+            [FromBody] UpdateCalendarEventDto request)
+        {
+            if (_currentUser.UserId is null)
+                return Unauthorized();
+
+            var result = await _calendarService.UpdateEventAsync(
+                taskId,
+                _currentUser.UserId.Value,
+                request);
+
+            if (result.IsSuccess)
+            {
+                await _unitOfWork.SaveChangesAsync();
+            }
+
+            return HandleResult(result, SuccessCodes.Calendar.EventUpdated);
         }
 
         [HttpGet("workload")]

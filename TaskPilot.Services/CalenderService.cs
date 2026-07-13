@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -232,6 +232,52 @@ namespace TaskPilot.Services
 
             existingEvent.StartDate = dto.NewStart;
             existingEvent.EndDate = dto.NewEnd;
+
+            return Result.Success();
+        }
+
+        public async Task<Result> UpdateEventAsync(Guid eventId, Guid employeeId, UpdateCalendarEventDto dto)
+        {
+            var existingEvent = await _context.CalenderEvents
+                .FirstOrDefaultAsync(e => e.Id == eventId && e.EmployeeId == employeeId);
+
+            if (existingEvent is null)
+            {
+                return Result.Failure(CalenderErrors.EventNotFoundOrUnauthorized);
+            }
+
+            if (existingEvent.Type == CalenderEventType.AssignedTask)
+            {
+                // For assigned tasks, we might only allow updating the status
+                if (dto.Status.HasValue)
+                {
+                    existingEvent.Status = dto.Status.Value;
+                }
+            }
+            else
+            {
+                // For personal events, allow updating all provided fields
+                if (dto.Title != null) existingEvent.Title = dto.Title;
+                if (dto.Description != null) existingEvent.Description = dto.Description;
+                if (dto.EventType.HasValue) existingEvent.Type = dto.EventType.Value;
+                if (dto.Priority.HasValue) existingEvent.TaskPriority = dto.Priority.Value;
+                if (dto.Status.HasValue) existingEvent.Status = dto.Status.Value;
+
+                if (dto.StartDate.HasValue)
+                {
+                    var duration = existingEvent.EndDate - existingEvent.StartDate;
+                    if (dto.DurationInMinutes.HasValue)
+                    {
+                        duration = TimeSpan.FromMinutes(dto.DurationInMinutes.Value);
+                    }
+                    existingEvent.StartDate = dto.StartDate.Value;
+                    existingEvent.EndDate = dto.StartDate.Value.Add(duration);
+                }
+                else if (dto.DurationInMinutes.HasValue)
+                {
+                    existingEvent.EndDate = existingEvent.StartDate.AddMinutes(dto.DurationInMinutes.Value);
+                }
+            }
 
             return Result.Success();
         }
