@@ -256,12 +256,17 @@
   "wbs.invalidGeneratedSkill": "Generated skill is invalid.",
   "wbs.invalidGeneratedSkillJson": "Failed to parse generated skill JSON.",
   "INVALID_GENERATED_SKILL_JSON": "Failed to parse generated skill JSON.",
-  "wbs.requiredSkillsCompleted": "Required skills completed."
+  "wbs.requiredSkillsCompleted": "Required skills completed.",
   // sprint risk alerts
   "SPRINT_RISK_ALERTS_RETRIEVED": "Sprint risk alerts retrieved successfully.",
   "SPRINT_RISK_ALERT_DISMISSED": "Sprint risk alert dismissed successfully.",
   "SPRINT_RISK_SIMULATION_GENERATED": "Sprint risk simulation generated successfully.",
   "SPRINT_RISK_ALERT_NOT_FOUND": "Sprint risk alert was not found.",
   "SPRINT_NOT_ACTIVE": "The sprint is not active.",
-  "RISK_SIMULATION_FAILED": "Failed to generate risk simulation."
+  "RISK_SIMULATION_FAILED": "Failed to generate risk simulation.",
+  
+  "NOTIFICATION_NOT_FOUND": "The requested notification was not found.",
+  "NOTIFICATION_RETRIEVED_SUCCESS": "Notifications retrieved successfully.",
+  "NOTIFICATION_MARKED_AS_READ_SUCCESS": "Notification marked as read successfully.",
+  "NOTIFICATION_SENT_SUCCESS": "Notification sent successfully."
 }
