@@ -33,6 +33,9 @@ namespace TaskPilot.Models.Common
             public const string Updated = "PROJECT_UPDATED_SUCCESS";
             public const string Deleted = "PROJECT_DELETED_SUCCESS";
             public const string Retrieved = "PROJECT_RETRIEVED_SUCCESS";
+            public const string StatusRetrieved = "PROJECT_STATUS_RETRIEVED_SUCCESS";
+            public const string StatusUpdated = "PROJECT_STATUS_UPDATED_SUCCESS";
+            public const string StatusTransitionsRetrieved = "PROJECT_STATUS_TRANSITIONS_RETRIEVED_SUCCESS";
         }
 
         public static class Skill
@@ -134,6 +137,13 @@ namespace TaskPilot.Models.Common
             public const string SkillsEnriched = "WBS_SKILLS_ENRICHED";
             public const string SkillCreated = "WBS_SKILL_CREATED";
             public const string RequiredSkillsCompleted = "WBS_REQUIRED_SKILLS_COMPLETED";
+        }
+
+        public static class Sprint
+        {
+            public const string Started = "SPRINT_STARTED_SUCCESS";
+            public const string Completed = "SPRINT_COMPLETED_SUCCESS";
+            public const string ActiveRetrieved = "SPRINT_ACTIVE_RETRIEVED_SUCCESS";
         }
     }
 }

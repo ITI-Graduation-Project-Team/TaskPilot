@@ -24,6 +24,7 @@
     <ProjectReference Include="..\TaskPilot.Services\TaskPilot.Services.csproj" />
     <ProjectReference Include="..\TaskPilot.DTOs\TaskPilot.DTOs.csproj" />
     <ProjectReference Include="..\TaskPilot.Models\TaskPilot.Models.csproj" />
+    <ProjectReference Include="..\TaskPilot.Presentation\TaskPilot.Presentation.csproj" />
   </ItemGroup>
 
 </Project>

@@ -14,6 +14,8 @@ using TaskPilot.Models.Common.Errors;
 using TaskPilot.DTOs.Assignment;
 using Microsoft.EntityFrameworkCore;
 using TaskPilot.Models.Enums;
+using TaskPilot.Data.Repositories.Interfaces;
+using TaskPilot.Models.Common;
 
 namespace TaskPilot.Presentation.Controllers
 {
@@ -27,6 +29,8 @@ namespace TaskPilot.Presentation.Controllers
         private readonly IRepository<User> _userRepository;
         private readonly IRepository<Project> _projectRepository;
         private readonly IRepository<Sprint> _sprintRepository;
+        private readonly ISprintLifecycleService _sprintLifecycleService;
+        private readonly IUnitOfWork _unitOfWork;
 
         public SprintsController(
             ISprintConfirmationService sprintConfirmationService,
@@ -34,7 +38,9 @@ namespace TaskPilot.Presentation.Controllers
             ICapacityValidationService capacityValidationService,
             IRepository<User> userRepository,
             IRepository<Project> projectRepository,
-            IRepository<Sprint> sprintRepository)
+            IRepository<Sprint> sprintRepository,
+            ISprintLifecycleService sprintLifecycleService,
+            IUnitOfWork unitOfWork)
         {
             _sprintConfirmationService = sprintConfirmationService;
             _teamSnapshotService = teamSnapshotService;
@@ -42,6 +48,8 @@ namespace TaskPilot.Presentation.Controllers
             _userRepository = userRepository;
             _projectRepository = projectRepository;
             _sprintRepository = sprintRepository;
+            _sprintLifecycleService = sprintLifecycleService;
+            _unitOfWork = unitOfWork;
         }
 
         [HttpPost("confirm")]
@@ -114,27 +122,33 @@ namespace TaskPilot.Presentation.Controllers
             return HandleResult(result);
         }
 
+        [HttpPost("{sprintId:guid}/start")]
+        public async Task<ActionResult> StartSprint(Guid projectId, Guid sprintId, CancellationToken cancellationToken)
+        {
+            var result = await _sprintLifecycleService.StartSprintAsync(projectId, sprintId, cancellationToken);
+            if (result.IsSuccess)
+            {
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+            }
+            return HandleResult(result, SuccessCodes.Sprint.Started);
+        }
+
+        [HttpPost("{sprintId:guid}/complete")]
+        public async Task<ActionResult> CompleteSprint(Guid projectId, Guid sprintId, CancellationToken cancellationToken)
+        {
+            var result = await _sprintLifecycleService.CompleteSprintAsync(projectId, sprintId, cancellationToken);
+            if (result.IsSuccess)
+            {
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+            }
+            return HandleResult(result, SuccessCodes.Sprint.Completed);
+        }
+
         [HttpGet("active")]
         public async Task<ActionResult> GetActiveSprint(Guid projectId, CancellationToken cancellationToken)
         {
-            var sprint = await _sprintRepository.GetQueryable()
-                .Where(s => s.ProjectId == projectId && s.Status == SprintStatus.Active && !s.IsDeleted)
-                .Select(s => new {
-                    s.Id,
-                    s.TitleEn,
-                    s.TitleAr,
-                    s.SprintGoalEn,
-                    s.SprintGoalAr,
-                    Status = s.Status.ToString()
-                })
-                .FirstOrDefaultAsync(cancellationToken);
-
-            if (sprint == null)
-            {
-                return Ok(new { Succeeded = true, Data = (object?)null });
-            }
-
-            return Ok(new { Succeeded = true, Data = sprint });
+            var result = await _sprintLifecycleService.GetActiveSprintAsync(projectId, cancellationToken);
+            return HandleResult(result, SuccessCodes.Sprint.ActiveRetrieved);
         }
     }
 }

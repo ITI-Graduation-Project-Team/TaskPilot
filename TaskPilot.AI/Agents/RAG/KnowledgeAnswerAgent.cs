@@ -38,7 +38,7 @@ namespace TaskPilot.AI.Agents.RAG
 
             var context = string.Join("\n\n", chunks.Select((c, i) => $"--- Chunk {i + 1} ---\n{c.Content}"));
 
-            var kernel = _kernelService.CreateGeminiKernel(TaskPilot.AI.Constants.ModelConstants.GeminiPro);
+            var kernel = _kernelService.CreateKernel(Constants.ModelConstants.CheapModel);
             var prompt = await _promptLoader.LoadAsync("RAG/KnowledgeAnswer.yaml");
             var function = KernelFunctionYaml.FromPromptYaml(prompt);
 

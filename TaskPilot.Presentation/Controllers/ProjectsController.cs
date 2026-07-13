@@ -3,6 +3,7 @@ using TaskPilot.Models.Common;
 using TaskPilot.Data.Repositories;
 using TaskPilot.Services.Interfaces;
 using TaskPilot.DTOs.Projects;
+using System.Security.Claims;
 
 namespace TaskPilot.Presentation.Controllers
 {
@@ -71,6 +72,34 @@ namespace TaskPilot.Presentation.Controllers
                 await _unitOfWork.SaveChangesAsync();
 
             return HandleResult(result, SuccessCodes.Project.Deleted);
+        }
+
+        [HttpGet("{projectId:guid}/status")]
+        public async Task<ActionResult> GetStatus(Guid projectId, CancellationToken cancellationToken)
+        {
+            var result = await _projectService.GetStatusAsync(projectId, cancellationToken);
+            return HandleResult(result, SuccessCodes.Project.StatusRetrieved);
+        }
+
+        [HttpPut("{projectId:guid}/status")]
+        public async Task<ActionResult> UpdateStatus(Guid projectId, [FromBody] ProjectStatusUpdateRequest request, CancellationToken cancellationToken)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "Unknown";
+            var result = await _projectService.UpdateStatusAsync(projectId, request, userId, cancellationToken);
+
+            if (result.IsSuccess)
+            {
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+            }
+
+            return HandleResult(result, SuccessCodes.Project.StatusUpdated);
+        }
+
+        [HttpGet("{projectId:guid}/status/transitions")]
+        public async Task<ActionResult> GetAvailableTransitions(Guid projectId, CancellationToken cancellationToken)
+        {
+            var result = await _projectService.GetAvailableTransitionsAsync(projectId, cancellationToken);
+            return HandleResult(result, SuccessCodes.Project.StatusTransitionsRetrieved);
         }
 
         [HttpGet("{projectId:guid}/employees")]
