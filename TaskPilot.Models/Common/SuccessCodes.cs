@@ -125,6 +125,13 @@ namespace TaskPilot.Models.Common
             public const string TaskUnassigned = "ASSIGNMENT_TASK_UNASSIGNED";
         }
 
+        public static class Notification
+        {
+            public const string Retrieved = "NOTIFICATION_RETRIEVED_SUCCESS";
+            public const string MarkedAsRead = "NOTIFICATION_MARKED_AS_READ_SUCCESS";
+            public const string Sent = "NOTIFICATION_SENT_SUCCESS";
+        }
+
         public static class Wbs
         {
             public const string SkillsEnriched = "WBS_SKILLS_ENRICHED";

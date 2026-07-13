@@ -7,6 +7,8 @@ using TaskPilot.Data.Repositories.Interfaces;
 using TaskPilot.DTOs.Assignment;
 using TaskPilot.Models.Common;
 using TaskPilot.Models.Common.Results;
+using TaskPilot.Models.Enums;
+using TaskPilot.Services.Interfaces;
 
 namespace TaskPilot.Services.Assignment;
 
@@ -15,15 +17,18 @@ public class AssignmentConfirmationService : IAssignmentConfirmationService
     private readonly ITaskRepository _taskRepository;
     private readonly IProjectEmployeeRepository _projectEmployeeRepository;
     private readonly ILocalizationService _localizationService;
+    private readonly INotificationService _notificationService;
 
     public AssignmentConfirmationService(
         ITaskRepository taskRepository,
         IProjectEmployeeRepository projectEmployeeRepository,
-        ILocalizationService localizationService)
+        ILocalizationService localizationService,
+        INotificationService notificationService)
     {
         _taskRepository = taskRepository;
         _projectEmployeeRepository = projectEmployeeRepository;
         _localizationService = localizationService;
+        _notificationService = notificationService;
     }
 
     public async Task<Result<AssignmentConfirmationResult>> ConfirmAsync(
@@ -98,6 +103,14 @@ public class AssignmentConfirmationService : IAssignmentConfirmationService
             // Apply assignment (no SaveChangesAsync here!)
             task.EmployeeId = assignment.EmployeeId;
             result.AssignmentsConfirmed++;
+
+            await _notificationService.SendAsync(
+                userId: assignment.EmployeeId,
+                type: NotificationType.TaskAssigned,
+                messageEn: $"You have been assigned to task '{task.TitleEn}'.",
+                messageAr: $"تم تكليفك بمهمة '{task.TitleAr ?? task.TitleEn}'.",
+                url: $"/projects/{projectId}/board"
+            );
         }
 
         return Result.Success(result);

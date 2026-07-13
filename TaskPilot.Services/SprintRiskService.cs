@@ -21,15 +21,18 @@ namespace TaskPilot.Services
         private readonly ApplicationDbContext _context;
         private readonly SprintRiskDetectionAgent _detectionAgent;
         private readonly WhatIfSimulationAgent _simulationAgent;
+        private readonly INotificationService _notificationService;
 
         public SprintRiskService(
             ApplicationDbContext context,
             SprintRiskDetectionAgent detectionAgent,
-            WhatIfSimulationAgent simulationAgent)
+            WhatIfSimulationAgent simulationAgent,
+            INotificationService notificationService)
         {
             _context = context;
             _detectionAgent = detectionAgent;
             _simulationAgent = simulationAgent;
+            _notificationService = notificationService;
         }
 
         public async Task DetectAndPersistRisksAsync(Guid sprintId, CancellationToken ct = default)
@@ -111,6 +114,17 @@ namespace TaskPilot.Services
                         MessageAr = risk.MessageAr,
                         LastDetectedAt = DateTime.UtcNow
                     });
+
+                    if (sprint.Project.ManagerId != Guid.Empty)
+                    {
+                        await _notificationService.SendAsync(
+                            userId: sprint.Project.ManagerId,
+                            type: NotificationType.SprintRiskDetected,
+                            messageEn: $"New sprint risk detected: {risk.MessageEn}",
+                            messageAr: $"تم اكتشاف خطر جديد في السبرينت: {risk.MessageAr}",
+                            url: $"/projects/{sprint.ProjectId}/sprints/{sprintId}/risks"
+                        );
+                    }
                 }
             }
 

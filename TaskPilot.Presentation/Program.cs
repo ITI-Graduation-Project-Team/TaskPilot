@@ -27,7 +27,7 @@ namespace TaskPilot.Presentation
             var builder = WebApplication.CreateBuilder(args);
             builder.Services.AddData(builder.Configuration);
             builder.Services.AddServices(builder.Configuration);
-            builder.Services.AddScoped<TaskPilot.Services.Interfaces.IAgileCoachService, TaskPilot.Services.Implementations.AgileCoachService>();
+           // builder.Services.AddScoped<TaskPilot.Services.Interfaces.IAgileCoachService, TaskPilot.Services.Implementations.AgileCoachService>();
             builder.Services.AddAiLayer(builder.Configuration);
             builder.Services.AddScoped<TaskPilot.AI.Agents.AgileCoachAgent>();
             builder.Services.AddInfrastructure(
@@ -57,6 +57,9 @@ namespace TaskPilot.Presentation
                         .AllowCredentials();  // now valid because origin is explicit
                 });
             });
+            builder.Services.AddSignalR();
+            builder.Services.AddScoped<TaskPilot.Services.Interfaces.INotificationNotifier, TaskPilot.Presentation.Services.NotificationNotifier>();
+            
             builder.Services.AddControllers()
                 .AddJsonOptions(options =>
                 {
@@ -168,6 +171,7 @@ namespace TaskPilot.Presentation
             app.UseAuthorization();
 
             app.MapControllers();
+            app.MapHub<TaskPilot.Presentation.Hubs.NotificationHub>("/hubs/notifications");
 
             app.Run();
         }

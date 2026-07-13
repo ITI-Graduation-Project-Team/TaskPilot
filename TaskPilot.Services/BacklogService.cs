@@ -17,17 +17,20 @@ namespace TaskPilot.Services
         private readonly IRepository<UserStory> _userStoryRepository;
         private readonly IRepository<TaskItem> _taskRepository;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly INotificationService _notificationService;
 
         public BacklogService(
             IRepository<Project> projectRepository,
             IRepository<UserStory> userStoryRepository,
             IRepository<TaskItem> taskRepository,
-            IUnitOfWork unitOfWork)
+            IUnitOfWork unitOfWork,
+            INotificationService notificationService)
         {
             _projectRepository = projectRepository;
             _userStoryRepository = userStoryRepository;
             _taskRepository = taskRepository;
             _unitOfWork = unitOfWork;
+            _notificationService = notificationService;
         }
 
         public async Task<Result<BacklogDto>> GetBacklogAsync(Guid projectId)
@@ -219,6 +222,8 @@ namespace TaskPilot.Services
             if (task == null)
                 return Result.Failure(new Error("TaskItem.NotFound", ErrorType.NotFound, "Task not found."));
 
+            var isNewlyCompleted = request.Status == TaskItemStatus.Done && task.Status != TaskItemStatus.Done;
+
             task.TitleEn = request.TitleEn;
             task.TitleAr = request.TitleAr ?? string.Empty;
             task.DescriptionEn = request.DescriptionEn;
@@ -235,6 +240,25 @@ namespace TaskPilot.Services
 
             _taskRepository.Update(task);
             await _unitOfWork.SaveChangesAsync();
+
+            if (isNewlyCompleted && task.UserStoryId.HasValue)
+            {
+                var story = await _userStoryRepository.GetByIdAsync(task.UserStoryId.Value);
+                if (story != null)
+                {
+                    var project = await _projectRepository.GetByIdAsync(story.ProjectId);
+                    if (project != null && project.ManagerId != Guid.Empty)
+                    {
+                        await _notificationService.SendAsync(
+                            userId: project.ManagerId,
+                            type: NotificationType.TaskCompleted,
+                            messageEn: $"Task '{task.TitleEn}' has been marked as Done.",
+                            messageAr: $"تم إنجاز المهمة '{task.TitleAr ?? task.TitleEn}'.",
+                            url: $"/projects/{project.Id}/board"
+                        );
+                    }
+                }
+            }
 
             return Result.Success();
         }

@@ -36,6 +36,7 @@ namespace TaskPilot.Services
             services.AddScoped<ISprintLifecycleService, SprintLifecycleService>();
             services.AddScoped<ITechStackService, TechStackService>();
             services.AddScoped<IWbsGenerationService, WbsGenerationService>();
+            services.AddScoped<INotificationService, TaskPilot.Services.Implementations.NotificationService>();
             services.AddScoped<TaskPilot.Services.Assignment.ITeamSnapshotService, TaskPilot.Services.Assignment.TeamSnapshotService>();
             services.AddScoped<TaskPilot.Services.Assignment.ICapacityValidationService, TaskPilot.Services.Assignment.CapacityValidationService>();
             services.AddScoped<TaskPilot.Services.Assignment.IScoreCalculator, TaskPilot.Services.Assignment.SkillScoreCalculator>();
