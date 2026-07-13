@@ -1,4 +1,4 @@
-{
+﻿{
   "Welcome": "Welcome",
   "Success": "Operation completed successfully.",
 
@@ -248,5 +248,27 @@
   "wbs.invalidGeneratedSkill": "Generated skill is invalid.",
   "wbs.invalidGeneratedSkillJson": "Failed to parse generated skill JSON.",
   "INVALID_GENERATED_SKILL_JSON": "Failed to parse generated skill JSON.",
-  "wbs.requiredSkillsCompleted": "Required skills completed."
+  "wbs.requiredSkillsCompleted": "Required skills completed.",
+
+  "Sprint.NotFound": "Sprint not found.",
+  "Sprint.AlreadyActive": "Another sprint is already active.",
+  "Sprint.AlreadyCompleted": "Sprint already completed.",
+  "Sprint.NotStarted": "Sprint is not active.",
+  "Sprint.AnotherAlreadyActive": "Another sprint is already active.",
+  "Sprint.DoesNotBelongToProject": "Sprint does not belong to project.",
+  "Sprint.InvalidStatus": "Invalid sprint status.",
+  "Project.NotFound": "Project not found.",
+  "Sprint.Invalid": "Invalid sprint.",
+  "Project.Invalid": "Invalid project.",
+  "SPRINT_STARTED_SUCCESS": "Sprint started successfully.",
+  "SPRINT_COMPLETED_SUCCESS": "Sprint completed successfully.",
+  "SPRINT_ACTIVE_RETRIEVED_SUCCESS": "Active sprint retrieved successfully.",
+  "Project.InvalidId": "Project ID is invalid.",
+  "Project.InvalidStatus": "Project status is invalid.",
+  "Project.AlreadyCompleted": "Project is already completed.",
+  "Project.AlreadyArchived": "Project is already archived.",
+  "Project.InvalidStatusTransition": "Invalid status transition.",
+  "PROJECT_STATUS_RETRIEVED_SUCCESS": "Project status retrieved successfully.",
+  "PROJECT_STATUS_UPDATED_SUCCESS": "Project status updated successfully.",
+  "PROJECT_STATUS_TRANSITIONS_RETRIEVED_SUCCESS": "Project status transitions retrieved successfully."
 }

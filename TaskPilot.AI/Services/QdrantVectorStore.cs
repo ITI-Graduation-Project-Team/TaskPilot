@@ -250,7 +250,7 @@ namespace TaskPilot.AI.Services
             Guid? companyId,
             string queryText,
             int topK = 5,
-            float scoreThreshold = 0.75f,
+            float scoreThreshold = 0.4f,
             DocumentCategory? categoryFilter = null,
             CancellationToken cancellationToken = default)
         {
@@ -325,9 +325,8 @@ namespace TaskPilot.AI.Services
                 queryEmbedding,
                 filter: filter,
                 limit: (ulong)topK,
-                scoreThreshold: scoreThreshold,
+                scoreThreshold: null,
                 cancellationToken: cancellationToken);
-
             stopwatch.Stop();
 
             _logger.LogInformation("Qdrant Search in {CollectionName} | Query: '{QueryText}' | RequirementSessionId: {RequirementSessionId} | ProjectId: {ProjectId} | CompanyId: {CompanyId} | TopK: {TopK} | Threshold: {ScoreThreshold} | Returned {Count} results | SearchDuration: {SearchDuration}ms", 

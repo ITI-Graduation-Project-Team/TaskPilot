@@ -15,5 +15,9 @@ namespace TaskPilot.Services.Interfaces
         Task<Result<ProjectDto>> CreateAsync(CreateProjectDto projectDto);
         Task<Result> UpdateAsync(UpdateProjectDto projectDto);
         Task<Result> DeleteAsync(Guid id);
+        
+        Task<Result<ProjectStatusDto>> GetStatusAsync(Guid projectId, CancellationToken cancellationToken = default);
+        Task<Result<ProjectStatusDto>> UpdateStatusAsync(Guid projectId, ProjectStatusUpdateRequest request, string userId, CancellationToken cancellationToken = default);
+        Task<Result<List<ProjectStatusTransitionDto>>> GetAvailableTransitionsAsync(Guid projectId, CancellationToken cancellationToken = default);
     }
 }

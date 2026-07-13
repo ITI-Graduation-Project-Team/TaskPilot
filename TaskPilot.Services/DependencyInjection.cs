@@ -32,6 +32,7 @@ namespace TaskPilot.Services
             services.AddScoped<IBacklogRegenerationService, BacklogRegenerationService>();
             services.AddScoped<ISprintPlanningService, SprintPlanningService>();
             services.AddScoped<ISprintConfirmationService, SprintConfirmationService>();
+            services.AddScoped<ISprintLifecycleService, SprintLifecycleService>();
             services.AddScoped<ITechStackService, TechStackService>();
             services.AddScoped<IWbsGenerationService, WbsGenerationService>();
             services.AddScoped<TaskPilot.Services.Assignment.ITeamSnapshotService, TaskPilot.Services.Assignment.TeamSnapshotService>();

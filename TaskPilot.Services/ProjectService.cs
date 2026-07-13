@@ -3,9 +3,11 @@ using TaskPilot.Models.Common.Results;
 using TaskPilot.Services.Interfaces;
 using TaskPilot.Models.Common;
 using TaskPilot.Models.Entities;
-using TaskPilot.Data.Repositories;
 using TaskPilot.DTOs.Projects;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using TaskPilot.Models.Enums;
+using TaskPilot.Data.Repositories;
 
 namespace TaskPilot.Services
 {
@@ -19,17 +21,20 @@ namespace TaskPilot.Services
         private readonly IRepository<Company> _companyRepo;
         private readonly IRepository<ProjectManager> _managerRepo;
         private readonly ILocalizationService _localizationService;
+        private readonly ILogger<ProjectService> _logger;
 
         public ProjectService(
             IRepository<Project> projectRepo, 
             IRepository<Company> companyRepo,
             IRepository<ProjectManager> managerRepo,
-            ILocalizationService localizationService)
+            ILocalizationService localizationService,
+            ILogger<ProjectService> logger)
         {
             _projectRepo = projectRepo;
             _companyRepo = companyRepo;
             _managerRepo = managerRepo;
             _localizationService = localizationService;
+            _logger = logger;
         }
 
         public async Task<Result<ProjectDto>> GetByIdAsync(Guid id)
@@ -167,6 +172,101 @@ namespace TaskPilot.Services
             _projectRepo.Update(project);
 
             return Result.Success();
+        }
+
+        public async Task<Result<ProjectStatusDto>> GetStatusAsync(Guid projectId, CancellationToken cancellationToken = default)
+        {
+            if (projectId == Guid.Empty)
+                return Result.Failure<ProjectStatusDto>(ProjectErrors.InvalidProjectId);
+
+            var project = await _projectRepo.GetQueryable()
+                .Where(p => p.Id == projectId && !p.IsDeleted)
+                .Select(p => new { p.Id, p.Status })
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (project == null)
+                return Result.Failure<ProjectStatusDto>(ProjectErrors.NotFound);
+
+            return Result.Success(new ProjectStatusDto
+            {
+                ProjectId = project.Id,
+                Status = project.Status
+            });
+        }
+
+        public async Task<Result<ProjectStatusDto>> UpdateStatusAsync(Guid projectId, ProjectStatusUpdateRequest request, string userId, CancellationToken cancellationToken = default)
+        {
+            if (projectId == Guid.Empty)
+                return Result.Failure<ProjectStatusDto>(ProjectErrors.InvalidProjectId);
+
+            var project = await _projectRepo.GetByIdAsync(projectId);
+
+            if (project == null)
+                return Result.Failure<ProjectStatusDto>(ProjectErrors.NotFound);
+
+            if (project.Status == request.Status)
+                return Result.Success(new ProjectStatusDto { ProjectId = project.Id, Status = project.Status });
+
+            if (project.Status == ProjectStatus.Completed && request.Status == ProjectStatus.Active)
+                return Result.Failure<ProjectStatusDto>(ProjectErrors.ProjectAlreadyCompleted);
+
+            if (project.Status == ProjectStatus.Archived)
+                return Result.Failure<ProjectStatusDto>(ProjectErrors.ProjectAlreadyArchived);
+
+            var availableTransitions = GetAllowedTransitions(project.Status);
+            
+            if (!availableTransitions.Contains(request.Status))
+                return Result.Failure<ProjectStatusDto>(ProjectErrors.InvalidStatusTransition);
+
+            var oldStatus = project.Status;
+            project.Status = request.Status;
+            
+            _projectRepo.Update(project);
+
+            _logger.LogInformation("Project status updated. ProjectId: {ProjectId}, OldStatus: {OldStatus}, NewStatus: {NewStatus}, UserId: {UserId}, Transition: {Transition}", 
+                projectId, oldStatus.ToString(), project.Status.ToString(), userId, $"{oldStatus}->{project.Status}");
+
+            return Result.Success(new ProjectStatusDto
+            {
+                ProjectId = project.Id,
+                Status = project.Status
+            });
+        }
+
+        public async Task<Result<List<ProjectStatusTransitionDto>>> GetAvailableTransitionsAsync(Guid projectId, CancellationToken cancellationToken = default)
+        {
+            if (projectId == Guid.Empty)
+                return Result.Failure<List<ProjectStatusTransitionDto>>(ProjectErrors.InvalidProjectId);
+
+            var project = await _projectRepo.GetQueryable()
+                .Where(p => p.Id == projectId && !p.IsDeleted)
+                .Select(p => new { p.Status })
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (project == null)
+                return Result.Failure<List<ProjectStatusTransitionDto>>(ProjectErrors.NotFound);
+
+            var transitions = GetAllowedTransitions(project.Status)
+                .Select(t => new ProjectStatusTransitionDto
+                {
+                    FromStatus = project.Status,
+                    ToStatus = t
+                })
+                .ToList();
+
+            return Result.Success(transitions);
+        }
+
+        private List<ProjectStatus> GetAllowedTransitions(ProjectStatus currentStatus)
+        {
+            return currentStatus switch
+            {
+                ProjectStatus.Draft => new List<ProjectStatus> { ProjectStatus.Active, ProjectStatus.Archived },
+                ProjectStatus.Active => new List<ProjectStatus> { ProjectStatus.Completed, ProjectStatus.Archived },
+                ProjectStatus.Completed => new List<ProjectStatus> { ProjectStatus.Archived },
+                ProjectStatus.Archived => new List<ProjectStatus>(),
+                _ => new List<ProjectStatus>()
+            };
         }
     }
 }

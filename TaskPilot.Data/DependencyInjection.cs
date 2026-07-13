@@ -51,6 +51,7 @@ namespace TaskPilot.Data
             services.AddScoped<IUserStoryRepository, UserStoryRepository>();
             services.AddScoped<ITaskRepository, TaskRepository>();
             services.AddScoped<IProjectEmployeeRepository, ProjectEmployeeRepository>();
+            services.AddScoped<ISprintRepository, SprintRepository>();
 
             return services;
         }
