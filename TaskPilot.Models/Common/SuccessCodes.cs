@@ -108,6 +108,9 @@ namespace TaskPilot.Models.Common
             public const string RiskAlertsRetrieved = "SPRINT_RISK_ALERTS_RETRIEVED";
             public const string AlertDismissed = "SPRINT_RISK_ALERT_DISMISSED";
             public const string SimulationGenerated = "SPRINT_RISK_SIMULATION_GENERATED";
+            public const string Started = "SPRINT_STARTED_SUCCESS";
+            public const string Completed = "SPRINT_COMPLETED_SUCCESS";
+            public const string ActiveRetrieved = "SPRINT_ACTIVE_RETRIEVED_SUCCESS";
         }
 
         public static class AgileCoach
@@ -139,12 +142,7 @@ namespace TaskPilot.Models.Common
             public const string RequiredSkillsCompleted = "WBS_REQUIRED_SKILLS_COMPLETED";
         }
 
-        public static class Sprint
-        {
-            public const string Started = "SPRINT_STARTED_SUCCESS";
-            public const string Completed = "SPRINT_COMPLETED_SUCCESS";
-            public const string ActiveRetrieved = "SPRINT_ACTIVE_RETRIEVED_SUCCESS";
-        }
+       
     }
 }
 

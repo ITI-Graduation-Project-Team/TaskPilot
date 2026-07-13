@@ -56,7 +56,7 @@ namespace TaskPilot.Services
             {
                 return Result.Failure<SprintStatusDto>(SprintErrors.SprintAlreadyActive);
             }
-            
+
             if (sprint.Status == SprintStatus.Completed)
             {
                 return Result.Failure<SprintStatusDto>(SprintErrors.SprintAlreadyCompleted);
@@ -85,47 +85,33 @@ namespace TaskPilot.Services
             });
         }
 
-        public async Task<Result<SprintStatusDto>> CompleteSprintAsync(Guid projectId, Guid sprintId, CancellationToken cancellationToken = default)
-    public sealed class SprintLifecycleService(
-        IRepository<Sprint> sprintRepository,
-        IUnitOfWork unitOfWork) : ISprintLifecycleService
-    {
-            if (projectId == Guid.Empty) return Result.Failure<SprintStatusDto>(SprintErrors.InvalidProject);
-            if (sprintId == Guid.Empty) return Result.Failure<SprintStatusDto>(SprintErrors.InvalidSprint);
+        public async Task<Result<SprintStatusDto>> CompleteSprintAsync(
+    Guid projectId,
+    Guid sprintId,
+    CancellationToken cancellationToken = default)
+        {
+            if (projectId == Guid.Empty)
+                return Result.Failure<SprintStatusDto>(SprintErrors.InvalidProject);
+
+            if (sprintId == Guid.Empty)
+                return Result.Failure<SprintStatusDto>(SprintErrors.InvalidSprint);
 
             var sprint = await _sprintRepository.GetSprintWithTasksAsync(sprintId, cancellationToken);
+
             if (sprint == null)
-        public async Task<bool> EnsureCompletedIfDueAsync(Guid sprintId, CancellationToken cancellationToken = default)
-        {
                 return Result.Failure<SprintStatusDto>(SprintErrors.SprintNotFound);
-            }
-            var sprint = await sprintRepository.GetByIdAsync(sprintId);
 
             if (sprint.ProjectId != projectId)
-            {
                 return Result.Failure<SprintStatusDto>(SprintErrors.SprintDoesNotBelongToProject);
-            }
-            if (sprint is null || sprint.IsDeleted || sprint.Status == SprintStatus.Cancelled)
-                return false;
 
             if (sprint.Status == SprintStatus.Completed)
-            {
                 return Result.Failure<SprintStatusDto>(SprintErrors.SprintAlreadyCompleted);
-            }
-                return true;
 
             if (sprint.Status == SprintStatus.Planned)
-            {
                 return Result.Failure<SprintStatusDto>(SprintErrors.SprintNotStarted);
-            }
-            // A previously scheduled job must do nothing if the end date was extended.
-            if (sprint.EndDate > DateTime.UtcNow)
-                return false;
 
             if (sprint.Status != SprintStatus.Active)
-            {
                 return Result.Failure<SprintStatusDto>(SprintErrors.InvalidSprintStatus);
-            }
 
             sprint.Status = SprintStatus.Completed;
             sprint.EndDate = DateTime.UtcNow;
@@ -138,7 +124,10 @@ namespace TaskPilot.Services
                 }
             }
 
-            _logger.LogInformation("Sprint {SprintId} completed for Project {ProjectId}", sprintId, projectId);
+            _logger.LogInformation(
+                "Sprint {SprintId} completed for Project {ProjectId}",
+                sprintId,
+                projectId);
 
             return Result.Success(new SprintStatusDto
             {
@@ -146,41 +135,91 @@ namespace TaskPilot.Services
                 Status = sprint.Status.ToString()
             });
         }
-
-        public async Task<Result<ActiveSprintDto>> GetActiveSprintAsync(Guid projectId, CancellationToken cancellationToken = default)
+        public async Task<bool> EnsureCompletedIfDueAsync(
+    Guid sprintId,
+    CancellationToken cancellationToken = default)
         {
-            if (projectId == Guid.Empty) return Result.Failure<ActiveSprintDto>(SprintErrors.InvalidProject);
+            var sprint = await _sprintRepository.GetSprintWithTasksAsync(
+                sprintId,
+                cancellationToken);
+
+            if (sprint == null)
+                return false;
+
+            if (sprint.IsDeleted)
+                return false;
+
+            if (sprint.Status == SprintStatus.Cancelled)
+                return false;
+
+            if (sprint.Status == SprintStatus.Completed)
+                return true;
+
+            if (sprint.EndDate > DateTime.UtcNow)
+                return false;
+
+            sprint.Status = SprintStatus.Completed;
+
+            foreach (var task in sprint.Tasks)
+            {
+                if (task.Status == TaskItemStatus.InProgress)
+                {
+                    task.Status = TaskItemStatus.ToDo;
+                }
+            }
+
+            _logger.LogInformation(
+                "Sprint {SprintId} auto completed.",
+                sprint.Id);
+
+            return true;
+        }
+        
+        public async Task<Result<ActiveSprintDto>> GetActiveSprintAsync(
+    Guid projectId,
+    CancellationToken cancellationToken = default)
+        {
+            if (projectId == Guid.Empty)
+                return Result.Failure<ActiveSprintDto>(SprintErrors.InvalidProject);
 
             var project = await _projectRepository.GetByIdAsync(projectId);
+
             if (project == null)
-            {
                 return Result.Failure<ActiveSprintDto>(SprintErrors.ProjectNotFound);
-            }
 
-            var activeSprint = await _sprintRepository.GetActiveSprintByProjectIdAsync(projectId, cancellationToken);
+            var activeSprint =
+                await _sprintRepository.GetActiveSprintByProjectIdAsync(
+                    projectId,
+                    cancellationToken);
+
             if (activeSprint == null)
-            {
                 return Result.Failure<ActiveSprintDto>(SprintErrors.SprintNotFound);
-            }
 
-            var sprintWithTasks = await _sprintRepository.GetSprintWithTasksAsync(activeSprint.Id, cancellationToken);
+            var sprintWithTasks =
+                await _sprintRepository.GetSprintWithTasksAsync(
+                    activeSprint.Id,
+                    cancellationToken);
+
             if (sprintWithTasks == null)
-            {
                 return Result.Failure<ActiveSprintDto>(SprintErrors.SprintNotFound);
-            }
 
-            int daysRemaining = (activeSprint.EndDate.Date - DateTime.UtcNow.Date).Days;
-            if (daysRemaining < 0) daysRemaining = 0;
+            var totalTasks = sprintWithTasks.Tasks.Count;
 
             double completionPercentage = 0;
-            var totalTasks = sprintWithTasks.Tasks.Count;
+
             if (totalTasks > 0)
             {
-                var doneTasks = sprintWithTasks.Tasks.Count(t => t.Status == TaskItemStatus.Done);
-                completionPercentage = Math.Round((double)doneTasks / totalTasks * 100, 2);
+                var doneTasks =
+                    sprintWithTasks.Tasks.Count(x => x.Status == TaskItemStatus.Done);
+
+                completionPercentage =
+                    Math.Round((double)doneTasks / totalTasks * 100, 2);
             }
-            sprintRepository.Update(sprint);
-            await unitOfWork.SaveChangesAsync(cancellationToken);
+
+            var daysRemaining =
+                Math.Max(
+                    0,
+                    (activeSprint.EndDate.Date - DateTime.UtcNow.Date).Days);
 
             return Result.Success(new ActiveSprintDto
             {
@@ -192,7 +231,7 @@ namespace TaskPilot.Services
                 DaysRemaining = daysRemaining,
                 CompletionPercentage = completionPercentage
             });
-            return true;
         }
     }
 }
+
