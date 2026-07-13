@@ -278,8 +278,8 @@
   "Project.InvalidStatusTransition": "Invalid status transition.",
   "PROJECT_STATUS_RETRIEVED_SUCCESS": "Project status retrieved successfully.",
   "PROJECT_STATUS_UPDATED_SUCCESS": "Project status updated successfully.",
-  "PROJECT_STATUS_TRANSITIONS_RETRIEVED_SUCCESS": "Project status transitions retrieved successfully."
-  "wbs.requiredSkillsCompleted": "Required skills completed."
+  "PROJECT_STATUS_TRANSITIONS_RETRIEVED_SUCCESS": "Project status transitions retrieved successfully.",
+  "wbs.requiredSkillsCompleted": "Required skills completed.",
   // sprint risk alerts
   "SPRINT_RISK_ALERTS_RETRIEVED": "Sprint risk alerts retrieved successfully.",
   "SPRINT_RISK_ALERT_DISMISSED": "Sprint risk alert dismissed successfully.",

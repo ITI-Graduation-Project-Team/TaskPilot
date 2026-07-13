@@ -313,8 +313,8 @@
   "NOTIFICATION_NOT_FOUND": "الإشعار المطلوب غير موجود.",
   "NOTIFICATION_RETRIEVED_SUCCESS": "تم جلب الإشعارات بنجاح.",
   "NOTIFICATION_MARKED_AS_READ_SUCCESS": "تم تحديد الإشعار كمقروء بنجاح.",
-  "NOTIFICATION_SENT_SUCCESS": "تم إرسال الإشعار بنجاح."
-}
+  "NOTIFICATION_SENT_SUCCESS": "تم إرسال الإشعار بنجاح.",
+
   "WBS_GENERATION_FAILED": "ظپط´ظ„ ط¥ظ†ط´ط§ط، ظ‡ظٹظƒظ„ طھظ‚ط³ظٹظ… ط§ظ„ط¹ظ…ظ„.",
   "REQUIRED_SKILLS_GENERATION_FAILED": "ظپط´ظ„ ط¥ظ†ط´ط§ط، ط§ظ„ظ…ظ‡ط§ط±ط§طھ ط§ظ„ظ…ط·ظ„ظˆط¨ط©.",
   "REQUIRED_SKILLS_PERSISTENCE_FAILED": "ظپط´ظ„ ط­ظپط¸ ط§ظ„ظ…ظ‡ط§ط±ط§طھ ط§ظ„ظ…ط·ظ„ظˆط¨ط©.",
