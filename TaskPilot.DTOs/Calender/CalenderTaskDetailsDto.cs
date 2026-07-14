@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -8,6 +8,7 @@ namespace TaskPilot.DTOs.Calender
     {
         public Guid Id { get; set; }
         public string Title { get; set; } = string.Empty;
+        public string? Description { get; set; }
         public string TaskType { get; set; } = string.Empty;
         public string Priority { get; set; } = string.Empty;
         public DateTime StartDate { get; set; }

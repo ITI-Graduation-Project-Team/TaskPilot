@@ -238,11 +238,14 @@
 
   //calender
   "CalendarNotFoundOrUnauthorized": "الحدث غير موجود أو لا تملك صلاحية تعديله.",
+  "Calendar.CannotRescheduleAssignedTask": "لا يمكن إعادة جدولة مهمة مسندة. يرجى التنسيق مع مدير المشروع.",
+  "Calendar.CannotDeleteAssignedTask": "لا يمكن حذف حدث لمهمة مسندة.",
   "CALENDAR_EVENTS_RETRIEVED": "تم استرجاع أحداث التقويم بنجاح.",
   "CALENDAR_EVENT_RETRIEVED": "تم استرجاع تفاصيل الحدث بنجاح.",
   "CALENDAR_EVENT_CREATED": "تم إنشاء الحدث بنجاح.",
   "CALENDAR_EVENT_RESCHEDULED": "تم إعادة جدولة الحدث بنجاح.",
   "CALENDAR_EVENT_UPDATED": "تم تحديث الحدث بنجاح.",
+  "CALENDAR_EVENT_DELETED": "تم حذف الحدث بنجاح.",
   "CALENDAR_WORKLOAD_RETRIEVED": "تم استرجاع ملخص عبء العمل بنجاح.",
   // identity describer
   "PASS_REQ_NON_ALPHANUMERIC": "ط¸ظ¹ط·آ¬ط·آ¨ ط·آ£ط¸â€  ط·ع¾ط·آ­ط·ع¾ط¸ث†ط¸ظ¹ ط¸ئ’ط¸â€‍ط¸â€¦ط·آ© ط·آ§ط¸â€‍ط¸â€¦ط·آ±ط¸ث†ط·آ± ط·آ¹ط¸â€‍ط¸â€° ط·آ±ط¸â€¦ط·آ² ط¸ث†ط·آ§ط·آ­ط·آ¯ ط·آ¹ط¸â€‍ط¸â€° ط·آ§ط¸â€‍ط·آ£ط¸â€ڑط¸â€‍ ط·ط›ط¸ظ¹ط·آ± ط·آ£ط·آ¨ط·آ¬ط·آ¯ط¸ظ¹ ط·آ±ط¸â€ڑط¸â€¦ط¸ظ¹.",

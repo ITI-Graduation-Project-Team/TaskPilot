@@ -115,6 +115,24 @@ namespace TaskPilot.Presentation.Controllers
             return HandleResult(result, SuccessCodes.Calendar.EventUpdated);
         }
 
+        [HttpDelete("tasks/{taskId:guid}")]
+        public async Task<IActionResult> DeleteTask(Guid taskId)
+        {
+            if (_currentUser.UserId is null)
+                return Unauthorized();
+
+            var result = await _calendarService.DeleteEventAsync(
+                taskId,
+                _currentUser.UserId.Value);
+
+            if (result.IsSuccess)
+            {
+                await _unitOfWork.SaveChangesAsync();
+            }
+
+            return HandleResult(result, SuccessCodes.Calendar.EventDeleted);
+        }
+
         [HttpGet("workload")]
         public async Task<IActionResult> GetWorkload()
         {

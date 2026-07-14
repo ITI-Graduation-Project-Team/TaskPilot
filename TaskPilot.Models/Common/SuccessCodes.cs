@@ -103,6 +103,8 @@ namespace TaskPilot.Models.Common
 
             public const string EventUpdated = "CALENDAR_EVENT_UPDATED";
 
+            public const string EventDeleted = "CALENDAR_EVENT_DELETED";
+
             public const string WorkloadRetrieved = "CALENDAR_WORKLOAD_RETRIEVED";
         }
         public static class Sprint
