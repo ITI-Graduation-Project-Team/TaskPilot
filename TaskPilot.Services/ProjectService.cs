@@ -52,7 +52,8 @@ namespace TaskPilot.Services
                     ManagerId = p.ManagerId,
                     TechStack = p.TechStack,
                     PlatformTargets = p.PlatformTargets,
-                    ProjectType = p.ProjectType
+                    ProjectType = p.ProjectType,
+                    status = p.Status
                 })
                 .FirstOrDefaultAsync();
 
@@ -74,7 +75,8 @@ namespace TaskPilot.Services
                     Name = isArabic ? p.NameAr : p.NameEn,
                     Description = isArabic ? p.DescriptionAr : p.DescriptionEn,
                     CompanyId = p.CompanyId,
-                    ManagerId = p.ManagerId
+                    ManagerId = p.ManagerId,
+                    status = p.Status
                 })
                 .ToListAsync();
 
@@ -138,7 +140,8 @@ namespace TaskPilot.Services
                 Name = isArabic ? project.NameAr : project.NameEn,
                 Description = isArabic ? project.DescriptionAr : project.DescriptionEn,
                 CompanyId = project.CompanyId,
-                ManagerId = project.ManagerId
+                ManagerId = project.ManagerId,
+                status = project.Status
             };
 
             return Result.Success(resultDto);
