@@ -146,7 +146,13 @@ namespace TaskPilot.Models.Common
             public const string RequiredSkillsCompleted = "WBS_REQUIRED_SKILLS_COMPLETED";
         }
 
-       
+
+        public static class Task
+        {
+            public const string MyTasksRetrieved = "TASK_MY_TASKS_RETRIEVED_SUCCESS";
+            public const string StatusUpdated = "TASK_STATUS_UPDATED_SUCCESS";
+            public const string ActualHoursUpdated = "TASK_ACTUAL_HOURS_UPDATED_SUCCESS";
+        }
     }
 }
 

@@ -228,7 +228,7 @@ namespace TaskPilot.Services
 
                 foreach (var (email, invitation) in pendingInvitations)
                 {
-                    var invitationLink = $"https://taskpilot.vercel.app/accept-invitation?token={invitation.Token}";
+                    var invitationLink = $"http://localhost:4200/accept-invitation?token={invitation.Token}";
                     var body = _emailBodyService.GenerateEmployeeInvitationBody(email, company.Name, invitationLink);
                     await _emailService.SendEmailAsync(new EmailRequest
                     {

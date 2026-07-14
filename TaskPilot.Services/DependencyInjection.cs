@@ -65,6 +65,8 @@ namespace TaskPilot.Services
             services.AddScoped<ISprintLifecycleService, SprintLifecycleService>();
             services.AddScoped<IProjectTeamService, ProjectTeamService>();
             services.AddScoped<ICompanyService,CompanyService>();
+            services.AddScoped<ITaskStatusService, TaskPilot.Services.Implementations.TaskStatusService>();
+            services.AddScoped<ICompanyService,CompanyService>();
 
             services.AddHostedService<BackgroundJobs.SubscriptionExpiryJob>();
 
