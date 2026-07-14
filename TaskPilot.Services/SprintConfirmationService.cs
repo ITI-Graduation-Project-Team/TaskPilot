@@ -1,19 +1,13 @@
-using System;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Collections.Generic;
+using Hangfire;
 using TaskPilot.Data.Repositories;
 using TaskPilot.Data.Repositories.Interfaces;
 using TaskPilot.DTOs.Sprints;
+using TaskPilot.Models.Common.Errors;
+using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Entities;
 using TaskPilot.Models.Enums;
-using TaskPilot.Services.Interfaces;
-using TaskPilot.Models.Common.Results;
-using TaskPilot.Models.Common.Errors;
-
-using Hangfire;
 using TaskPilot.Services.BackgroundJobs;
+using TaskPilot.Services.Interfaces;
 namespace TaskPilot.Services
 {
     public class SprintConfirmationService : ISprintConfirmationService
@@ -91,7 +85,8 @@ namespace TaskPilot.Services
                     SprintGoalAr = request.SprintGoalAr,
                     StartDate = startDate,
                     EndDate = endDate,
-                    Status = SprintStatus.Planned
+                    Status = SprintStatus.Active
+                    //Status = SprintStatus.Planned
                 };
 
                 await _sprintRepository.AddAsync(sprint);
