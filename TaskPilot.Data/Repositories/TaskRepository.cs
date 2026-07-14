@@ -43,5 +43,33 @@ namespace TaskPilot.Data.Repositories
                 .Where(t => t.SprintId == sprintId)
                 .ToListAsync(cancellationToken);
         }
+
+        public async Task<List<TaskItem>> GetAssignedTasksBySprintAsync(
+            Guid sprintId,
+            Guid employeeId,
+            CancellationToken cancellationToken = default)
+        {
+            return await _context.TaskItems
+                .AsNoTracking()
+                .Include(t => t.UserStory)
+                .Include(t => t.RequiredSkills)
+                    .ThenInclude(rs => rs.Skill)
+                .Where(t => t.SprintId == sprintId && t.EmployeeId == employeeId)
+                .OrderBy(t => t.Priority)
+                .ThenBy(t => t.Status)
+                .ToListAsync(cancellationToken);
+        }
+
+        public async Task<TaskItem?> GetByIdWithSprintAsync(
+            Guid taskId,
+            CancellationToken cancellationToken = default)
+        {
+            return await _context.TaskItems
+                .Include(t => t.Sprint)
+                .Include(t => t.UserStory)
+                .Include(t => t.RequiredSkills)
+                    .ThenInclude(rs => rs.Skill)
+                .FirstOrDefaultAsync(t => t.Id == taskId, cancellationToken);
+        }
     }
 }

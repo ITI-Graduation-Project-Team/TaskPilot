@@ -29,5 +29,18 @@ namespace TaskPilot.Data.Repositories
 
             return ids.ToHashSet();
         }
+
+        public async Task<bool> IsProjectManagerAsync(
+        Guid projectId,
+        Guid userId,
+        CancellationToken cancellationToken = default)
+        {
+            return await _context.Projects
+                .AsNoTracking()
+                .AnyAsync(
+                    p => p.Id == projectId &&
+                         p.ManagerId == userId,
+                    cancellationToken);
+        }
     }
 }

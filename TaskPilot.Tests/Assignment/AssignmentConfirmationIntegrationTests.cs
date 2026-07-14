@@ -8,6 +8,7 @@ using TaskPilot.DTOs.Assignment;
 using TaskPilot.Models.Common;
 using TaskPilot.Models.Entities;
 using TaskPilot.Services.Assignment;
+using TaskPilot.Services.Interfaces;
 using Moq;
 using Xunit;
 
@@ -18,6 +19,7 @@ namespace TaskPilot.Tests.Assignment
         private readonly Mock<ITaskRepository> _taskRepoMock;
         private readonly Mock<IProjectEmployeeRepository> _projectEmpRepoMock;
         private readonly Mock<ILocalizationService> _localizationMock;
+        private readonly Mock<INotificationService> _notificationMock;
         private readonly AssignmentConfirmationService _sut;
 
         public AssignmentConfirmationTests()
@@ -25,10 +27,15 @@ namespace TaskPilot.Tests.Assignment
             _taskRepoMock = new Mock<ITaskRepository>();
             _projectEmpRepoMock = new Mock<IProjectEmployeeRepository>();
             _localizationMock = new Mock<ILocalizationService>();
+            _notificationMock = new Mock<INotificationService>();
 
             _localizationMock.Setup(l => l.GetString(It.IsAny<string>())).Returns((string key) => key);
 
-            _sut = new AssignmentConfirmationService(_taskRepoMock.Object, _projectEmpRepoMock.Object, _localizationMock.Object);
+            _sut = new AssignmentConfirmationService(
+                _taskRepoMock.Object, 
+                _projectEmpRepoMock.Object, 
+                _localizationMock.Object,
+                _notificationMock.Object);
         }
 
         [Fact]

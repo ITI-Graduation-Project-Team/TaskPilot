@@ -10,5 +10,10 @@ namespace TaskPilot.Data.Repositories.Interfaces
         Task<HashSet<Guid>> GetEmployeeIdsByProjectAsync(
             Guid projectId,
             CancellationToken cancellationToken = default);
+
+        Task<bool> IsProjectManagerAsync(
+            Guid projectId,
+            Guid userId,
+            CancellationToken cancellationToken = default);
     }
 }

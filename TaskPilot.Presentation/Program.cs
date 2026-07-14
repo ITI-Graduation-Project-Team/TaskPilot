@@ -51,7 +51,7 @@ namespace TaskPilot.Presentation
                             "http://localhost:4200",        // Angular dev
                             "http://localhost:4000",        // any other local port
                             "https://taskpilotapi.runasp.net", // production (adjust to real frontend URL)
-                            "https://taskpilot.runasp.net/"
+                            "https://taskpilot.runasp.net"
                         )
                         .AllowAnyHeader()
                         .AllowAnyMethod()
