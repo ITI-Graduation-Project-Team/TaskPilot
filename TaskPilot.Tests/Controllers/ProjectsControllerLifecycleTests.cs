@@ -27,11 +27,32 @@ namespace TaskPilot.Tests.Controllers
             _projectTeamServiceMock = new Mock<IProjectTeamService>();
             _unitOfWorkMock = new Mock<IUnitOfWork>();
 
+            var user = new System.Security.Claims.ClaimsPrincipal(
+                new System.Security.Claims.ClaimsIdentity(
+                    new[] { new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, "test-user-id") }
+                )
+            );
+
+            var serviceProviderMock = new Mock<IServiceProvider>();
+            var localizationServiceMock = new Mock<ILocalizationService>();
+            serviceProviderMock.Setup(sp => sp.GetService(typeof(ILocalizationService)))
+                .Returns(localizationServiceMock.Object);
+
             _controller = new ProjectsController(
                 _projectServiceMock.Object,
                 _projectTeamServiceMock.Object,
                 _unitOfWorkMock.Object
-            );
+            )
+            {
+                ControllerContext = new Microsoft.AspNetCore.Mvc.ControllerContext
+                {
+                    HttpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext
+                    {
+                        User = user,
+                        RequestServices = serviceProviderMock.Object
+                    }
+                }
+            };
         }
 
         [Fact]

@@ -13,6 +13,9 @@ using TaskPilot.Services.Interfaces;
 using Xunit;
 using TaskPilot.Models.Common;
 using System.Collections.Generic;
+using System.Linq;
+using MockQueryable.Moq;
+
 
 namespace TaskPilot.Tests.Services
 {
@@ -50,7 +53,7 @@ namespace TaskPilot.Tests.Services
             typeof(BaseEntity<Guid>).GetProperty("Id")!.SetValue(project, projectId);
 
             _projectRepoMock.Setup(r => r.GetQueryable())
-                .Returns(new List<Project> { project }.AsQueryable());
+                .Returns(new List<Project> { project }.BuildMockDbSet().Object);
 
             var result = await _service.GetStatusAsync(projectId);
 
@@ -70,7 +73,7 @@ namespace TaskPilot.Tests.Services
         [Fact]
         public async Task GetStatusAsync_NotFound_ReturnsFailure()
         {
-            _projectRepoMock.Setup(r => r.GetQueryable()).Returns(new List<Project>().AsQueryable());
+            _projectRepoMock.Setup(r => r.GetQueryable()).Returns(new List<Project>().BuildMockDbSet().Object);
 
             var result = await _service.GetStatusAsync(Guid.NewGuid());
 
@@ -98,19 +101,19 @@ namespace TaskPilot.Tests.Services
         public async Task UpdateStatusAsync_InvalidTransition_ReturnsFailure()
         {
             var projectId = Guid.NewGuid();
-            var project = new Project { Status = ProjectStatus.Active };
+            var project = new Project { Status = ProjectStatus.Draft };
             typeof(BaseEntity<Guid>).GetProperty("Id")!.SetValue(project, projectId);
 
             _projectRepoMock.Setup(r => r.GetByIdAsync(projectId)).ReturnsAsync(project);
 
-            var result = await _service.UpdateStatusAsync(projectId, new ProjectStatusUpdateRequest { Status = ProjectStatus.Draft }, "user1");
+            var result = await _service.UpdateStatusAsync(projectId, new ProjectStatusUpdateRequest { Status = ProjectStatus.Completed }, "user1");
 
             Assert.False(result.IsSuccess);
             Assert.Equal(ProjectErrors.InvalidStatusTransition.Code, result.Error.Code);
         }
 
         [Fact]
-        public async Task UpdateStatusAsync_CompletedToActive_ReturnsFailure()
+        public async Task UpdateStatusAsync_CompletedToActive_UpdatesStatus()
         {
             var projectId = Guid.NewGuid();
             var project = new Project { Status = ProjectStatus.Completed };
@@ -120,12 +123,13 @@ namespace TaskPilot.Tests.Services
 
             var result = await _service.UpdateStatusAsync(projectId, new ProjectStatusUpdateRequest { Status = ProjectStatus.Active }, "user1");
 
-            Assert.False(result.IsSuccess);
-            Assert.Equal(ProjectErrors.ProjectAlreadyCompleted.Code, result.Error.Code);
+            Assert.True(result.IsSuccess);
+            Assert.Equal(ProjectStatus.Active, project.Status);
+            _projectRepoMock.Verify(r => r.Update(project), Times.Once);
         }
 
         [Fact]
-        public async Task UpdateStatusAsync_ArchivedToAnything_ReturnsFailure()
+        public async Task UpdateStatusAsync_ArchivedToActive_UpdatesStatus()
         {
             var projectId = Guid.NewGuid();
             var project = new Project { Status = ProjectStatus.Archived };
@@ -135,8 +139,25 @@ namespace TaskPilot.Tests.Services
 
             var result = await _service.UpdateStatusAsync(projectId, new ProjectStatusUpdateRequest { Status = ProjectStatus.Active }, "user1");
 
-            Assert.False(result.IsSuccess);
-            Assert.Equal(ProjectErrors.ProjectAlreadyArchived.Code, result.Error.Code);
+            Assert.True(result.IsSuccess);
+            Assert.Equal(ProjectStatus.Active, project.Status);
+            _projectRepoMock.Verify(r => r.Update(project), Times.Once);
+        }
+
+        [Fact]
+        public async Task UpdateStatusAsync_ActiveToDraft_UpdatesStatus()
+        {
+            var projectId = Guid.NewGuid();
+            var project = new Project { Status = ProjectStatus.Active };
+            typeof(BaseEntity<Guid>).GetProperty("Id")!.SetValue(project, projectId);
+
+            _projectRepoMock.Setup(r => r.GetByIdAsync(projectId)).ReturnsAsync(project);
+
+            var result = await _service.UpdateStatusAsync(projectId, new ProjectStatusUpdateRequest { Status = ProjectStatus.Draft }, "user1");
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(ProjectStatus.Draft, project.Status);
+            _projectRepoMock.Verify(r => r.Update(project), Times.Once);
         }
     }
 }
