@@ -85,8 +85,8 @@ namespace TaskPilot.Services
                     SprintGoalAr = request.SprintGoalAr,
                     StartDate = startDate,
                     EndDate = endDate,
-                    Status = SprintStatus.Active
-                    //Status = SprintStatus.Planned
+                    //Status = SprintStatus.Active
+                    Status = SprintStatus.Planned
                 };
 
                 await _sprintRepository.AddAsync(sprint);
