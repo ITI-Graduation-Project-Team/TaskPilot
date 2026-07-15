@@ -4,7 +4,7 @@ namespace TaskPilot.DTOs.Auth
 {
     public class LoginDTO
     {
-        [Required, EmailAddress]
+        [Required]
         public string Email { get; set; } = string.Empty;
 
         [Required]
