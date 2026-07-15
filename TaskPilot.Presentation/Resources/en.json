@@ -184,11 +184,14 @@
 
   // calender
   "CalendarNotFoundOrUnauthorized": "calender not found or youare unahtorized",
+  "Calendar.CannotRescheduleAssignedTask": "Cannot reschedule an assigned task. Please coordinate with the project manager.",
+  "Calendar.CannotDeleteAssignedTask": "Cannot delete an assigned task event.",
   "CALENDAR_EVENTS_RETRIEVED": "Calendar events retrieved successfully.",
   "CALENDAR_EVENT_RETRIEVED": "Calendar event retrieved successfully.",
   "CALENDAR_EVENT_CREATED": "Calendar event created successfully.",
   "CALENDAR_EVENT_RESCHEDULED": "Calendar event rescheduled successfully.",
   "CALENDAR_EVENT_UPDATED": "Calendar event updated successfully.",
+  "CALENDAR_EVENT_DELETED": "Calendar event deleted successfully.",
   "CALENDAR_WORKLOAD_RETRIEVED": "Employee workload retrieved successfully.",
 
   // identity describer

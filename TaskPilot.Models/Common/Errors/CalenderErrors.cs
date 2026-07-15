@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -9,6 +9,14 @@ namespace TaskPilot.Models.Common.Errors
         public static readonly Error EventNotFoundOrUnauthorized = new (
             "CalendarNotFoundOrUnauthorized",
             ErrorType.NotFound);
+            
+        public static readonly Error CannotRescheduleAssignedTask = new (
+            "Calendar.CannotRescheduleAssignedTask",
+            ErrorType.Validation);
+
+        public static readonly Error CannotDeleteAssignedTask = new (
+            "Calendar.CannotDeleteAssignedTask",
+            ErrorType.Validation);
         
     }
 }

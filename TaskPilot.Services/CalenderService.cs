@@ -165,6 +165,7 @@ namespace TaskPilot.Services
             {
                 Id = taskDetails.EventId,
                 Title = taskDetails.Title,
+                Description = taskDetails.Description,
                 TaskType = taskDetails.EventType,
                 Priority = taskDetails.Priority,
                 StartDate = taskDetails.Start,
@@ -194,6 +195,7 @@ namespace TaskPilot.Services
                 Id = Guid.NewGuid(),
                 EmployeeId = employeeId,
                 Title = dto.Title,
+                Description = dto.Description,
                 StartDate = dto.StartDate,
                 EndDate = endDate,
                 Type = dto.EventType, 
@@ -206,6 +208,7 @@ namespace TaskPilot.Services
             {
                 Id = newEvent.Id,
                 Title = newEvent.Title,
+                Description = newEvent.Description,
                 Start = newEvent.StartDate,
                 End = newEvent.EndDate,
                 EventType = newEvent.Type.ToString(),
@@ -227,7 +230,7 @@ namespace TaskPilot.Services
             // cant reschedule if assigned task
             if (existingEvent.Type == CalenderEventType.AssignedTask)
             {
-                return Result.Failure(new Error("Calendar.CannotRescheduleAssignedTask"));
+                return Result.Failure(CalenderErrors.CannotRescheduleAssignedTask);
             }
 
             existingEvent.StartDate = dto.NewStart;
@@ -279,6 +282,25 @@ namespace TaskPilot.Services
                 }
             }
 
+            return Result.Success();
+        }
+
+        public async Task<Result> DeleteEventAsync(Guid eventId, Guid employeeId)
+        {
+            var existingEvent = await _context.CalenderEvents
+                .FirstOrDefaultAsync(e => e.Id == eventId && e.EmployeeId == employeeId);
+
+            if (existingEvent is null)
+            {
+                return Result.Failure(CalenderErrors.EventNotFoundOrUnauthorized);
+            }
+
+            if (existingEvent.Type == CalenderEventType.AssignedTask)
+            {
+                return Result.Failure(CalenderErrors.CannotDeleteAssignedTask);
+            }
+
+            _context.CalenderEvents.Remove(existingEvent);
             return Result.Success();
         }
 

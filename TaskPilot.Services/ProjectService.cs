@@ -52,7 +52,8 @@ namespace TaskPilot.Services
                     ManagerId = p.ManagerId,
                     TechStack = p.TechStack,
                     PlatformTargets = p.PlatformTargets,
-                    ProjectType = p.ProjectType
+                    ProjectType = p.ProjectType,
+                    status = p.Status
                 })
                 .FirstOrDefaultAsync();
 
@@ -74,7 +75,8 @@ namespace TaskPilot.Services
                     Name = isArabic ? p.NameAr : p.NameEn,
                     Description = isArabic ? p.DescriptionAr : p.DescriptionEn,
                     CompanyId = p.CompanyId,
-                    ManagerId = p.ManagerId
+                    ManagerId = p.ManagerId,
+                    status = p.Status
                 })
                 .ToListAsync();
 
@@ -138,7 +140,8 @@ namespace TaskPilot.Services
                 Name = isArabic ? project.NameAr : project.NameEn,
                 Description = isArabic ? project.DescriptionAr : project.DescriptionEn,
                 CompanyId = project.CompanyId,
-                ManagerId = project.ManagerId
+                ManagerId = project.ManagerId,
+                status = project.Status
             };
 
             return Result.Success(resultDto);
@@ -207,12 +210,6 @@ namespace TaskPilot.Services
             if (project.Status == request.Status)
                 return Result.Success(new ProjectStatusDto { ProjectId = project.Id, Status = project.Status });
 
-            if (project.Status == ProjectStatus.Completed && request.Status == ProjectStatus.Active)
-                return Result.Failure<ProjectStatusDto>(ProjectErrors.ProjectAlreadyCompleted);
-
-            if (project.Status == ProjectStatus.Archived)
-                return Result.Failure<ProjectStatusDto>(ProjectErrors.ProjectAlreadyArchived);
-
             var availableTransitions = GetAllowedTransitions(project.Status);
             
             if (!availableTransitions.Contains(request.Status))
@@ -262,9 +259,9 @@ namespace TaskPilot.Services
             return currentStatus switch
             {
                 ProjectStatus.Draft => new List<ProjectStatus> { ProjectStatus.Active, ProjectStatus.Archived },
-                ProjectStatus.Active => new List<ProjectStatus> { ProjectStatus.Completed, ProjectStatus.Archived },
-                ProjectStatus.Completed => new List<ProjectStatus> { ProjectStatus.Archived },
-                ProjectStatus.Archived => new List<ProjectStatus>(),
+                ProjectStatus.Active => new List<ProjectStatus> { ProjectStatus.Completed, ProjectStatus.Archived, ProjectStatus.Draft },
+                ProjectStatus.Completed => new List<ProjectStatus> { ProjectStatus.Archived, ProjectStatus.Active, ProjectStatus.Draft },
+                ProjectStatus.Archived => new List<ProjectStatus> { ProjectStatus.Active, ProjectStatus.Draft },
                 _ => new List<ProjectStatus>()
             };
         }
