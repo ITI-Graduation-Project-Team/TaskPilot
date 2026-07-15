@@ -28,11 +28,11 @@ namespace TaskPilot.Services
                 return Result.Failure<SprintRetrospectiveResponseDto>(CommonErrors.NotFound("Sprint"));
             }
 
-            //if (sprint.Status != SprintStatus.Completed)
-            //{
-            //    return Result.Failure<SprintRetrospectiveResponseDto>(
-            //        CommonErrors.InvalidInput("A retrospective report can be generated only for a completed sprint."));
-            //}
+            if (sprint.Status != SprintStatus.Completed)
+            {
+                return Result.Failure<SprintRetrospectiveResponseDto>(
+                    CommonErrors.InvalidInput("A retrospective report can be generated only for a completed sprint."));
+            }
 
             var existing = await retrospectiveRepository.FindAsync(sr => sr.SprintId == sprintId);
             if (existing.Any())
