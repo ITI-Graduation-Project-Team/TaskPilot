@@ -3,8 +3,8 @@ using System.Text.Json;
 using TaskPilot.AI.Agents.Planning;
 using TaskPilot.Data.Repositories;
 using TaskPilot.DTOs.Sprint;
-using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Common.Errors;
+using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Entities;
 using TaskPilot.Models.Enums;
 using TaskPilot.Services.Interfaces;
@@ -69,8 +69,8 @@ namespace TaskPilot.Services
                 JsonSerializer.Serialize(commentsData),
                 cancellationToken);
 
-            double completionRate = sprint.Tasks.Any() 
-                ? (double)completedTasks.Count / sprint.Tasks.Count * 100 
+            double completionRate = sprint.Tasks.Any()
+                ? (double)completedTasks.Count / sprint.Tasks.Count * 100
                 : 0.0;
 
             decimal totalEstimated = completedTasks.Sum(t => t.EstimatedHours);
