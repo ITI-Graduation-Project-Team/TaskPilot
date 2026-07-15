@@ -20,6 +20,7 @@ namespace TaskPilot.Tests.Assignment
         private readonly Mock<IProjectEmployeeRepository> _projectEmpRepoMock;
         private readonly Mock<ILocalizationService> _localizationMock;
         private readonly Mock<INotificationService> _notificationMock;
+        private readonly Mock<ICalenderService> _calenderMock;
         private readonly AssignmentConfirmationService _sut;
 
         public AssignmentConfirmationTests()
@@ -28,6 +29,7 @@ namespace TaskPilot.Tests.Assignment
             _projectEmpRepoMock = new Mock<IProjectEmployeeRepository>();
             _localizationMock = new Mock<ILocalizationService>();
             _notificationMock = new Mock<INotificationService>();
+            _calenderMock = new Mock<ICalenderService>();
 
             _localizationMock.Setup(l => l.GetString(It.IsAny<string>())).Returns((string key) => key);
 
@@ -35,7 +37,8 @@ namespace TaskPilot.Tests.Assignment
                 _taskRepoMock.Object, 
                 _projectEmpRepoMock.Object, 
                 _localizationMock.Object,
-                _notificationMock.Object);
+                _notificationMock.Object,
+                _calenderMock.Object);
         }
 
         [Fact]

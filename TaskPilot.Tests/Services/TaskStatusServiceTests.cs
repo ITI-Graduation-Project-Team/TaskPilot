@@ -102,5 +102,106 @@ namespace TaskPilot.Tests.Services
             Assert.True(result.IsSuccess);
             Assert.Equal(TaskItemStatus.InProgress, result.Value.NewStatus);
         }
+
+        [Fact]
+        public async Task UpdateStatusAsync_InProgressToReview_ReturnsSuccess()
+        {
+            // Arrange
+            var taskId = Guid.NewGuid();
+            var userId = Guid.NewGuid();
+            var sprint = new Sprint { ProjectId = Guid.NewGuid(), Status = SprintStatus.Active };
+            var task = new TaskItem { Sprint = sprint, EmployeeId = userId, Status = TaskItemStatus.InProgress };
+            typeof(TaskItem).GetProperty("Id")?.SetValue(task, taskId);
+            
+            _taskRepoMock.Setup(x => x.GetByIdWithSprintAsync(taskId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(task);
+            _projectEmployeeRepoMock.Setup(x => x.IsProjectManagerAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(false);
+
+            var request = new UpdateTaskStatusRequest { Status = TaskItemStatus.Review };
+
+            // Act
+            var result = await _service.UpdateStatusAsync(taskId, userId, request);
+
+            // Assert
+            Assert.True(result.IsSuccess);
+            Assert.Equal(TaskItemStatus.Review, result.Value.NewStatus);
+        }
+
+        [Fact]
+        public async Task UpdateStatusAsync_ReviewToDone_ReturnsSuccess()
+        {
+            // Arrange
+            var taskId = Guid.NewGuid();
+            var userId = Guid.NewGuid();
+            var sprint = new Sprint { ProjectId = Guid.NewGuid(), Status = SprintStatus.Active };
+            var task = new TaskItem { Sprint = sprint, EmployeeId = userId, Status = TaskItemStatus.Review };
+            typeof(TaskItem).GetProperty("Id")?.SetValue(task, taskId);
+            
+            _taskRepoMock.Setup(x => x.GetByIdWithSprintAsync(taskId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(task);
+            _projectEmployeeRepoMock.Setup(x => x.IsProjectManagerAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(false);
+
+            var request = new UpdateTaskStatusRequest { Status = TaskItemStatus.Done, ActualHours = 4 };
+
+            // Act
+            var result = await _service.UpdateStatusAsync(taskId, userId, request);
+
+            // Assert
+            Assert.True(result.IsSuccess);
+            Assert.Equal(TaskItemStatus.Done, result.Value.NewStatus);
+            Assert.Equal(4, result.Value.ActualHours);
+        }
+
+        [Fact]
+        public async Task UpdateStatusAsync_ReviewToInProgress_ReturnsSuccess()
+        {
+            // Arrange
+            var taskId = Guid.NewGuid();
+            var userId = Guid.NewGuid();
+            var sprint = new Sprint { ProjectId = Guid.NewGuid(), Status = SprintStatus.Active };
+            var task = new TaskItem { Sprint = sprint, EmployeeId = userId, Status = TaskItemStatus.Review };
+            typeof(TaskItem).GetProperty("Id")?.SetValue(task, taskId);
+            
+            _taskRepoMock.Setup(x => x.GetByIdWithSprintAsync(taskId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(task);
+            _projectEmployeeRepoMock.Setup(x => x.IsProjectManagerAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(false);
+
+            var request = new UpdateTaskStatusRequest { Status = TaskItemStatus.InProgress };
+
+            // Act
+            var result = await _service.UpdateStatusAsync(taskId, userId, request);
+
+            // Assert
+            Assert.True(result.IsSuccess);
+            Assert.Equal(TaskItemStatus.InProgress, result.Value.NewStatus);
+        }
+
+        [Fact]
+        public async Task UpdateStatusAsync_ToDoToReview_ReturnsFailure()
+        {
+            // Arrange
+            var taskId = Guid.NewGuid();
+            var userId = Guid.NewGuid();
+            var sprint = new Sprint { ProjectId = Guid.NewGuid(), Status = SprintStatus.Active };
+            var task = new TaskItem { Sprint = sprint, EmployeeId = userId, Status = TaskItemStatus.ToDo };
+            typeof(TaskItem).GetProperty("Id")?.SetValue(task, taskId);
+            
+            _taskRepoMock.Setup(x => x.GetByIdWithSprintAsync(taskId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(task);
+            _projectEmployeeRepoMock.Setup(x => x.IsProjectManagerAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(false);
+
+            var request = new UpdateTaskStatusRequest { Status = TaskItemStatus.Review };
+
+            // Act
+            var result = await _service.UpdateStatusAsync(taskId, userId, request);
+
+            // Assert
+            Assert.False(result.IsSuccess);
+            Assert.Equal(TaskErrors.InvalidTaskStatusTransition.Code, result.Error.Code);
+        }
     }
 }

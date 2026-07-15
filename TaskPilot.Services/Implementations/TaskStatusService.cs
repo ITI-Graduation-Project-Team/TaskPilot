@@ -225,7 +225,8 @@ namespace TaskPilot.Services.Implementations
         private static readonly IReadOnlyDictionary<TaskItemStatus, HashSet<TaskItemStatus>> _allowedTransitions = new Dictionary<TaskItemStatus, HashSet<TaskItemStatus>>
         {
             { TaskItemStatus.ToDo, new HashSet<TaskItemStatus> { TaskItemStatus.InProgress } },
-            { TaskItemStatus.InProgress, new HashSet<TaskItemStatus> { TaskItemStatus.ToDo, TaskItemStatus.Done } },
+            { TaskItemStatus.InProgress, new HashSet<TaskItemStatus> { TaskItemStatus.ToDo, TaskItemStatus.Review, TaskItemStatus.Done } },
+            { TaskItemStatus.Review, new HashSet<TaskItemStatus> { TaskItemStatus.InProgress, TaskItemStatus.Done } },
             { TaskItemStatus.Done, new HashSet<TaskItemStatus> { TaskItemStatus.InProgress } }
         };
 
