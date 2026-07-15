@@ -157,5 +157,21 @@ namespace TaskPilot.Presentation.Controllers
             var result = await _sprintLifecycleService.GetPlannedSprintAsync(projectId, cancellationToken);
             return HandleResult(result, SuccessCodes.Sprint.ActiveRetrieved);
         }
+
+        [HttpGet]
+        [Authorize(Roles = "ProjectManager,Employee")]
+        public async Task<IActionResult> GetAllSprints(Guid projectId)
+        {
+            var result = await _sprintLifecycleService.GetAllSprintsAsync(projectId);
+            return HandleResult(result);
+        }
+
+        [HttpGet("completed/latest")]
+        [Authorize(Roles = "ProjectManager,Employee")]
+        public async Task<IActionResult> GetLatestCompletedSprint(Guid projectId)
+        {
+            var result = await _sprintLifecycleService.GetLatestCompletedSprintAsync(projectId);
+            return HandleResult(result);
+        }
     }
 }
