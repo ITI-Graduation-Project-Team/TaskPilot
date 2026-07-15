@@ -232,6 +232,64 @@ namespace TaskPilot.Services
                 CompletionPercentage = completionPercentage
             });
         }
+
+        public async Task<Result<ActiveSprintDto>> GetPlannedSprintAsync(
+            Guid projectId,
+            CancellationToken cancellationToken = default)
+        {
+            if (projectId == Guid.Empty)
+                return Result.Failure<ActiveSprintDto>(SprintErrors.InvalidProject);
+
+            var project = await _projectRepository.GetByIdAsync(projectId);
+
+            if (project == null)
+                return Result.Failure<ActiveSprintDto>(SprintErrors.ProjectNotFound);
+
+            var plannedSprint =
+                await _sprintRepository.GetPlannedSprintByProjectIdAsync(
+                    projectId,
+                    cancellationToken);
+
+            if (plannedSprint == null)
+                return Result.Failure<ActiveSprintDto>(SprintErrors.SprintNotFound);
+
+            var sprintWithTasks =
+                await _sprintRepository.GetSprintWithTasksAsync(
+                    plannedSprint.Id,
+                    cancellationToken);
+
+            if (sprintWithTasks == null)
+                return Result.Failure<ActiveSprintDto>(SprintErrors.SprintNotFound);
+
+            var totalTasks = sprintWithTasks.Tasks.Count;
+
+            double completionPercentage = 0;
+
+            if (totalTasks > 0)
+            {
+                var doneTasks =
+                    sprintWithTasks.Tasks.Count(x => x.Status == TaskItemStatus.Done);
+
+                completionPercentage =
+                    Math.Round((double)doneTasks / totalTasks * 100, 2);
+            }
+
+            var daysRemaining =
+                Math.Max(
+                    0,
+                    (plannedSprint.EndDate.Date - DateTime.UtcNow.Date).Days);
+
+            return Result.Success(new ActiveSprintDto
+            {
+                SprintId = plannedSprint.Id,
+                TitleEn = plannedSprint.TitleEn,
+                TitleAr = plannedSprint.TitleAr,
+                StartDate = plannedSprint.StartDate,
+                EndDate = plannedSprint.EndDate,
+                DaysRemaining = daysRemaining,
+                CompletionPercentage = completionPercentage
+            });
+        }
     }
 }
 
