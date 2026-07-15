@@ -23,6 +23,14 @@ namespace TaskPilot.Data.Repositories
                 .FirstOrDefaultAsync(cancellationToken);
         }
 
+        public async Task<Sprint?> GetPlannedSprintByProjectIdAsync(Guid projectId, CancellationToken cancellationToken = default)
+        {
+            return await _dbSet
+                .Where(s => s.ProjectId == projectId && s.Status == SprintStatus.Planned && !s.IsDeleted)
+                .OrderByDescending(s => s.CreatedAt)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
         public async Task<Sprint?> GetSprintWithTasksAsync(Guid sprintId, CancellationToken cancellationToken = default)
         {
             return await _dbSet

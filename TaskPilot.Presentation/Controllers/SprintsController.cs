@@ -150,5 +150,12 @@ namespace TaskPilot.Presentation.Controllers
             var result = await _sprintLifecycleService.GetActiveSprintAsync(projectId, cancellationToken);
             return HandleResult(result, SuccessCodes.Sprint.ActiveRetrieved);
         }
+
+        [HttpGet("planned")]
+        public async Task<ActionResult> GetPlannedSprint(Guid projectId, CancellationToken cancellationToken)
+        {
+            var result = await _sprintLifecycleService.GetPlannedSprintAsync(projectId, cancellationToken);
+            return HandleResult(result, SuccessCodes.Sprint.ActiveRetrieved);
+        }
     }
 }

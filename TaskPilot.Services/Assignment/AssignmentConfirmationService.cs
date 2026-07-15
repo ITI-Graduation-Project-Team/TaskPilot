@@ -102,6 +102,10 @@ public class AssignmentConfirmationService : IAssignmentConfirmationService
 
             // Apply assignment (no SaveChangesAsync here!)
             task.EmployeeId = assignment.EmployeeId;
+            
+            // Transition task status to ToDo upon assignment confirmation (ready to start)
+            task.Status = TaskItemStatus.ToDo;
+            
             result.AssignmentsConfirmed++;
 
             await _notificationService.SendAsync(
