@@ -30,6 +30,37 @@ namespace TaskPilot.Services
             _logger = logger;
         }
 
+        public async Task<Result<System.Collections.Generic.IEnumerable<SprintListItemDto>>> GetAllSprintsAsync(Guid projectId)
+        {
+            if (projectId == Guid.Empty) return Result.Failure<System.Collections.Generic.IEnumerable<SprintListItemDto>>(SprintErrors.InvalidProject);
+
+            var project = await _projectRepository.GetByIdAsync(projectId);
+            if (project == null)
+            {
+                return Result.Failure<System.Collections.Generic.IEnumerable<SprintListItemDto>>(SprintErrors.ProjectNotFound);
+            }
+
+            var sprints = _sprintRepository.GetQueryable()
+                .Where(s => s.ProjectId == projectId && !s.IsDeleted)
+                .OrderByDescending(s => s.StartDate)
+                .Select(s => new SprintListItemDto
+                {
+                    SprintId = s.Id,
+                    TitleEn = s.TitleEn,
+                    TitleAr = s.TitleAr,
+                    SprintGoalEn = s.SprintGoalEn,
+                    SprintGoalAr = s.SprintGoalAr,
+                    StartDate = s.StartDate,
+                    EndDate = s.EndDate,
+                    Status = s.Status.ToString(),
+                    UserStoriesCount = s.UserStories.Count,
+                    TasksCount = s.Tasks.Count
+                })
+                .ToList();
+
+            return Result.Success<System.Collections.Generic.IEnumerable<SprintListItemDto>>(sprints);
+        }
+
         public async Task<Result<SprintStatusDto>> StartSprintAsync(Guid projectId, Guid sprintId, CancellationToken cancellationToken = default)
         {
             if (projectId == Guid.Empty) return Result.Failure<SprintStatusDto>(SprintErrors.InvalidProject);
@@ -288,6 +319,31 @@ namespace TaskPilot.Services
                 EndDate = plannedSprint.EndDate,
                 DaysRemaining = daysRemaining,
                 CompletionPercentage = completionPercentage
+            });
+        }
+        public async Task<Result<LatestCompletedSprintDto>> GetLatestCompletedSprintAsync(Guid projectId)
+        {
+            if (projectId == Guid.Empty)
+                return Result.Failure<LatestCompletedSprintDto>(SprintErrors.InvalidProject);
+
+            var project = await _projectRepository.GetByIdAsync(projectId);
+            if (project == null)
+                return Result.Failure<LatestCompletedSprintDto>(SprintErrors.ProjectNotFound);
+
+            var completedSprint = _sprintRepository.GetQueryable()
+                .Where(s => s.ProjectId == projectId && s.Status == SprintStatus.Completed && !s.IsDeleted)
+                .OrderByDescending(s => s.EndDate)
+                .FirstOrDefault();
+
+            if (completedSprint == null)
+                return Result.Failure<LatestCompletedSprintDto>(SprintErrors.SprintNotFound);
+
+            return Result.Success(new LatestCompletedSprintDto
+            {
+                SprintId = completedSprint.Id,
+                TitleEn = completedSprint.TitleEn,
+                TitleAr = completedSprint.TitleAr,
+                EndDate = completedSprint.EndDate
             });
         }
     }
