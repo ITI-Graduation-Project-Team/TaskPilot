@@ -54,7 +54,7 @@ namespace TaskPilot.Tests.Services
         }
 
         [Fact]
-        public async Task UpdateStatusAsync_InvalidTransition_ReturnsFailure()
+        public async Task UpdateStatusAsync_ToDoToDone_ReturnsSuccess()
         {
             // Arrange
             var taskId = Guid.NewGuid();
@@ -74,8 +74,8 @@ namespace TaskPilot.Tests.Services
             var result = await _service.UpdateStatusAsync(taskId, userId, request);
 
             // Assert
-            Assert.False(result.IsSuccess);
-            Assert.Equal(TaskErrors.InvalidTaskStatusTransition.Code, result.Error.Code);
+            Assert.True(result.IsSuccess);
+            Assert.Equal(TaskItemStatus.Done, result.Value.NewStatus);
         }
         
         [Fact]
@@ -180,7 +180,7 @@ namespace TaskPilot.Tests.Services
         }
 
         [Fact]
-        public async Task UpdateStatusAsync_ToDoToReview_ReturnsFailure()
+        public async Task UpdateStatusAsync_ToDoToReview_ReturnsSuccess()
         {
             // Arrange
             var taskId = Guid.NewGuid();
@@ -200,8 +200,8 @@ namespace TaskPilot.Tests.Services
             var result = await _service.UpdateStatusAsync(taskId, userId, request);
 
             // Assert
-            Assert.False(result.IsSuccess);
-            Assert.Equal(TaskErrors.InvalidTaskStatusTransition.Code, result.Error.Code);
+            Assert.True(result.IsSuccess);
+            Assert.Equal(TaskItemStatus.Review, result.Value.NewStatus);
         }
     }
 }

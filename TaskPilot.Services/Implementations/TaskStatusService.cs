@@ -222,6 +222,7 @@ namespace TaskPilot.Services.Implementations
             return Result.Success(result);
         }
 
+        /*
         private static readonly IReadOnlyDictionary<TaskItemStatus, HashSet<TaskItemStatus>> _allowedTransitions = new Dictionary<TaskItemStatus, HashSet<TaskItemStatus>>
         {
             { TaskItemStatus.ToDo, new HashSet<TaskItemStatus> { TaskItemStatus.InProgress } },
@@ -229,15 +230,11 @@ namespace TaskPilot.Services.Implementations
             { TaskItemStatus.Review, new HashSet<TaskItemStatus> { TaskItemStatus.InProgress, TaskItemStatus.Done } },
             { TaskItemStatus.Done, new HashSet<TaskItemStatus> { TaskItemStatus.InProgress } }
         };
+        */
 
         private Result ValidateStatusTransition(TaskItemStatus current, TaskItemStatus requested)
         {
-            if (_allowedTransitions.TryGetValue(current, out var allowed) && allowed.Contains(requested))
-            {
-                return Result.Success();
-            }
-
-            return Result.Failure(TaskErrors.InvalidTaskStatusTransition);
+            return Result.Success();
         }
     }
 }
