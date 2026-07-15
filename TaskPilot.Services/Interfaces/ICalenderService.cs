@@ -3,11 +3,13 @@ using System.Collections.Generic;
 using System.Text;
 using TaskPilot.DTOs.Calender;
 using TaskPilot.Models.Common.Results;
+using TaskPilot.Models.Entities;
 
 namespace TaskPilot.Services.Interfaces
 {
     public interface ICalenderService
     {
+        Task<Result> GenerateEventsForAssignedTaskAsync(TaskItem task, Guid employeeId, DateTime startDate);
         Task<Result> RescheduleEventAsync(Guid eventId, Guid employeeId, RescheduleEventDto dto);
         Task<Result<CalendarBlockDto>> CreatePersonalEventAsync(Guid employeeId, CreateCalendarEventDto dto);
         Task<Result> UpdateEventAsync(Guid eventId, Guid employeeId, UpdateCalendarEventDto dto);

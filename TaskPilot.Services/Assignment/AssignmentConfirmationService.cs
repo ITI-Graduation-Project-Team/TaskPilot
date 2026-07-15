@@ -18,17 +18,20 @@ public class AssignmentConfirmationService : IAssignmentConfirmationService
     private readonly IProjectEmployeeRepository _projectEmployeeRepository;
     private readonly ILocalizationService _localizationService;
     private readonly INotificationService _notificationService;
+    private readonly ICalenderService _calenderService;
 
     public AssignmentConfirmationService(
         ITaskRepository taskRepository,
         IProjectEmployeeRepository projectEmployeeRepository,
         ILocalizationService localizationService,
-        INotificationService notificationService)
+        INotificationService notificationService,
+        ICalenderService calenderService)
     {
         _taskRepository = taskRepository;
         _projectEmployeeRepository = projectEmployeeRepository;
         _localizationService = localizationService;
         _notificationService = notificationService;
+        _calenderService = calenderService;
     }
 
     public async Task<Result<AssignmentConfirmationResult>> ConfirmAsync(
@@ -107,7 +110,8 @@ public class AssignmentConfirmationService : IAssignmentConfirmationService
             task.Status = TaskItemStatus.ToDo;
             
             result.AssignmentsConfirmed++;
-
+            //addd to calendar
+            await _calenderService.GenerateEventsForAssignedTaskAsync(task, assignment.EmployeeId, DateTime.UtcNow);
             await _notificationService.SendAsync(
                 userId: assignment.EmployeeId,
                 type: NotificationType.TaskAssigned,
