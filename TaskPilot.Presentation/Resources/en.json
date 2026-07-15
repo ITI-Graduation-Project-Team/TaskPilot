@@ -1,7 +1,6 @@
 {
   "Welcome": "Welcome",
   "Success": "Operation completed successfully.",
- 
   // auth 
   "Error": "An error occurred.",
   "UNAUTHORIZED": "Authentication is required.",
@@ -28,7 +27,6 @@
   "ACCOUNT_LOCKED": "Account is temporarily locked due to multiple failed attempts.",
   "EXTERNAL_LOGIN_FAILED": "External login failed.",
   "PASSWORD_RESET_FAILED": "Password reset failed.",
-
   //refresh token
   "TOKEN_REUSE_DETECTED": "Token reuse detected. All sessions have been revoked for your security.",
   "SESSION_EXPIRED": "Session expired. Please log in again.",
@@ -38,7 +36,6 @@
   "EMPTY_GOOGLE_TOKEN": "Google token cannot be empty.",
   "INVALID_GOOGLE_TOKEN": "Invalid Google token.",
   "GOOGLE_AUTHENTICATION_FAILED": "Google authentication failed.",
-
   //success
   "REGISTER_SUCCESS": "otp has been sent to your email",
   "LOGIN_SUCCESS": "Logged in successfully.",
@@ -48,7 +45,6 @@
   "TOKEN_REFRESHED_SUCCESS": "Token refreshed successfully.",
   "LOGOUT_SUCCESS": "Logged out successfully.",
   "INVITATION_COMPLETED_SUCCESS": "Invitation completed successfully.",
-
   // company
   "COMPANY_NOT_FOUND": "Company was not found.",
   "PROJECT_MANAGER_ALREADY_HAS_COMPANY": "The project manager already has a company.",
@@ -62,7 +58,6 @@
   "INVALID_INVITATION_STATUS": "Invalid invitation status.",
   "INVALID_PAGE_NUMBER": "Invalid page number.",
   "INVALID_PAGE_SIZE": "Invalid page size.",
-
   // skill
   "SKILL_NOT_FOUND": "Skill was not found.",
   "CANONICAL_SKILL_NOT_FOUND": "Canonical skill was not found.",
@@ -74,24 +69,19 @@
   "SKILL_NAME_REQUIRED": "Skill name is required.",
   "SKILL_ALREADY_EXISTS": "Skill already exists.",
   "SKILL_LIST_EMPTY": "Skills list is empty.",
-
   // role
   "ROLE_NOT_FOUND": "Role was not found.",
-
   // project
   "PROJECT_MANAGER_NOT_FOUND": "Project manager was not found.",
   "NOT_PROJECT_MANAGER": "The user is not a project manager.",
-
   // subscription plan
   "PLAN_NOT_FOUND": "Subscription plan was not found.",
   "PLAN_NAME_ALREADY_EXISTS": "A subscription plan with this name already exists.",
-
   // user subscription
   "USER_SUBSCRIPTION_NOT_FOUND": "User subscription was not found.",
   "ACTIVE_SUBSCRIPTION_NOT_FOUND": "Active subscription was not found.",
   "INVALID_BILLING_CYCLE": "Invalid billing cycle.",
   "INVALID_SUBSCRIPTION_STATUS": "Invalid subscription status.",
-
   // ai
   "AI_SERVER_ERROR": "An error occurred with the AI service.",
   "AI_UNREADABLE_RESPONSE": "The AI service returned an unreadable response.",
@@ -100,7 +90,6 @@
   "AI_EMPTY_AUDIO": "Audio file is empty.",
   "AI_INVALID_AUDIO_FORMAT": "Unsupported audio format.",
   "AI_EMPTY_TRANSCRIPTION": "Transcription returned empty.",
-
   // cv
   "CV_EXTRACTION_FAILED": "Failed to extract text from CV.",
   "INVALID_CV_FILE": "Invalid CV file.",
@@ -108,7 +97,6 @@
   "CV_UNSUPPORTED_FORMAT": "Unsupported CV format.",
   "PRIMARY_SKILL_REQUIRED": "Please choose one primary skill.",
   "MULTIPLE_PRIMARY_SKILLS": "Only one primary skill is allowed.",
-
   // assignment
   "ASSIGNMENT_PROJECT_NOT_FOUND": "Project not found.",
   "ASSIGNMENT_SPRINT_NOT_FOUND": "Sprint not found.",
@@ -141,7 +129,6 @@
   "ASSIGNMENT_EXPLANATION_FALLBACK": "Explanations generated using fallback mechanism.",
   "ASSIGNMENT_ASSIGNMENTS_CONFIRMED": "Assignments confirmed successfully.",
   "ASSIGNMENT_TASK_UNASSIGNED": "Task unassigned successfully.",
-  
   "assignment.warnings.noAssignmentsProvided": "No assignments provided.",
   "assignment.warnings.taskNotFound": "Task {0} not found in sprint {1}. Skipped.",
   "assignment.warnings.employeeNotInProject": "Employee {0} is not a member of this project. Skipped.",
@@ -160,23 +147,19 @@
   "PROJECT_UPDATED_SUCCESS": "Project updated successfully.",
   "PROJECT_DELETED_SUCCESS": "Project deleted successfully.",
   "PROJECT_RETRIEVED_SUCCESS": "Project retrieved successfully.",
-
   // skill success
   "SKILL_CREATED_SUCCESS": "Skill created successfully.",
   "SKILL_MIGRATED_SUCCESS": "Skill migrated successfully.",
   "SKILL_DELETED_SUCCESS": "Skill deleted successfully.",
   "SKILL_RETRIEVED_SUCCESS": "Skill retrieved successfully.",
-
   // role success
   "ROLE_PERMISSIONS_UPDATED": "Role permissions updated successfully.",
   "ROLE_RETRIEVED_SUCCESS": "Role retrieved successfully.",
-
   // subscription plan success
   "PLAN_CREATED_SUCCESS": "Subscription plan created successfully.",
   "PLAN_UPDATED_SUCCESS": "Subscription plan updated successfully.",
   "PLAN_DELETED_SUCCESS": "Subscription plan deleted successfully.",
   "PLAN_RETRIEVED_SUCCESS": "Subscription plan retrieved successfully.",
-
   // user success
   "USER_DELETED_SUCCESS": "User deleted successfully.",
   "USER_RETRIEVED_SUCCESS": "User retrieved successfully.",
@@ -244,7 +227,6 @@
   "GENERATION_TRUNCATED": "WBS generation was truncated.",
   "RESPONSE_TOO_LARGE": "Generated response is too large.",
   "INVALID_GENERATED_JSON": "Generated JSON is invalid.",
-  "PROJECT_NOT_FOUND": "Project not found.",
   "NO_TASKS_TO_ENRICH": "No tasks to enrich.",
   "INVALID_REQUIRED_LEVEL": "Invalid required skill level.",
   "wbs.skillsEnriched": "Skills enriched successfully.",
@@ -258,7 +240,6 @@
   "wbs.invalidGeneratedSkillJson": "Failed to parse generated skill JSON.",
   "INVALID_GENERATED_SKILL_JSON": "Failed to parse generated skill JSON.",
   "wbs.requiredSkillsCompleted": "Required skills completed.",
-
   "Sprint.NotFound": "Sprint not found.",
   "Sprint.AlreadyActive": "Another sprint is already active.",
   "Sprint.AlreadyCompleted": "Sprint already completed.",
@@ -280,7 +261,6 @@
   "PROJECT_STATUS_RETRIEVED_SUCCESS": "Project status retrieved successfully.",
   "PROJECT_STATUS_UPDATED_SUCCESS": "Project status updated successfully.",
   "PROJECT_STATUS_TRANSITIONS_RETRIEVED_SUCCESS": "Project status transitions retrieved successfully.",
-  "wbs.requiredSkillsCompleted": "Required skills completed.",
   // sprint risk alerts
   "SPRINT_RISK_ALERTS_RETRIEVED": "Sprint risk alerts retrieved successfully.",
   "SPRINT_RISK_ALERT_DISMISSED": "Sprint risk alert dismissed successfully.",
@@ -288,7 +268,6 @@
   "SPRINT_RISK_ALERT_NOT_FOUND": "Sprint risk alert was not found.",
   "SPRINT_NOT_ACTIVE": "The sprint is not active.",
   "RISK_SIMULATION_FAILED": "Failed to generate risk simulation.",
-  
   "NOTIFICATION_NOT_FOUND": "The requested notification was not found.",
   "NOTIFICATION_RETRIEVED_SUCCESS": "Notifications retrieved successfully.",
   "NOTIFICATION_MARKED_AS_READ_SUCCESS": "Notification marked as read successfully.",
