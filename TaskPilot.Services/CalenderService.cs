@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using TaskPilot.Data.Context;
 using TaskPilot.DTOs.Calender;
+using TaskPilot.Models.Common;
 using TaskPilot.Models.Common.Errors;
 using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Entities;
@@ -16,14 +17,16 @@ namespace TaskPilot.Services
     public class CalenderService : ICalenderService
     {
         private readonly ApplicationDbContext _context;
+        private readonly ILocalizationService _localizationService;
 
         private static readonly TimeSpan WorkDayStart = new TimeSpan(9, 0, 0);  
         private static readonly TimeSpan WorkDayEnd = new TimeSpan(17, 0, 0);   
-        private static readonly int WorkMinutesPerDay = (int)(WorkDayEnd - WorkDayStart).TotalMinutes; 
+        private static readonly int WorkMinutesPerDay = (int)(WorkDayEnd - WorkDayStart).TotalMinutes;
 
-        public CalenderService(ApplicationDbContext context)
+        public CalenderService(ApplicationDbContext context, ILocalizationService localizationService)
         {
             _context = context;
+            _localizationService = localizationService;
         }
         public async Task<Result> GenerateEventsForAssignedTaskAsync(TaskItem task, Guid employeeId, DateTime startDate)// start date is datetime.now of the assignment
         {
@@ -65,6 +68,7 @@ namespace TaskPilot.Services
 
         private async Task CreateEventRecord(TaskItem task, Guid employeeId, DateTime start, DateTime end)
         {
+            string lang = _localizationService.CurrentLanguage;
             var newEvent = new CalenderEvent
             {
                 Id = Guid.NewGuid(),
@@ -72,6 +76,7 @@ namespace TaskPilot.Services
                 Title = task.TitleEn,
                 StartDate = start,
                 EndDate = end,
+                Description = lang == "en" ? task.DescriptionEn : task.DescriptionAr,
                 Type = CalenderEventType.AssignedTask,
                 TaskPriority = task.Priority,
                 Status = TaskItemStatus.ToDo,
