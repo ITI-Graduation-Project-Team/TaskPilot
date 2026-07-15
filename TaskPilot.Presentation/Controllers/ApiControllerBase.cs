@@ -82,11 +82,9 @@ namespace TaskPilot.Presentation.Controllers
         /// </summary>
         private ActionResult MapError(Error error)
         {
-            var description = Localizer.GetString(error.Code);
-            if (description == error.Code && !string.IsNullOrEmpty(error.Description))
-            {
-                description = error.Description;
-            }
+            var description = !string.IsNullOrEmpty(error.Description)
+                ? error.Description
+                : Localizer.GetString(error.Code);
             var response = ApiResponse.Fail(error.Code, description);
 
             return error.Type switch
