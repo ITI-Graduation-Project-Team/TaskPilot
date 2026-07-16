@@ -6,6 +6,7 @@ using TaskPilot.AI.Models.Requirements;
 using TaskPilot.AI.Models.Session;
 using TaskPilot.AI.Models.Workflow;
 using TaskPilot.AI.Persistence.Interfaces;
+using TaskPilot.AI.Models.Questions;
 
 namespace TaskPilot.AI.Orchestrators
 {
@@ -41,6 +42,8 @@ namespace TaskPilot.AI.Orchestrators
             QuestionResolutionAgent
                 _questionResolutionAgent;
 
+        private readonly RequirementAnalysisAgent _requirementAnalysisAgent;
+
         private readonly
             IRequirementSessionStore
                 _sessionStore;
@@ -66,6 +69,8 @@ namespace TaskPilot.AI.Orchestrators
             QuestionResolutionAgent
                  resolutionAgent,
 
+            RequirementAnalysisAgent requirementAnalysisAgent,
+
             IRequirementSessionStore
                 sessionStore)
             {
@@ -88,6 +93,8 @@ namespace TaskPilot.AI.Orchestrators
                 builderAgent;
             _questionResolutionAgent =
                 resolutionAgent;
+
+            _requirementAnalysisAgent = requirementAnalysisAgent;
 
             _sessionStore =
                 sessionStore;
@@ -147,6 +154,29 @@ namespace TaskPilot.AI.Orchestrators
                  .Requirements
                  .MergeFrom(
                      extracted);
+
+                // Inject BRD upload prompt as first assistant message (guides PM without blocking)
+                session.ConversationHistory.Add(new ConversationMessage
+                {
+                    Role = "assistant",
+                    Message =
+                        "Thank you for sharing your project idea. " +
+                        "To generate the most accurate Work Breakdown Structure, " +
+                        "I recommend uploading your Business Requirement Document " +
+                        "(BRD, SRS, RFP, or any specification) if available. " +
+                        "You can upload it using the document upload option. " +
+                        "If you don't have one, I'll ask you a few targeted questions instead."
+                });
+
+                // Add BRD prompt as a resolvable question
+                session.QuestionPool.Add(new ClarificationQuestion
+                {
+                    Id        = Guid.NewGuid(),
+                    Question  = "Please upload your requirement document (BRD/SRS/RFP) if available.",
+                    Category  = QuestionCategory.General,
+                    Priority  = QuestionPriority.High,
+                    IsBrdPrompt = true
+                });
 
                 // Continue workflow
                 var workflowResult =
@@ -263,6 +293,26 @@ namespace TaskPilot.AI.Orchestrators
                         question.Answer =
                             resolution
                                 .ExtractedAnswer;
+                    }
+                }
+
+                // Auto-dismiss BRD prompt if PM has sent 2+ text responses (chose to continue without BRD)
+                var brdPrompt = session.QuestionPool
+                    .FirstOrDefault(q => q.IsBrdPrompt && !q.IsAnswered);
+
+                if (brdPrompt is not null)
+                {
+                    var userMessageCount = session.ConversationHistory.Count(m => m.Role == "user");
+                    if (userMessageCount >= 2)
+                    {
+                        brdPrompt.IsAnswered         = true;
+                        brdPrompt.Answer             = "No document uploaded — continuing with conversation only.";
+                        brdPrompt.AnsweredFromSource = "AutoDismissed";
+                        brdPrompt.AnsweredAt         = DateTime.UtcNow;
+                        session.IsLimitedMode        = true;
+
+                        session.AddDecision("Workflow",
+                            "BRD prompt auto-dismissed after 2 text responses. IsLimitedMode = true.");
                     }
                 }
 
@@ -392,32 +442,108 @@ namespace TaskPilot.AI.Orchestrators
             RequirementSession session,
             CancellationToken cancellationToken)
         {
-            var report =
-                await _evaluatorAgent
-                    .EvaluateAsync(
-                        session);
-
-            // Never let the score go backwards — LLM evaluations can fluctuate
-            var previousScore = session.CompletenessReport?.Score ?? 0f;
-            if (report.Score >= previousScore)
+            if (session.Knowledge.Documents.Any())
             {
-                session.CompletenessReport = report;
+                var analysis = await _requirementAnalysisAgent.AnalyzeAsync(session, cancellationToken);
+                session.RequirementCompletenessReport = analysis.RequirementCompletenessReport;
+
+                var aiScore = analysis.RequirementCompletenessReport?.OverallCompleteness > 0
+                    ? analysis.RequirementCompletenessReport.OverallCompleteness / 100f
+                    : analysis.ConfidenceScores.Count > 0
+                        ? (float)analysis.ConfidenceScores.Average(c => c.Score) / 100f
+                        : 0f;
+
+                session.CompletenessReport = new CompletenessReport
+                {
+                    Score = Math.Clamp(aiScore, 0f, 1f),
+                    ReadyForPlanning = analysis.RequirementCompletenessReport?.ReadyForFinalization ?? false,
+                    CriticalMissingAreas = analysis.RequirementCompletenessReport?.MissingCriticalAreas ?? new List<string>(),
+                    OptionalMissingAreas = new List<string>(),
+                    WeakRequirements = analysis.ConfidenceScores.Where(c => c.Status == "PartiallyCovered").Select(c => $"{c.Category}: {c.Reason}").ToList()
+                };
+
+                session.ConfidenceScores = analysis.ConfidenceScores.Select(c => new RequirementConfidenceScore
+                {
+                    Category = c.Category,
+                    Score = c.Score,
+                    Status = c.Status,
+                    ExtractedValue = c.ExtractedValue,
+                    Reason = c.Reason,
+                    Evidence = c.Evidence,
+                    MissingItems = c.MissingItems
+                }).ToList();
+
+                session.QuestionPool.RemoveAll(q => !q.IsAnswered && !q.IsBrdPrompt);
+                foreach (var gapQuestion in analysis.GapQuestions.Take(6))
+                {
+                    session.QuestionPool.Add(new ClarificationQuestion
+                    {
+                        Id = Guid.NewGuid(),
+                        Question = gapQuestion.Question,
+                        Category = MapCategory(gapQuestion.Category),
+                        Priority = MapPriority(gapQuestion.Priority),
+                        Reason = gapQuestion.Reason,
+                        MissingItems = gapQuestion.MissingItems,
+                        BusinessImpact = gapQuestion.BusinessImpact,
+                        EstimatedEffectOnCompleteness = gapQuestion.EstimatedEffectOnCompleteness,
+                        IsBrdPrompt = false
+                    });
+                }
+                
+                session.AddDecision(nameof(RequirementAnalysisAgent),
+                    $"Re-evaluated BRD with conversation history. Completeness: {aiScore:P0}");
             }
             else
             {
-                // Keep the previous report but update diagnostic fields
-                if (session.CompletenessReport != null)
-                {
-                    session.CompletenessReport.CriticalMissingAreas = report.CriticalMissingAreas;
-                    session.CompletenessReport.OptionalMissingAreas = report.OptionalMissingAreas;
-                    session.CompletenessReport.WeakRequirements = report.WeakRequirements;
-                }
-            }
+                var report =
+                    await _evaluatorAgent
+                        .EvaluateAsync(
+                            session);
 
-            session.AddDecision(
-                nameof(CompletenessEvaluatorAgent),
-                $"Completeness score evaluated at {report.Score} (kept: {session.CompletenessReport?.Score})");
+                // Never let the score go backwards — LLM evaluations can fluctuate
+                var previousScore = session.CompletenessReport?.Score ?? 0f;
+                if (report.Score >= previousScore)
+                {
+                    session.CompletenessReport = report;
+                }
+                else
+                {
+                    // Keep the previous report but update diagnostic fields
+                    if (session.CompletenessReport != null)
+                    {
+                        session.CompletenessReport.CriticalMissingAreas = report.CriticalMissingAreas;
+                        session.CompletenessReport.OptionalMissingAreas = report.OptionalMissingAreas;
+                        session.CompletenessReport.WeakRequirements = report.WeakRequirements;
+                    }
+                }
+
+                session.AddDecision(
+                    nameof(CompletenessEvaluatorAgent),
+                    $"Completeness score evaluated at {report.Score} (kept: {session.CompletenessReport?.Score})");
+            }
         }
+
+        private static TaskPilot.AI.Enums.QuestionCategory MapCategory(string category) =>
+            category?.Trim() switch
+            {
+                "BusinessGoals" => TaskPilot.AI.Enums.QuestionCategory.BusinessGoals,
+                "Scale"         => TaskPilot.AI.Enums.QuestionCategory.Scale,
+                "Integration"   => TaskPilot.AI.Enums.QuestionCategory.Integration,
+                "Timeline"      => TaskPilot.AI.Enums.QuestionCategory.Timeline,
+                "Compliance"    => TaskPilot.AI.Enums.QuestionCategory.Compliance,
+                "UserRoles"     => TaskPilot.AI.Enums.QuestionCategory.UserRoles,
+                "Realtime"      => TaskPilot.AI.Enums.QuestionCategory.Realtime,
+                _               => TaskPilot.AI.Enums.QuestionCategory.General
+            };
+
+        private static TaskPilot.AI.Enums.QuestionPriority MapPriority(string priority) =>
+            priority?.Trim().ToUpperInvariant() switch
+            {
+                "CRITICAL" => TaskPilot.AI.Enums.QuestionPriority.Critical,
+                "HIGH"     => TaskPilot.AI.Enums.QuestionPriority.High,
+                "LOW"      => TaskPilot.AI.Enums.QuestionPriority.Low,
+                _          => TaskPilot.AI.Enums.QuestionPriority.Medium
+            };
 
         private async Task GenerateQuestionPoolAsync(
             RequirementSession session,
@@ -468,6 +594,18 @@ namespace TaskPilot.AI.Orchestrators
             session.AddDecision(
                 "Workflow",
                 $"Session moved to {status}");
+        }
+
+        public async Task<RequirementSession> StartWithDocumentAsync(
+            CancellationToken cancellationToken = default)
+        {
+            var session = new RequirementSession { SessionId = Guid.NewGuid() };
+            UpdateStatus(session, RequirementSessionStatus.RequirementGathering);
+
+            session.AddDecision("Workflow", "Session created via Document-First entry point.");
+
+            await _sessionStore.SaveAsync(session, cancellationToken);
+            return session;
         }
     }
 }

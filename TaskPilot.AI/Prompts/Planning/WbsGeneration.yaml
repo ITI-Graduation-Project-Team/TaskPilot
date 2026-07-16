@@ -7,7 +7,6 @@ template_format: semantic-kernel
 execution_settings:
   default:
     temperature: 0.3
-    max_tokens: 6000
 
 input_variables:
   - name: businessRequirements
@@ -37,6 +36,13 @@ input_variables:
   - name: availableSkills
     description: Existing company skills to prioritize
 
+  - name: brdContext
+    description: >
+      Content extracted from uploaded Business Requirement Documents (BRD),
+      technical specs, or any project documentation uploaded by the PM.
+      This is the PRIMARY source if provided.
+      Empty string if no documents were uploaded.
+
 template: |
 
   You are a Senior Agile Solution Architect, Product Owner and Scrum Expert.
@@ -54,6 +60,28 @@ template: |
   Therefore every generated User Story must be realistic,
   independently valuable,
   and small enough to be planned into a Sprint.
+
+  ════════════════════════════════════════════
+  ## PRIMARY SOURCE: Business Requirement Documents
+  ════════════════════════════════════════════
+  {{$brdContext}}
+
+  CRITICAL RULE: If the above BRD context is not empty, it is your PRIMARY
+  and MOST TRUSTED source. You MUST:
+  - Base User Stories on the actual features, processes, and requirements
+    described in the documents above.
+  - Use the EXACT business terminology from the documents (do not substitute
+    generic names — if the document says "Medical Record Number (MRN)", use
+    that exact term, not "Patient ID").
+  - If the document describes sub-types of a feature (e.g. 3 types of patient
+    registration), create SEPARATE User Stories for each sub-type.
+  - Do NOT invent features not mentioned in the documents or requirements below.
+
+  ════════════════════════════════════════════
+  ## SECONDARY SOURCE: Requirements Discovery Summary
+  ════════════════════════════════════════════
+  Use this to fill in gaps not covered by the BRD above.
+  If BRD context is empty, this becomes the primary source.
 
   --------------------------------------------------------
   PROJECT REQUIREMENTS

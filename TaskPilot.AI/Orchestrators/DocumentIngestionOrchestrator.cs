@@ -24,6 +24,7 @@ namespace TaskPilot.AI.Orchestrators
         private readonly IVectorStore _vectorStore;
         private readonly ILogger<DocumentIngestionOrchestrator> _logger;
         private readonly RequirementsBuilderAgent _builderAgent;
+        private readonly RequirementAnalysisAgent _requirementAnalysisAgent;
 
         public DocumentIngestionOrchestrator(
             IEnumerable<IDocumentTextExtractor> extractors,
@@ -35,7 +36,8 @@ namespace TaskPilot.AI.Orchestrators
             CompletenessEvaluatorAgent completenessEvaluatorAgent,
             IVectorStore vectorStore,
             ILogger<DocumentIngestionOrchestrator> logger,
-            RequirementsBuilderAgent builderAgent)
+            RequirementsBuilderAgent builderAgent,
+            RequirementAnalysisAgent requirementAnalysisAgent)
         {
             _extractors = extractors;
             _categorizationAgent = categorizationAgent;
@@ -47,6 +49,7 @@ namespace TaskPilot.AI.Orchestrators
             _vectorStore = vectorStore;
             _logger = logger;
             _builderAgent = builderAgent;
+            _requirementAnalysisAgent = requirementAnalysisAgent;
         }
 
         public async Task<DocumentIngestionResult> IngestAsync(
@@ -225,6 +228,43 @@ namespace TaskPilot.AI.Orchestrators
                     }
                 }
 
+                // Auto-resolve the BRD prompt question if it exists (chat-first path)
+                var brdPrompt = session.QuestionPool
+                    .FirstOrDefault(q => q.IsBrdPrompt && !q.IsAnswered);
+
+                if (brdPrompt is not null)
+                {
+                    brdPrompt.IsAnswered         = true;
+                    brdPrompt.Answer             = $"Document uploaded: {file.FileName}";
+                    brdPrompt.AnsweredFromSource = "Document";
+                    brdPrompt.AnsweredAt         = DateTime.UtcNow;
+                    session.IsLimitedMode        = false;
+
+                    session.AddDecision("Workflow", "BRD prompt resolved â€” document received.");
+
+                    // Replace generic questions with BRD-specific gap questions
+                    await ReplaceClarificationQuestionsFromBrdAsync(session, cancellationToken);
+
+                    session.UpdatedAt = DateTime.UtcNow;
+                    await _sessionStore.SaveAsync(session, cancellationToken);
+                }
+                else
+                {
+                    // Document-first path: session was created via StartWithDocumentAsync().
+                    // No BRD sentinel question exists in the pool, so the guard above was always
+                    // false and RequirementAnalysisAgent was never invoked.
+                    // Run analysis directly â€” this is the primary BRD-first entry point.
+                    _logger.LogInformation(
+                        "Document-first path detected for session {SessionId}. " +
+                        "Running RequirementAnalysisAgent directly.",
+                        sessionId);
+
+                    await ReplaceClarificationQuestionsFromBrdAsync(session, cancellationToken);
+
+                    session.UpdatedAt = DateTime.UtcNow;
+                    await _sessionStore.SaveAsync(session, cancellationToken);
+                }
+
                 return new DocumentIngestionResult
                 {
                     Success = true,
@@ -244,5 +284,112 @@ namespace TaskPilot.AI.Orchestrators
                 };
             }
         }
+
+        private async Task ReplaceClarificationQuestionsFromBrdAsync(
+            RequirementSession session,
+            CancellationToken cancellationToken)
+        {
+            var analysis = await _requirementAnalysisAgent
+                .AnalyzeAsync(session, cancellationToken);
+
+            // Remove all unanswered non-BRD-prompt questions (generated without BRD context)
+            session.QuestionPool.RemoveAll(q => !q.IsAnswered && !q.IsBrdPrompt);
+
+            // Merge requirements extracted from BRD
+            session.Requirements.MergeFrom(analysis.ExtractedRequirements);
+
+            // Add BRD-specific gap questions with full metadata (0â€“6 max)
+            foreach (var gapQuestion in analysis.GapQuestions.Take(6))
+            {
+                session.QuestionPool.Add(new TaskPilot.AI.Models.Questions.ClarificationQuestion
+                {
+                    Id          = Guid.NewGuid(),
+                    Question    = gapQuestion.Question,
+                    Category    = MapCategory(gapQuestion.Category),
+                    Priority    = MapPriority(gapQuestion.Priority),
+                    Reason                       = gapQuestion.Reason,
+                    MissingItems                 = gapQuestion.MissingItems,
+                    BusinessImpact               = gapQuestion.BusinessImpact,
+                    EstimatedEffectOnCompleteness = gapQuestion.EstimatedEffectOnCompleteness,
+                    IsBrdPrompt = false
+                });
+            }
+
+            // Store enriched confidence scores in session
+            session.ConfidenceScores = analysis.ConfidenceScores
+                .Select(c => new RequirementConfidenceScore
+                {
+                    Category       = c.Category,
+                    Score          = c.Score,
+                    Status         = c.Status,
+                    ExtractedValue = c.ExtractedValue,
+                    Reason         = c.Reason,
+                    Evidence       = c.Evidence,
+                    MissingItems   = c.MissingItems
+                }).ToList();
+
+            // Synthesize CompletenessReport, preferring the AIâ€™s weighted overall score
+            // over a naive average, and using the AIâ€™s explicit FinalizeReadiness flag.
+            session.RequirementCompletenessReport = analysis.RequirementCompletenessReport;
+
+            var aiScore = analysis.RequirementCompletenessReport?.OverallCompleteness > 0
+                ? analysis.RequirementCompletenessReport.OverallCompleteness / 100f
+                : analysis.ConfidenceScores.Count > 0
+                    ? (float)analysis.ConfidenceScores.Average(c => c.Score) / 100f
+                    : 0f;
+
+            var criticalMissing = analysis.ConfidenceScores
+                .Where(c => c.Status == "Missing")
+                .SelectMany(c => c.MissingItems)
+                .Distinct()
+                .Take(5)
+                .ToList();
+
+            var weakAreas = analysis.ConfidenceScores
+                .Where(c => c.Status == "PartiallyCovered")
+                .Select(c => $"{c.Category}: {c.Reason}")
+                .Take(5)
+                .ToList();
+
+            session.CompletenessReport = new TaskPilot.AI.Models.Requirements.CompletenessReport
+            {
+                Score            = Math.Clamp(aiScore, 0f, 1f),
+                ReadyForPlanning = analysis.RequirementCompletenessReport?.ReadyForFinalization ?? false,
+                CriticalMissingAreas = criticalMissing,
+                OptionalMissingAreas = new System.Collections.Generic.List<string>(),
+                WeakRequirements     = weakAreas
+            };
+
+            session.AddDecision(nameof(RequirementAnalysisAgent),
+                $"Replaced generic questions with {analysis.GapQuestions.Count} BRD-specific gap questions. " +
+                $"Confidence scores populated for {analysis.ConfidenceScores.Count} categories. " +
+                $"Overall completeness: {analysis.RequirementCompletenessReport?.OverallCompleteness}% " +
+                $"(ReadyForFinalization: {analysis.RequirementCompletenessReport?.ReadyForFinalization}). " +
+                $"Recommendation: {analysis.RequirementCompletenessReport?.ReadinessRecommendation}");
+        }
+
+        /// <summary>Maps the AIâ€™s string category label to the QuestionCategory enum.</summary>
+        private static TaskPilot.AI.Enums.QuestionCategory MapCategory(string category) =>
+            category?.Trim() switch
+            {
+                "BusinessGoals" => TaskPilot.AI.Enums.QuestionCategory.BusinessGoals,
+                "Scale"         => TaskPilot.AI.Enums.QuestionCategory.Scale,
+                "Integration"   => TaskPilot.AI.Enums.QuestionCategory.Integration,
+                "Timeline"      => TaskPilot.AI.Enums.QuestionCategory.Timeline,
+                "Compliance"    => TaskPilot.AI.Enums.QuestionCategory.Compliance,
+                "UserRoles"     => TaskPilot.AI.Enums.QuestionCategory.UserRoles,
+                "Realtime"      => TaskPilot.AI.Enums.QuestionCategory.Realtime,
+                _               => TaskPilot.AI.Enums.QuestionCategory.General
+            };
+
+        /// <summary>Maps the AIâ€™s string priority label to the QuestionPriority enum.</summary>
+        private static TaskPilot.AI.Enums.QuestionPriority MapPriority(string priority) =>
+            priority?.Trim().ToUpperInvariant() switch
+            {
+                "CRITICAL" => TaskPilot.AI.Enums.QuestionPriority.Critical,
+                "HIGH"     => TaskPilot.AI.Enums.QuestionPriority.High,
+                "LOW"      => TaskPilot.AI.Enums.QuestionPriority.Low,
+                _          => TaskPilot.AI.Enums.QuestionPriority.Medium
+            };
     }
 }

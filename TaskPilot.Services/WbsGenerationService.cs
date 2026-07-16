@@ -63,6 +63,7 @@ namespace TaskPilot.Services
                 project.PlatformTargets,
                 project.ProjectType,
                 availableSkills,
+                project.RequirementsSessionId ?? Guid.Empty,
                 cancellationToken);
 
             return await _wbsPersistenceService.PersistAsync(projectId, wbs, cancellationToken);

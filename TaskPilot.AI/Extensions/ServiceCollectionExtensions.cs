@@ -12,6 +12,7 @@ using TaskPilot.AI.Persistence.Interfaces;
 using TaskPilot.AI.Services;
 using TaskPilot.AI.Services.Extraction;
 using TaskPilot.AI.Services.Interfaces;
+using TaskPilot.AI.Services.Requirements;
 
 namespace TaskPilot.AI.Extensions
 {
@@ -99,6 +100,12 @@ namespace TaskPilot.AI.Extensions
                 RequirementsBuilderAgent>();
             services.AddScoped<
                 QuestionResolutionAgent>();
+            services.AddScoped<
+                RequirementAnalysisAgent>();
+            
+            services.AddScoped<
+                IRequirementReadinessEvaluator,
+                RequirementReadinessEvaluator>();
 
             // RAG agents
             services.AddScoped<
