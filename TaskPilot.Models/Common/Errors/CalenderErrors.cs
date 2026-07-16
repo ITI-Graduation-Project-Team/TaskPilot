@@ -17,6 +17,9 @@ namespace TaskPilot.Models.Common.Errors
         public static readonly Error CannotDeleteAssignedTask = new (
             "Calendar.CannotDeleteAssignedTask",
             ErrorType.Validation);
-        
+        public static readonly Error CannotUpdateStatusOfAssignedTask = new(
+            "Calendar.CannotUpdateStatusOfAssignedTask",
+            ErrorType.Validation);
+
     }
 }

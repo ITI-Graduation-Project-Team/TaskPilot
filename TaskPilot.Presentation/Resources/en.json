@@ -193,6 +193,7 @@
   "CALENDAR_EVENT_UPDATED": "Calendar event updated successfully.",
   "CALENDAR_EVENT_DELETED": "Calendar event deleted successfully.",
   "CALENDAR_WORKLOAD_RETRIEVED": "Employee workload retrieved successfully.",
+  "Calendar.CannotUpdateStatusOfAssignedTask": "cannot edit the status of an assigned task. Please coordinate with the project manager.",
 
   // identity describer
   "PASS_REQ_NON_ALPHANUMERIC": "Passwords must have at least one non-alphanumeric character.",
