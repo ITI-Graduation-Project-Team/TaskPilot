@@ -122,6 +122,17 @@ namespace TaskPilot.Presentation
        
                o.Events = new JwtBearerEvents
                {
+                   OnMessageReceived = context =>
+                   {
+                       var accessToken = context.Request.Query["access_token"];
+                       var path = context.HttpContext.Request.Path;
+                       if (!string.IsNullOrEmpty(accessToken) &&
+                           path.StartsWithSegments("/hubs/notifications"))
+                       {
+                           context.Token = accessToken;
+                       }
+                       return Task.CompletedTask;
+                   },
                    OnChallenge = context =>
                    {
                        context.HandleResponse();
@@ -153,8 +164,11 @@ namespace TaskPilot.Presentation
 
             app.UseSwagger();
             app.UseSwaggerUI();
-            
-            app.UseHangfireDashboard("/hangfire");
+
+            app.UseHangfireDashboard("/hangfire", new DashboardOptions
+            {
+                Authorization = new[] { new HangfireAllowAllDashboardFilter() }
+            });
             RecurringJob.AddOrUpdate<TaskPilot.Services.BackgroundJobs.SprintRiskDetectionJob>(
                 "SprintRiskDetectionJob",
                 job => job.ExecuteAsync(CancellationToken.None),
@@ -175,6 +189,14 @@ namespace TaskPilot.Presentation
             app.MapHub<TaskPilot.Presentation.Hubs.NotificationHub>("/hubs/notifications");
 
             app.Run();
-        }
+           
+    }
+    }
+}
+public class HangfireAllowAllDashboardFilter : Hangfire.Dashboard.IDashboardAuthorizationFilter
+{
+    public bool Authorize(Hangfire.Dashboard.DashboardContext context)
+    {
+        return true;
     }
 }
