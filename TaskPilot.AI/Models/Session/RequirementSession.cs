@@ -37,6 +37,9 @@ namespace TaskPilot.AI.Models.Session
         =
             new();
 
+        // Consolidated Knowledge
+        public List<RequirementIdentity> ConsolidatedKnowledgeBase { get; set; } = new();
+
         // Question Pool
         public List<ClarificationQuestion>
             QuestionPool
@@ -58,6 +61,7 @@ namespace TaskPilot.AI.Models.Session
             new();
 
         // Discovery intelligence
+        public RequirementValidationResult? ValidationResult { get; set; }
         [JsonIgnore]
         public List<AmbiguityItem>
             DetectedAmbiguities

@@ -25,21 +25,42 @@ namespace TaskPilot.Presentation.Controllers
         private readonly IRequirementSessionStore _sessionStore;
         private readonly IVectorStore _vectorStore;
         private readonly IRequirementFinalizationService _finalizationService;
+        private readonly RequirementDiscoveryOrchestrator _discoveryOrchestrator;
 
         public RequirementController(
             RequirementsOrchestrator orchestrator,
             DocumentIngestionOrchestrator documentIngestionOrchestrator,
+            RequirementDiscoveryOrchestrator discoveryOrchestrator,
             IRequirementSessionStore sessionStore,
             IVectorStore vectorStore,
             IRequirementFinalizationService finalizationService)
         {
             _orchestrator = orchestrator;
             _documentIngestionOrchestrator = documentIngestionOrchestrator;
+            _discoveryOrchestrator = discoveryOrchestrator;
             _sessionStore = sessionStore;
             _vectorStore = vectorStore;
             _finalizationService = finalizationService;
         }
 
+        [HttpPost]
+        public async Task<ActionResult> UnifiedEntry(
+            [FromForm] RequirementDiscoveryRequest request,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var response = await _discoveryOrchestrator.ExecuteAsync(request, cancellationToken);
+                return HandleResult(Result.Success(response));
+            }
+            catch (Exception ex)
+            {
+                return HandleResult(Result.Failure<RequirementDiscoveryResponse>(
+                    new Error("DISCOVERY_FAILED", ErrorType.Failure, ex.Message)));
+            }
+        }
+
+        [Obsolete("Use the unified POST /api/requirements endpoint instead.")]
         [HttpPost("start-with-document")]
         public async Task<ActionResult> StartWithDocument(
             [FromForm] StartWithDocumentRequest request,
@@ -89,6 +110,7 @@ namespace TaskPilot.Presentation.Controllers
             return HandleResult(Result.Success(response));
         }
 
+        [Obsolete("Use the unified POST /api/requirements endpoint instead.")]
         [HttpPost("document")]
         public async Task<ActionResult> Document(
             [FromForm] DocumentUploadRequest request,
@@ -109,6 +131,7 @@ namespace TaskPilot.Presentation.Controllers
             return HandleResult(Result.Success(result));
         }
 
+        [Obsolete("Use the unified POST /api/requirements endpoint instead.")]
         [HttpPost("message")]
         public async Task<ActionResult> Message(
             [FromBody] RequirementMessageRequest request,

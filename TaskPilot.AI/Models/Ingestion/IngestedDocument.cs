@@ -1,4 +1,4 @@
-﻿using TaskPilot.AI.Enums;
+using TaskPilot.AI.Enums;
 
 namespace TaskPilot.AI.Models.Ingestion
 {
@@ -32,5 +32,7 @@ namespace TaskPilot.AI.Models.Ingestion
 
         public DateTime UploadedAt { get; set; }
             = DateTime.UtcNow;
+
+        public int ChunkCount { get; set; }
     }
 }
