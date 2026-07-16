@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -25,6 +25,7 @@
     <ProjectReference Include="..\TaskPilot.DTOs\TaskPilot.DTOs.csproj" />
     <ProjectReference Include="..\TaskPilot.Models\TaskPilot.Models.csproj" />
     <ProjectReference Include="..\TaskPilot.Presentation\TaskPilot.Presentation.csproj" />
+    <ProjectReference Include="..\TaskPilot.AI\TaskPilot.AI.csproj" />
   </ItemGroup>
 
 </Project>

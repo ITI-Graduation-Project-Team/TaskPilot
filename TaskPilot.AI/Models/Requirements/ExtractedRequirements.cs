@@ -106,6 +106,37 @@ namespace TaskPilot.AI.Models.Requirements
                     .ScaleRequirements);
         }
 
+        public void
+            MergeFrom(
+                ExtractedRequirements
+                    extracted)
+        {
+            MergeList(
+                BusinessRequirements,
+                extracted
+                    .BusinessRequirements);
+
+            MergeList(
+                TechnicalRequirements,
+                extracted
+                    .TechnicalRequirements);
+
+            MergeList(
+                Constraints,
+                extracted
+                    .Constraints);
+
+            MergeList(
+                Integrations,
+                extracted
+                    .Integrations);
+
+            MergeList(
+                ScaleRequirements,
+                extracted
+                    .ScaleRequirements);
+        }
+
         private static void
             MergeList(
                 List<string> target,

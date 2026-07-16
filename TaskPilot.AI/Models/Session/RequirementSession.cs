@@ -75,6 +75,13 @@ namespace TaskPilot.AI.Models.Session
             set;
         }
 
+        public RequirementCompletenessReport?
+            RequirementCompletenessReport
+        {
+            get;
+            set;
+        }
+
         // Knowledge
         public SessionKnowledgeContext
             Knowledge
@@ -134,6 +141,10 @@ namespace TaskPilot.AI.Models.Session
         }
         =
             DateTime.UtcNow;
+
+        public bool IsLimitedMode { get; set; } = false;
+
+        public List<RequirementConfidenceScore> ConfidenceScores { get; set; } = new();
 
         // Helpers
         public bool AllQuestionsAnswered =>
