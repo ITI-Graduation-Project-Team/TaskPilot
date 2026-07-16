@@ -29,6 +29,8 @@ namespace TaskPilot.Data.Context
         public DbSet<Sprint> Sprints => Set<Sprint>();
         public DbSet<UserStory> UserStories => Set<UserStory>();
         public DbSet<TaskItem> TaskItems => Set<TaskItem>();
+        public DbSet<TaskComment> TaskComments => Set<TaskComment>();
+        public DbSet<TaskAttachment> TaskAttachments => Set<TaskAttachment>();
         public DbSet<Notification> Notifications => Set<Notification>();
         public DbSet<Skill> Skills => Set<Skill>();
         public DbSet<UserSkill> UserSkills => Set<UserSkill>();

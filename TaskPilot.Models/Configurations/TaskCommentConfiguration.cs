@@ -14,11 +14,7 @@ namespace TaskPilot.Models.Configurations
 
             builder.ToTable("TaskComments");
 
-            builder.Property(tc => tc.ContentEn)
-                .IsRequired()
-                .HasMaxLength(1000);
-
-            builder.Property(tc => tc.ContentAr)
+            builder.Property(tc => tc.Content)
                 .IsRequired()
                 .HasMaxLength(1000);
 

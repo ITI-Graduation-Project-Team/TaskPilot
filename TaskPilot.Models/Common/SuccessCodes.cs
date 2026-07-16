@@ -152,6 +152,15 @@ namespace TaskPilot.Models.Common
             public const string MyTasksRetrieved = "TASK_MY_TASKS_RETRIEVED_SUCCESS";
             public const string StatusUpdated = "TASK_STATUS_UPDATED_SUCCESS";
             public const string ActualHoursUpdated = "TASK_ACTUAL_HOURS_UPDATED_SUCCESS";
+
+            public const string CommentAdded = "TASK_COMMENT_ADDED_SUCCESS";
+            public const string CommentUpdated = "TASK_COMMENT_UPDATED_SUCCESS";
+            public const string CommentDeleted = "TASK_COMMENT_DELETED_SUCCESS";
+            public const string CommentsRetrieved = "TASK_COMMENTS_RETRIEVED_SUCCESS";
+
+            public const string AttachmentUploaded = "TASK_ATTACHMENT_UPLOADED_SUCCESS";
+            public const string AttachmentDeleted = "TASK_ATTACHMENT_DELETED_SUCCESS";
+            public const string AttachmentsRetrieved = "TASK_ATTACHMENTS_RETRIEVED_SUCCESS";
         }
     }
 }
