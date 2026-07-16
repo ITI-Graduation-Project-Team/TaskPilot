@@ -19,6 +19,8 @@ namespace TaskPilot.Services
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IProjectService, ProjectService>();
             services.AddScoped<IAuthService, AuthService>();
+            services.AddScoped<ITaskCommentService, TaskPilot.Services.Implementations.TaskCommentService>();
+            services.AddScoped<ITaskAttachmentService, TaskPilot.Services.Implementations.TaskAttachmentService>();
             
             services.AddScoped<IRoleService, RoleService>();
             services.AddScoped<ISubscriptionPlanService, SubscriptionPlanService>();

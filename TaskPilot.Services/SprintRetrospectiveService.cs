@@ -59,7 +59,7 @@ namespace TaskPilot.Services
 
             var commentsData = sprint.Tasks
                 .SelectMany(t => t.Comments)
-                .Select(c => new { c.ContentEn, c.ContentAr })
+                .Select(c => new { c.Content })
                 .ToList();
 
             var aiResult = await retrospectiveAgent.AnalyzeSprintAsync(

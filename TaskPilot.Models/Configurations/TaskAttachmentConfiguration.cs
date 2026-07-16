@@ -18,6 +18,10 @@ namespace TaskPilot.Models.Configurations
                 .IsRequired()
                 .HasMaxLength(2000);
 
+            builder.Property(a => a.PublicId)
+                .IsRequired()
+                .HasMaxLength(255);
+
             builder.Property(a => a.FileName)
               .IsRequired()
               .HasMaxLength(255);

@@ -110,15 +110,7 @@ public class AssignmentConfirmationService : IAssignmentConfirmationService
             task.Status = TaskItemStatus.ToDo;
             
             result.AssignmentsConfirmed++;
-            //addd to calendar
-            await _calenderService.GenerateEventsForAssignedTaskAsync(task, assignment.EmployeeId, DateTime.UtcNow);
-            await _notificationService.SendAsync(
-                userId: assignment.EmployeeId,
-                type: NotificationType.TaskAssigned,
-                messageEn: $"You have been assigned to task '{task.TitleEn}'.",
-                messageAr: $"تم تكليفك بمهمة '{task.TitleAr ?? task.TitleEn}'.",
-                url: $"/projects/{projectId}/board"
-            );
+
         }
 
         return Result.Success(result);

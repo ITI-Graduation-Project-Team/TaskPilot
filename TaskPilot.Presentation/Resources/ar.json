@@ -183,6 +183,7 @@
   "CALENDAR_EVENT_RESCHEDULED": "تمت إعادة جدولة حدث التقويم بنجاح.",
   "CALENDAR_EVENT_UPDATED": "تم تحديث حدث التقويم بنجاح.",
   "CALENDAR_WORKLOAD_RETRIEVED": "تم استرجاع عبء العمل للموظف بنجاح.",
+  "Calendar.CannotUpdateStatusOfAssignedTask": "لا يمكن تحديث حالة مهمة تم تعيينها لموظف.",
   // identity describer
   "PASS_REQ_NON_ALPHANUMERIC": "يجب أن تحتوي كلمة المرور على رمز واحد على الأقل (مثل: @، #، $).",
   "PASS_REQ_DIGIT": "يجب أن تحتوي كلمة المرور على رقم واحد على الأقل ('0'-'9').",

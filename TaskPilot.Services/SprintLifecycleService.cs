@@ -1,8 +1,8 @@
+using Microsoft.Extensions.Logging;
 using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using TaskPilot.Data.Repositories;
 using TaskPilot.Data.Repositories.Interfaces;
 using TaskPilot.DTOs.Sprints;
@@ -19,15 +19,21 @@ namespace TaskPilot.Services
         private readonly ISprintRepository _sprintRepository;
         private readonly IRepository<Project> _projectRepository;
         private readonly ILogger<SprintLifecycleService> _logger;
+        private readonly INotificationService _notificationService;
+        private readonly ICalenderService _calenderService;
 
         public SprintLifecycleService(
             ISprintRepository sprintRepository,
             IRepository<Project> projectRepository,
-            ILogger<SprintLifecycleService> logger)
+            ILogger<SprintLifecycleService> logger,
+            INotificationService notificationService,
+            ICalenderService calenderService)
         {
             _sprintRepository = sprintRepository;
             _projectRepository = projectRepository;
             _logger = logger;
+            _notificationService = notificationService;
+            _calenderService = calenderService;
         }
 
         public async Task<Result<System.Collections.Generic.IEnumerable<SprintListItemDto>>> GetAllSprintsAsync(Guid projectId)
@@ -72,7 +78,8 @@ namespace TaskPilot.Services
                 return Result.Failure<SprintStatusDto>(SprintErrors.ProjectNotFound);
             }
 
-            var sprint = await _sprintRepository.GetByIdAsync(sprintId);
+            var sprint = await _sprintRepository.GetSprintWithTasksAsync(sprintId);
+            //var sprint = await _sprintRepository.GetByIdAsync(sprintId);
             if (sprint == null)
             {
                 return Result.Failure<SprintStatusDto>(SprintErrors.SprintNotFound);
@@ -106,7 +113,19 @@ namespace TaskPilot.Services
 
             sprint.Status = SprintStatus.Active;
             sprint.StartDate = DateTime.UtcNow;
+            //addd to calendar
+            foreach (var task in sprint.Tasks)
+            {
+                await _calenderService.GenerateEventsForAssignedTaskAsync(task, task.EmployeeId.Value, DateTime.UtcNow);
+                await _notificationService.SendAsync(
+               userId: task.EmployeeId.Value,
+               type: NotificationType.TaskAssigned,
+               messageEn: $"You have been assigned to task '{task.TitleEn}'.",
+               messageAr: $"تم تكليفك بمهمة '{task.TitleAr ?? task.TitleEn}'.",
+               url: $"/projects/{projectId}/board"
+           );
 
+            }
             _logger.LogInformation("Sprint {SprintId} started for Project {ProjectId}", sprintId, projectId);
 
             return Result.Success(new SprintStatusDto
