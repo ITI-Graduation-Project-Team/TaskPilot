@@ -1,0 +1,478 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
+using TaskPilot.AI.Agents.Ingestion;
+using TaskPilot.AI.Agents.Requirements;
+using TaskPilot.AI.Enums;
+using TaskPilot.AI.Models.Session;
+using TaskPilot.AI.Persistence.Interfaces;
+using TaskPilot.AI.Services.Interfaces;
+using TaskPilot.DTOs.AI.Requirements;
+using TaskPilot.AI.Services.Requirements;
+using TaskPilot.AI.Models.Ingestion;
+using TaskPilot.AI.Models.Questions;
+using TaskPilot.AI.Models.Requirements;
+using TaskPilot.AI.Helpers;
+using TaskPilot.AI.Models;
+using TaskPilot.Models.Enums;
+
+namespace TaskPilot.AI.Orchestrators
+{
+    public class RequirementDiscoveryOrchestrator
+    {
+        private readonly IRequirementSessionStore _sessionStore;
+        private readonly ILogger<RequirementDiscoveryOrchestrator> _logger;
+        private readonly IEnumerable<IDocumentTextExtractor> _extractors;
+        private readonly DocumentCategorizationAgent _categorizationAgent;
+        private readonly ChunkingAgent _chunkingAgent;
+        private readonly IDocumentStore _documentStore;
+        private readonly IVectorStore _vectorStore;
+        private readonly QuestionResolutionAgent _questionResolutionAgent;
+        private readonly RequirementExtractionAgent _extractionAgent;
+        private readonly RequirementAnalysisAgent _requirementAnalysisAgent;
+        private readonly IRequirementReadinessEvaluator _readinessEvaluator;
+        private readonly RequirementsBuilderAgent _builderAgent;
+        private readonly RequirementValidationAgent _validationAgent;
+        private readonly KnowledgeEvolutionAgent _evolutionAgent;
+        private readonly TaskPilot.AI.Services.Requirements.RequirementConsolidationEngine _consolidationEngine;
+
+        public RequirementDiscoveryOrchestrator(
+            IRequirementSessionStore sessionStore,
+            ILogger<RequirementDiscoveryOrchestrator> logger,
+            IEnumerable<IDocumentTextExtractor> extractors,
+            DocumentCategorizationAgent categorizationAgent,
+            ChunkingAgent chunkingAgent,
+            IDocumentStore documentStore,
+            IVectorStore vectorStore,
+            QuestionResolutionAgent questionResolutionAgent,
+            RequirementExtractionAgent extractionAgent,
+            RequirementAnalysisAgent requirementAnalysisAgent,
+            IRequirementReadinessEvaluator readinessEvaluator,
+            RequirementsBuilderAgent builderAgent,
+            RequirementValidationAgent validationAgent,
+            KnowledgeEvolutionAgent evolutionAgent,
+            TaskPilot.AI.Services.Requirements.RequirementConsolidationEngine consolidationEngine)
+        {
+            _sessionStore = sessionStore;
+            _logger = logger;
+            _extractors = extractors;
+            _categorizationAgent = categorizationAgent;
+            _chunkingAgent = chunkingAgent;
+            _documentStore = documentStore;
+            _vectorStore = vectorStore;
+            _questionResolutionAgent = questionResolutionAgent;
+            _extractionAgent = extractionAgent;
+            _requirementAnalysisAgent = requirementAnalysisAgent;
+            _readinessEvaluator = readinessEvaluator;
+            _builderAgent = builderAgent;
+            _validationAgent = validationAgent;
+            _evolutionAgent = evolutionAgent;
+            _consolidationEngine = consolidationEngine;
+        }
+
+        public async Task<RequirementDiscoveryResponse> ExecuteAsync(RequirementDiscoveryRequest request, CancellationToken cancellationToken)
+        {
+            // 1. Session Resolution
+            RequirementSession session;
+            if (request.SessionId.HasValue && request.SessionId.Value != Guid.Empty)
+            {
+                session = await _sessionStore.GetAsync(request.SessionId.Value, cancellationToken);
+                if (session == null)
+                    throw new Exception("Session not found");
+            }
+            else
+            {
+                session = new RequirementSession
+                {
+                    SessionId = Guid.NewGuid(),
+                    Status = RequirementSessionStatus.RequirementGathering,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+            }
+
+            bool isModified = false;
+            int documentsProcessed = 0;
+            bool conversationUpdated = false;
+
+            // 2. Persist Documents & Process
+            if (request.Documents != null && request.Documents.Any())
+            {
+                foreach (var file in request.Documents)
+                {
+                    var extractor = _extractors.FirstOrDefault(e => e.CanHandle(file.ContentType, file.FileName));
+                    if (extractor == null)
+                    {
+                        _logger.LogWarning($"No extractor found for {file.ContentType}");
+                        continue;
+                    }
+
+                    using var stream = file.OpenReadStream();
+                    var extractedText = await extractor.ExtractTextAsync(stream, cancellationToken);
+
+                    var category = await _categorizationAgent.CategorizeAsync(file.FileName, extractedText, cancellationToken: cancellationToken);
+
+                    var document = new IngestedDocument
+                    {
+                        Id = Guid.NewGuid(),
+                        FileName = file.FileName,
+                        Category = category,
+                        ContentType = file.ContentType,
+                        FileSize = file.Length,
+                        ExtractedText = extractedText,
+                        UploadedAt = DateTime.UtcNow,
+                        CloudinaryUrl = string.Empty
+                    };
+
+                    var chunks = await _chunkingAgent.ChunkContentAsync(document.Id, extractedText, cancellationToken: cancellationToken);
+                    document.ChunkCount = chunks.Count;
+
+                    await _documentStore.SaveDocumentAsync(document, cancellationToken);
+                    await _documentStore.SaveChunksAsync(chunks, cancellationToken);
+
+                    foreach (var chunk in chunks)
+                    {
+                        chunk.RequirementSessionId = session.SessionId;
+                        chunk.Category = category;
+                        chunk.SourceFile = file.FileName;
+                        chunk.DocumentType = file.ContentType;
+                    }
+
+                    await _vectorStore.UpsertAsync(TaskPilot.Models.Enums.KnowledgeCollectionType.ProjectPolicies, chunks, cancellationToken);
+
+                    session.Knowledge.Documents.Add(document);
+                    session.Knowledge.DocumentIds.Add(document.Id);
+                    documentsProcessed++;
+                }
+                isModified = true;
+            }
+
+            // 3. Persist Conversation & Answer Questions
+            if (!string.IsNullOrWhiteSpace(request.Message))
+            {
+                var userMessage = new ConversationMessage
+                {
+                    Role = "User",
+                    Message = request.Message,
+                    Timestamp = DateTime.UtcNow
+                };
+                session.ConversationHistory.Add(userMessage);
+
+                // Evaluate Knowledge Evolution
+                var evolution = await _evolutionAgent.EvaluateAsync(session, request.Message, cancellationToken);
+                
+                if (evolution.Intent == "Answer")
+                {
+                    // Resolve pending questions
+                    if (session.QuestionPool.Any(q => !q.IsAnswered))
+                    {
+                        var extractedAnswers = await _questionResolutionAgent.ResolveAsync(
+                            session.QuestionPool.Where(q => !q.IsAnswered).ToList(),
+                            request.Message);
+
+                        foreach (var answer in extractedAnswers)
+                        {
+                            var q = session.QuestionPool.FirstOrDefault(x => x.Id == answer.QuestionId);
+                            if (q != null && !q.IsAnswered && answer.IsAnswered)
+                            {
+                                q.IsAnswered = true;
+                                q.Answer = answer.ExtractedAnswer;
+                                q.AnsweredAt = DateTime.UtcNow;
+                                q.AnsweredFromSource = "PM";
+                            }
+                        }
+                    }
+                }
+                else if (evolution.Intent == "Add" || evolution.Intent == "Modify" || evolution.Intent == "Conflict")
+                {
+                    var proposed = new RequirementIdentity
+                    {
+                        OriginalText = evolution.ProposedText,
+                        Category = evolution.Category,
+                        Sources = { "User Conversation" },
+                        IsConflicting = evolution.Intent == "Conflict",
+                        ConflictReason = evolution.Intent == "Conflict" ? evolution.Reasoning : string.Empty
+                    };
+                    await _consolidationEngine.ConsolidateAsync(session, new List<RequirementIdentity> { proposed }, cancellationToken);
+                }
+
+                conversationUpdated = true;
+                isModified = true;
+            }
+
+            if (!isModified)
+            {
+                throw new Exception("Request must contain a Message or Documents.");
+            }
+
+            // 4. Requirement Analysis
+            // Analyze the full BRD context combined with the conversation history.
+            var analysis = await _requirementAnalysisAgent.AnalyzeAsync(session, cancellationToken);
+
+            // 5. Update Requirements via Consolidation Engine
+            var proposedExtractions = MapToIdentities(analysis.ExtractedRequirements, "BRD Analysis");
+            if (proposedExtractions.Any())
+            {
+                await _consolidationEngine.ConsolidateAsync(session, proposedExtractions, cancellationToken);
+            }
+            
+            session.ConfidenceScores = analysis.ConfidenceScores.Select(c => new RequirementConfidenceScore
+            {
+                Category = c.Category,
+                Score = c.Score,
+                Status = c.Status,
+                ExtractedValue = c.ExtractedValue,
+                Reason = c.Reason,
+                Evidence = c.Evidence,
+                MissingItems = c.MissingItems
+            }).ToList();
+
+            // 6. Update Completeness Report
+            var completenessReport = _readinessEvaluator.Evaluate(session);
+            
+            // Prefer AI's estimate if available
+            if (analysis.RequirementCompletenessReport != null)
+            {
+                completenessReport.EstimatedCompletenessAfterPendingQuestions = analysis.RequirementCompletenessReport.EstimatedCompletenessAfterPendingQuestions;
+            }
+            session.RequirementCompletenessReport = completenessReport;
+
+            // Update backward-compatible CompletenessReport
+            var aiScore = completenessReport.OverallCompleteness / 100f;
+            session.CompletenessReport = new CompletenessReport
+            {
+                Score = Math.Clamp(aiScore, 0f, 1f),
+                ReadyForPlanning = completenessReport.ReadyForFinalization,
+                CriticalMissingAreas = completenessReport.MissingCriticalAreas ?? new List<string>(),
+                OptionalMissingAreas = new List<string>(),
+                WeakRequirements = session.ConfidenceScores.Where(c => c.Status == "PartiallyCovered").Select(c => $"{c.Category}: {c.Reason}").ToList()
+            };
+
+            // 7. Regenerate Pending Questions
+            session.QuestionPool.RemoveAll(q => !q.IsAnswered && !q.IsBrdPrompt);
+            foreach (var gapQuestion in analysis.GapQuestions.Take(6))
+            {
+                session.QuestionPool.Add(new ClarificationQuestion
+                {
+                    Id = Guid.NewGuid(),
+                    Question = gapQuestion.Question,
+                    Category = MapCategory(gapQuestion.Category),
+                    Priority = MapPriority(gapQuestion.Priority),
+                    Reason = gapQuestion.Reason,
+                    MissingItems = gapQuestion.MissingItems,
+                    BusinessImpact = gapQuestion.BusinessImpact,
+                    EstimatedEffectOnCompleteness = gapQuestion.EstimatedEffectOnCompleteness,
+                    IsBrdPrompt = false
+                });
+            }
+
+            // 8. Move to Planning if all questions are answered and ready for finalization
+            if (session.AllQuestionsAnswered && session.RequirementCompletenessReport.ReadyForFinalization)
+            {
+                // Run Validation Agent
+                session.ValidationResult = await _validationAgent.ValidateAsync(session, cancellationToken);
+                
+                // Finalization is permitted
+                session.Status = RequirementSessionStatus.Planning;
+                if (session.FinalRequirements == null)
+                {
+                    session.FinalRequirements = await _builderAgent.BuildAsync(session, cancellationToken);
+                }
+            }
+            else
+            {
+                session.Status = RequirementSessionStatus.RequirementValidation;
+                session.ValidationResult = null; // Clear if not ready
+            }
+
+            session.UpdatedAt = DateTime.UtcNow;
+            await _sessionStore.SaveAsync(session, cancellationToken);
+
+            return MapToResponse(session, documentsProcessed, conversationUpdated);
+        }
+
+        private RequirementDiscoveryResponse MapToResponse(RequirementSession session, int documentsProcessed, bool conversationUpdated)
+        {
+            var coverage = new CoverageDTO
+            {
+                Covered = session.ConfidenceScores.Where(c => c.Score >= 80).Select(c => c.Category).ToList(),
+                Partial = session.ConfidenceScores.Where(c => c.Score >= 40 && c.Score < 80).Select(c => c.Category).ToList(),
+                Missing = session.ConfidenceScores.Where(c => c.Score < 40).Select(c => c.Category).ToList()
+            };
+
+            var scores = session.ConfidenceScores.Select(c => c.Score).ToList();
+            var confidenceSummary = new ConfidenceSummaryDTO
+            {
+                CoveredCategories = coverage.Covered.Count,
+                PartialCategories = coverage.Partial.Count,
+                MissingCategories = coverage.Missing.Count,
+                AverageConfidence = scores.Any() ? scores.Sum() / scores.Count : 0,
+                HighestConfidence = scores.Any() ? scores.Max() : 0,
+                LowestConfidence = scores.Any() ? scores.Min() : 0
+            };
+
+            var documents = session.Knowledge.Documents.Select(d => new DocumentSummaryDTO
+            {
+                DocumentId = d.Id,
+                FileName = d.FileName,
+                UploadedAt = d.UploadedAt,
+                ChunkCount = d.ChunkCount
+            }).ToList();
+
+            var analysisSummary = new AnalysisSummaryDTO
+            {
+                DocumentsAnalyzed = session.Knowledge.Documents.Count,
+                ConversationMessages = session.ConversationHistory.Count,
+                QuestionsGenerated = session.QuestionPool.Count,
+                QuestionsResolved = session.QuestionPool.Count(q => q.IsAnswered)
+            };
+
+            var enrichedReqs = new List<RequirementItemDTO>();
+            if (session.Requirements.BusinessRequirements != null)
+                enrichedReqs.AddRange(session.Requirements.BusinessRequirements.Select(r => new RequirementItemDTO { Text = r, Category = "BusinessGoals", Confidence = scores.Any() ? scores.Sum()/scores.Count : 0 }));
+            if (session.Requirements.TechnicalRequirements != null)
+                enrichedReqs.AddRange(session.Requirements.TechnicalRequirements.Select(r => new RequirementItemDTO { Text = r, Category = "Technical", Confidence = scores.Any() ? scores.Sum()/scores.Count : 0 }));
+            if (session.Requirements.Constraints != null)
+                enrichedReqs.AddRange(session.Requirements.Constraints.Select(r => new RequirementItemDTO { Text = r, Category = "Constraints", Confidence = scores.Any() ? scores.Sum()/scores.Count : 0 }));
+            if (session.Requirements.Integrations != null)
+                enrichedReqs.AddRange(session.Requirements.Integrations.Select(r => new RequirementItemDTO { Text = r, Category = "Integrations", Confidence = scores.Any() ? scores.Sum()/scores.Count : 0 }));
+            if (session.Requirements.ScaleRequirements != null)
+                enrichedReqs.AddRange(session.Requirements.ScaleRequirements.Select(r => new RequirementItemDTO { Text = r, Category = "Scale", Confidence = scores.Any() ? scores.Sum()/scores.Count : 0 }));
+
+            var response = new RequirementDiscoveryResponse
+            {
+                SessionId = session.SessionId,
+                WorkflowState = session.Status == RequirementSessionStatus.RequirementValidation ? "ClarificationRequired" : session.Status.ToString(),
+                DocumentsProcessed = documentsProcessed,
+                ConversationUpdated = conversationUpdated,
+                NextRecommendedAction = GetRecommendedAction(session),
+                Warnings = new List<string>(),
+                Coverage = coverage,
+                ConfidenceSummary = confidenceSummary,
+                Documents = documents,
+                AnalysisSummary = analysisSummary,
+                Requirements = new ExtractedRequirementsDTO
+                {
+                    BusinessRequirements = session.Requirements.BusinessRequirements ?? new List<string>(),
+                    TechnicalRequirements = session.Requirements.TechnicalRequirements ?? new List<string>(),
+                    Constraints = session.Requirements.Constraints ?? new List<string>(),
+                    Integrations = session.Requirements.Integrations ?? new List<string>(),
+                    ScaleRequirements = session.Requirements.ScaleRequirements ?? new List<string>(),
+                    EnrichedRequirements = enrichedReqs
+                },
+                ValidationResult = session.ValidationResult != null ? new RequirementValidationResultDTO
+                {
+                    ValidationScore = session.ValidationResult.ValidationScore,
+                    Issues = session.ValidationResult.Issues ?? new List<string>(),
+                    Warnings = session.ValidationResult.Warnings ?? new List<string>(),
+                    BusinessReadiness = session.ValidationResult.BusinessReadiness
+                } : null,
+                PendingQuestions = session.QuestionPool.Where(q => !q.IsAnswered).Select(q => new ClarificationQuestionDTO
+                {
+                    Id = q.Id,
+                    Question = q.Question,
+                    Category = q.Category.ToString(),
+                    Priority = q.Priority.ToString(),
+                    Reason = q.Reason,
+                    MissingItems = q.MissingItems,
+                    BusinessImpact = q.BusinessImpact,
+                    EstimatedEffectOnCompleteness = q.EstimatedEffectOnCompleteness
+                }).ToList()
+            };
+
+            if (session.RequirementCompletenessReport != null)
+            {
+                response.CompletenessReport = new RequirementCompletenessDTO
+                {
+                    OverallCompleteness = session.RequirementCompletenessReport.OverallCompleteness,
+                    Readiness = new ReadinessDTO { Status = session.RequirementCompletenessReport.Readiness },
+                    BlockingCategories = session.RequirementCompletenessReport.BlockingCategories,
+                    QuestionImpact = new QuestionImpactDTO
+                    {
+                        HighPriorityQuestions = session.RequirementCompletenessReport.HighPriorityQuestions,
+                        MediumPriorityQuestions = session.RequirementCompletenessReport.MediumQuestions,
+                        LowPriorityQuestions = session.RequirementCompletenessReport.LowQuestions
+                    },
+                    MissingCriticalAreas = session.RequirementCompletenessReport.MissingCriticalAreas,
+                    ReadinessRecommendation = session.RequirementCompletenessReport.ReadinessRecommendation,
+                    BlockingFactors = session.RequirementCompletenessReport.BlockingFactors.Select(f => new BlockingFactorsDTO { Factor = f }).ToList(),
+                    EstimatedCompletenessAfterPendingQuestions = session.RequirementCompletenessReport.EstimatedCompletenessAfterPendingQuestions,
+                    ReadyForFinalization = session.RequirementCompletenessReport.ReadyForFinalization
+                };
+            }
+
+            return response;
+        }
+
+        private string GetRecommendedAction(RequirementSession session)
+        {
+            if (session.RequirementCompletenessReport?.ReadyForFinalization == true && session.AllQuestionsAnswered)
+            {
+                return "Finalize requirements";
+            }
+            if (session.QuestionPool.Any(q => !q.IsAnswered))
+            {
+                return "Answer pending questions";
+            }
+            if (session.RequirementCompletenessReport != null && !session.RequirementCompletenessReport.ReadyForFinalization)
+            {
+                return "Upload another BRD";
+            }
+            return "Wait for further instructions";
+        }
+
+        private static QuestionCategory MapCategory(string category) =>
+            category?.Trim() switch
+            {
+                "BusinessGoals" => QuestionCategory.BusinessGoals,
+                "Scale"         => QuestionCategory.Scale,
+                "Integration"   => QuestionCategory.Integration,
+                "Timeline"      => QuestionCategory.Timeline,
+                "Compliance"    => QuestionCategory.Compliance,
+                "UserRoles"     => QuestionCategory.UserRoles,
+                "Realtime"      => QuestionCategory.Realtime,
+                _               => QuestionCategory.General
+            };
+
+        private static QuestionPriority MapPriority(string priority) =>
+            priority?.Trim().ToUpperInvariant() switch
+            {
+                "CRITICAL" => QuestionPriority.Critical,
+                "HIGH"     => QuestionPriority.High,
+                "LOW"      => QuestionPriority.Low,
+                _          => QuestionPriority.Medium
+            };
+
+        private List<RequirementIdentity> MapToIdentities(ExtractedRequirements reqs, string source)
+        {
+            var list = new List<RequirementIdentity>();
+            if (reqs == null) return list;
+
+            AddIdentities(list, reqs.BusinessRequirements, "BusinessGoals", source);
+            AddIdentities(list, reqs.TechnicalRequirements, "Technical", source);
+            AddIdentities(list, reqs.Constraints, "Constraints", source);
+            AddIdentities(list, reqs.Integrations, "Integrations", source);
+            AddIdentities(list, reqs.ScaleRequirements, "Scale", source);
+
+            return list;
+        }
+
+        private void AddIdentities(List<RequirementIdentity> list, List<string> items, string category, string source)
+        {
+            if (items == null) return;
+            foreach (var item in items)
+            {
+                list.Add(new RequirementIdentity
+                {
+                    OriginalText = item,
+                    Category = category,
+                    Sources = { source }
+                });
+            }
+        }
+    }
+}

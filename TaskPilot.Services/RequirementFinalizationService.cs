@@ -12,6 +12,7 @@ using TaskPilot.Models.Entities;
 using TaskPilot.Models.Enums;
 using TaskPilot.Services.Exceptions;
 using TaskPilot.Services.Interfaces;
+using TaskPilot.AI.Services.Requirements;
 using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Common.Errors;
 
@@ -26,6 +27,7 @@ namespace TaskPilot.Services
         private readonly UserManager<User> _userManager;
         private readonly ILogger<RequirementFinalizationService> _logger;
         private readonly IServiceProvider _serviceProvider;
+        private readonly IRequirementReadinessEvaluator _readinessEvaluator;
 
         public RequirementFinalizationService(
             IRequirementSessionStore sessionStore,
@@ -34,7 +36,8 @@ namespace TaskPilot.Services
             IRepository<Company> companyRepository,
             UserManager<User> userManager,
             ILogger<RequirementFinalizationService> logger,
-            IServiceProvider serviceProvider)
+            IServiceProvider serviceProvider,
+            IRequirementReadinessEvaluator readinessEvaluator)
         {
             _sessionStore = sessionStore;
             _unitOfWork = unitOfWork;
@@ -43,6 +46,7 @@ namespace TaskPilot.Services
             _userManager = userManager;
             _logger = logger;
             _serviceProvider = serviceProvider;
+            _readinessEvaluator = readinessEvaluator;
         }
 
         public async Task<Result<FinalizeRequirementsResponse>> FinalizeRequirementsAsync(Guid sessionId, FinalizeRequirementsRequest request, CancellationToken cancellationToken = default)
@@ -105,19 +109,33 @@ namespace TaskPilot.Services
                 return Result.Failure<FinalizeRequirementsResponse>(CommonErrors.InvalidInput("Company owner is missing or invalid. Cannot assign a project manager."));
             }
 
-            if (session.CompletenessReport == null)
-            {
-                return Result.Failure<FinalizeRequirementsResponse>(CommonErrors.InvalidInput("Requirements have not been evaluated yet."));
-            }
+            // Perform deterministic readiness evaluation rather than relying purely on LLM output
+            var evaluationReport = _readinessEvaluator.Evaluate(session);
+            session.RequirementCompletenessReport = evaluationReport; // Update with deterministic values
 
-            if (!session.AllQuestionsAnswered)
+            if (!evaluationReport.ReadyForFinalization)
             {
-                return Result.Failure<FinalizeRequirementsResponse>(CommonErrors.InvalidInput("Some clarification questions remain unanswered."));
+                var blocks = evaluationReport.BlockingFactors.Any() 
+                    ? string.Join(" ", evaluationReport.BlockingFactors) 
+                    : "Requirements need further clarification.";
+                return Result.Failure<FinalizeRequirementsResponse>(CommonErrors.InvalidInput($"Session is not ready for planning yet. {blocks}"));
             }
-
-            if (!session.CompletenessReport.ReadyForPlanning && !session.AllQuestionsAnswered)
+            else
             {
-                return Result.Failure<FinalizeRequirementsResponse>(CommonErrors.InvalidInput("Session is not ready for planning yet."));
+                if (session.CompletenessReport == null)
+                {
+                    return Result.Failure<FinalizeRequirementsResponse>(CommonErrors.InvalidInput("Requirements have not been evaluated yet."));
+                }
+
+                if (!session.AllQuestionsAnswered)
+                {
+                    return Result.Failure<FinalizeRequirementsResponse>(CommonErrors.InvalidInput("Some clarification questions remain unanswered."));
+                }
+
+                if (!session.CompletenessReport.ReadyForPlanning && !session.AllQuestionsAnswered)
+                {
+                    return Result.Failure<FinalizeRequirementsResponse>(CommonErrors.InvalidInput("Session is not ready for planning yet."));
+                }
             }
 
             // Create Requirements Snapshot

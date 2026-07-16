@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
@@ -24,21 +25,92 @@ namespace TaskPilot.Presentation.Controllers
         private readonly IRequirementSessionStore _sessionStore;
         private readonly IVectorStore _vectorStore;
         private readonly IRequirementFinalizationService _finalizationService;
+        private readonly RequirementDiscoveryOrchestrator _discoveryOrchestrator;
 
         public RequirementController(
             RequirementsOrchestrator orchestrator,
             DocumentIngestionOrchestrator documentIngestionOrchestrator,
+            RequirementDiscoveryOrchestrator discoveryOrchestrator,
             IRequirementSessionStore sessionStore,
             IVectorStore vectorStore,
             IRequirementFinalizationService finalizationService)
         {
             _orchestrator = orchestrator;
             _documentIngestionOrchestrator = documentIngestionOrchestrator;
+            _discoveryOrchestrator = discoveryOrchestrator;
             _sessionStore = sessionStore;
             _vectorStore = vectorStore;
             _finalizationService = finalizationService;
         }
 
+        [HttpPost]
+        public async Task<ActionResult> UnifiedEntry(
+            [FromForm] RequirementDiscoveryRequest request,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var response = await _discoveryOrchestrator.ExecuteAsync(request, cancellationToken);
+                return HandleResult(Result.Success(response));
+            }
+            catch (Exception ex)
+            {
+                return HandleResult(Result.Failure<RequirementDiscoveryResponse>(
+                    new Error("DISCOVERY_FAILED", ErrorType.Failure, ex.Message)));
+            }
+        }
+
+        [Obsolete("Use the unified POST /api/requirements endpoint instead.")]
+        [HttpPost("start-with-document")]
+        public async Task<ActionResult> StartWithDocument(
+            [FromForm] StartWithDocumentRequest request,
+            CancellationToken cancellationToken)
+        {
+            if (request.File is null || request.File.Length == 0)
+                return HandleResult(Result.Failure<DocumentStartResult>(
+                    new Error("NO_FILE", ErrorType.Validation, "No file provided.")));
+
+            var allowed = new[]
+            {
+                "application/pdf",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                "text/plain"
+            };
+
+            if (!System.Linq.Enumerable.Contains(allowed, request.File.ContentType))
+                return HandleResult(Result.Failure<DocumentStartResult>(
+                    new Error("UNSUPPORTED_FILE", ErrorType.Validation,
+                        "Unsupported file type. Please upload PDF, DOCX, or TXT.")));
+
+            // 1. Create session (document-first path)
+            var session = await _orchestrator.StartWithDocumentAsync(cancellationToken);
+
+            // 2. Ingest document into the new session
+            var ingestionResult = await _documentIngestionOrchestrator
+                .IngestAsync(session.SessionId, request.File, cancellationToken);
+
+            if (!ingestionResult.Success)
+                return HandleResult(Result.Failure<DocumentStartResult>(
+                    new Error("DOCUMENT_INGESTION_FAILED", ErrorType.Failure, ingestionResult.Message)));
+
+            // 3. Reload session (now contains gap questions + confidence scores)
+            var updatedSession = await _sessionStore.GetAsync(session.SessionId, cancellationToken);
+
+            var response = new DocumentStartResult
+            {
+                SessionId        = session.SessionId,
+                Status           = updatedSession?.Status.ToString() ?? session.Status.ToString(),
+                IsLimitedMode    = false,
+                ConfidenceScores = updatedSession?.ConfidenceScores ?? new(),
+                PendingQuestions = updatedSession?.UnansweredQuestions ?? new(),
+                Message          = $"Document analyzed. {ingestionResult.QuestionsAutoResolved} existing " +
+                                   $"questions resolved. Gap analysis complete."
+            };
+
+            return HandleResult(Result.Success(response));
+        }
+
+        [Obsolete("Use the unified POST /api/requirements endpoint instead.")]
         [HttpPost("document")]
         public async Task<ActionResult> Document(
             [FromForm] DocumentUploadRequest request,
@@ -59,6 +131,7 @@ namespace TaskPilot.Presentation.Controllers
             return HandleResult(Result.Success(result));
         }
 
+        [Obsolete("Use the unified POST /api/requirements endpoint instead.")]
         [HttpPost("message")]
         public async Task<ActionResult> Message(
             [FromBody] RequirementMessageRequest request,
@@ -101,6 +174,40 @@ namespace TaskPilot.Presentation.Controllers
             }
 
             return HandleResult(Result.Success(session));
+        }
+
+        [HttpGet("{sessionId}/completeness")]
+        public async Task<ActionResult> GetCompleteness(
+            Guid sessionId,
+            CancellationToken cancellationToken)
+        {
+            var session = await _sessionStore.GetAsync(sessionId, cancellationToken);
+            if (session is null)
+                return HandleResult(Result.Failure<TaskPilot.DTOs.AI.Requirements.RequirementCompletenessDTO>(CommonErrors.NotFound("Requirement session")));
+
+            var report = session.RequirementCompletenessReport;
+            if (report == null)
+                return HandleResult(Result.Failure<TaskPilot.DTOs.AI.Requirements.RequirementCompletenessDTO>(CommonErrors.NotFound("Completeness report not found.")));
+
+            var dto = new TaskPilot.DTOs.AI.Requirements.RequirementCompletenessDTO
+            {
+                OverallCompleteness = report.OverallCompleteness,
+                Readiness = new TaskPilot.DTOs.AI.Requirements.ReadinessDTO { Status = report.Readiness },
+                BlockingCategories = report.BlockingCategories,
+                QuestionImpact = new TaskPilot.DTOs.AI.Requirements.QuestionImpactDTO
+                {
+                    HighPriorityQuestions = report.HighPriorityQuestions,
+                    MediumPriorityQuestions = report.MediumQuestions,
+                    LowPriorityQuestions = report.LowQuestions
+                },
+                MissingCriticalAreas = report.MissingCriticalAreas,
+                ReadinessRecommendation = report.ReadinessRecommendation,
+                BlockingFactors = report.BlockingFactors.Select(f => new TaskPilot.DTOs.AI.Requirements.BlockingFactorsDTO { Factor = f }).ToList(),
+                EstimatedCompletenessAfterPendingQuestions = report.EstimatedCompletenessAfterPendingQuestions,
+                ReadyForFinalization = report.ReadyForFinalization
+            };
+
+            return HandleResult(Result.Success(dto));
         }
 
         [HttpGet("search")]

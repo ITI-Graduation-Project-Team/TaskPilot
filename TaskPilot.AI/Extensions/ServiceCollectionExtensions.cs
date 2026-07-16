@@ -12,6 +12,7 @@ using TaskPilot.AI.Persistence.Interfaces;
 using TaskPilot.AI.Services;
 using TaskPilot.AI.Services.Extraction;
 using TaskPilot.AI.Services.Interfaces;
+using TaskPilot.AI.Services.Requirements;
 
 namespace TaskPilot.AI.Extensions
 {
@@ -51,12 +52,14 @@ namespace TaskPilot.AI.Extensions
             services.AddScoped<IDocumentTextExtractor, PdfTextExtractor>();
             services.AddScoped<IDocumentTextExtractor, DocxTextExtractor>();
 
-            //Regarding the orchestrator, we can consider it as a higher-level service that coordinates multiple lower-level services.
             services.AddScoped<
                  RequirementsOrchestrator>();
 
             services.AddScoped<
                  DocumentIngestionOrchestrator>();
+
+            services.AddScoped<
+                 RequirementDiscoveryOrchestrator>();
 
             services.AddScoped<
                  KnowledgeOrchestrator>();
@@ -96,9 +99,24 @@ namespace TaskPilot.AI.Extensions
                 CompletenessEvaluatorAgent>();
 
             services.AddScoped<
+                RequirementValidationAgent>();
+
+            services.AddScoped<
+                KnowledgeEvolutionAgent>();
+
+            services.AddScoped<
+                TaskPilot.AI.Services.Requirements.RequirementConsolidationEngine>();
+
+            services.AddScoped<
                 RequirementsBuilderAgent>();
             services.AddScoped<
                 QuestionResolutionAgent>();
+            services.AddScoped<
+                RequirementAnalysisAgent>();
+            
+            services.AddScoped<
+                IRequirementReadinessEvaluator,
+                RequirementReadinessEvaluator>();
 
             // RAG agents
             services.AddScoped<

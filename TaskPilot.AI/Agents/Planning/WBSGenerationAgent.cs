@@ -13,14 +13,17 @@ namespace TaskPilot.AI.Agents.Planning
     {
         private readonly IAiKernelService _kernelService;
         private readonly IPromptLoaderService _promptLoader;
+        private readonly IVectorStore _vectorStore;
         private readonly Microsoft.Extensions.Logging.ILogger _logger = Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
 
         public WBSGenerationAgent(
             IAiKernelService kernelService,
-            IPromptLoaderService promptLoader)
+            IPromptLoaderService promptLoader,
+            IVectorStore vectorStore)
         {
             _kernelService = kernelService;
             _promptLoader = promptLoader;
+            _vectorStore = vectorStore;
         }
 
         public async Task<GeneratedWbs> GenerateAsync(
@@ -29,10 +32,45 @@ namespace TaskPilot.AI.Agents.Planning
             System.Collections.Generic.List<string> platformTargets,
             string projectType,
             System.Collections.Generic.List<string> availableSkills,
+            Guid sessionId,
             CancellationToken cancellationToken = default)
         {
+            var brdContext = string.Empty;
+
+            if (sessionId != Guid.Empty)
+            {
+                try
+                {
+                    var relevantChunks = await _vectorStore.SearchAsync(
+                        collectionType: TaskPilot.Models.Enums.KnowledgeCollectionType.ProjectPolicies,
+                        requirementSessionId: sessionId,
+                        projectId: null,
+                        companyId: null,
+                        queryText:
+                            "business requirements features user stories " +
+                            "functional requirements processes workflows " +
+                            "modules system capabilities",
+                        topK: 10,
+                        categoryFilter: null,
+                        cancellationToken: cancellationToken
+                    );
+
+                    if (relevantChunks.Any())
+                    {
+                        brdContext = string.Join("\n\n---\n\n",
+                            relevantChunks.Select((chunk, i) =>
+                                $"[Document Excerpt {i + 1}]\n{chunk.Content}"));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "RAG retrieval failed for session {SessionId}. Proceeding without BRD context.", sessionId);
+                    brdContext = string.Empty;
+                }
+            }
+
             var kernel = _kernelService.CreateKernel(
-                ModelConstants.PowerfulModel);
+                ModelConstants.MorePowerfulModel);
 
             var prompt = await _promptLoader.LoadAsync(
                 "Planning/WbsGeneration.yaml");
@@ -84,7 +122,9 @@ namespace TaskPilot.AI.Agents.Planning
                 ["availableSkills"] =
                     availableSkills != null && availableSkills.Any()
                         ? string.Join(", ", availableSkills)
-                        : "None"
+                        : "None",
+                        
+                ["brdContext"] = brdContext
             };
 
             const int maxAttempts = 3;

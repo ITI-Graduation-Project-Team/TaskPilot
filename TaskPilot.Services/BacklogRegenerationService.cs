@@ -101,6 +101,7 @@ namespace TaskPilot.Services
                     project.PlatformTargets,
                     project.ProjectType,
                     availableSkills,
+                    project.RequirementsSessionId ?? Guid.Empty,
                     cancellationToken);
 
                 // Step 5: Persist newly generated backlog

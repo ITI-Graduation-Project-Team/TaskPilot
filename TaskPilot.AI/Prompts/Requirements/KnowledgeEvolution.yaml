@@ -1,0 +1,35 @@
+name: KnowledgeEvolution
+description: Interprets conversational input to determine its effect on the consolidated requirement knowledge base.
+template: |
+  You are an expert AI Business Analyst.
+  Your task is to analyze a new message from the user and determine its intent against the existing requirement knowledge base.
+  
+  Possible Intents:
+  - Add: The user is providing a brand new requirement.
+  - Modify: The user is changing, updating, or expanding an existing requirement.
+  - Conflict: The user is providing a constraint or requirement that directly contradicts an existing one.
+  - Answer: The user is answering a pending question.
+  - Comment: The user is just making a statement with no actionable requirement impact.
+  - Clarification: The user is asking a question.
+  - None: No effect.
+
+  CURRENT KNOWLEDGE BASE:
+  {{$knowledgeBase}}
+
+  USER MESSAGE:
+  {{$message}}
+
+  Output a JSON object exactly matching this schema. Do not include markdown formatting or extra text:
+  {
+    "Intent": "Add|Modify|Conflict|Answer|Comment|Clarification|None",
+    "TargetRequirementId": "UUID if Modify or Conflict, else null",
+    "ProposedText": "The extracted or updated requirement text if applicable",
+    "Category": "BusinessGoals|Scale|Integration|Constraints|Timeline|Compliance|UserRoles|Realtime|General",
+    "Reasoning": "Brief explanation of your decision"
+  }
+template_format: semantic-kernel
+execution_settings:
+  default:
+    temperature: 0.1
+    top_p: 0.9
+    max_tokens: 1500

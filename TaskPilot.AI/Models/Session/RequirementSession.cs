@@ -37,6 +37,9 @@ namespace TaskPilot.AI.Models.Session
         =
             new();
 
+        // Consolidated Knowledge
+        public List<RequirementIdentity> ConsolidatedKnowledgeBase { get; set; } = new();
+
         // Question Pool
         public List<ClarificationQuestion>
             QuestionPool
@@ -58,6 +61,7 @@ namespace TaskPilot.AI.Models.Session
             new();
 
         // Discovery intelligence
+        public RequirementValidationResult? ValidationResult { get; set; }
         [JsonIgnore]
         public List<AmbiguityItem>
             DetectedAmbiguities
@@ -70,6 +74,13 @@ namespace TaskPilot.AI.Models.Session
 
         public CompletenessReport?
             CompletenessReport
+        {
+            get;
+            set;
+        }
+
+        public RequirementCompletenessReport?
+            RequirementCompletenessReport
         {
             get;
             set;
@@ -134,6 +145,10 @@ namespace TaskPilot.AI.Models.Session
         }
         =
             DateTime.UtcNow;
+
+        public bool IsLimitedMode { get; set; } = false;
+
+        public List<RequirementConfidenceScore> ConfidenceScores { get; set; } = new();
 
         // Helpers
         public bool AllQuestionsAnswered =>

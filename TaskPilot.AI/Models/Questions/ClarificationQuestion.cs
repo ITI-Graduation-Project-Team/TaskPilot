@@ -1,4 +1,6 @@
-﻿using TaskPilot.AI.Enums;
+using System;
+using System.Collections.Generic;
+using TaskPilot.AI.Enums;
 
 namespace TaskPilot.AI.Models.Questions
 {
@@ -66,5 +68,37 @@ namespace TaskPilot.AI.Models.Questions
             get;
             set;
         }
+
+        public bool IsBrdPrompt
+        {
+            get;
+            set;
+        } = false;
+
+        // ── Enriched metadata (additive) ────────────────────────────────────
+
+        /// <summary>
+        /// Why this question matters in business terms.
+        /// E.g. "Milestones are required for sprint planning and WBS generation."
+        /// </summary>
+        public string Reason { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Specific BRD sub-items that are missing and that this question targets.
+        /// E.g. ["Milestones", "Project Phases", "Sprint Schedule"]
+        /// </summary>
+        public List<string> MissingItems { get; set; } = new();
+
+        /// <summary>
+        /// Plain-English risk statement if this question is left unanswered.
+        /// E.g. "Without milestones, sprint planning cannot be grounded in commitments."
+        /// </summary>
+        public string BusinessImpact { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Estimated improvement (0–100 int) to the overall completeness score
+        /// that answering this question would produce.
+        /// </summary>
+        public int EstimatedEffectOnCompleteness { get; set; }
     }
 }
