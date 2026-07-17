@@ -73,6 +73,17 @@ namespace TaskPilot.Presentation.Controllers
             return HandleResult(result, SuccessCodes.Task.ActualHoursUpdated);
         }
 
+        [HttpGet("projects/{projectId:guid}/sprints/{sprintId:guid}/tasks/my-tasks")]
+        public async Task<IActionResult> GetMySprintTasks(
+            Guid projectId,
+            Guid sprintId,
+            CancellationToken cancellationToken)
+        {
+            var userId = GetCurrentUserId();
+            var result = await _taskStatusService.GetMySprintTasksAsync(projectId, sprintId, userId, cancellationToken);
+            return HandleResult(result, SuccessCodes.Task.MyTasksRetrieved);
+        }
+
         private Guid GetCurrentUserId()
         {
             var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);

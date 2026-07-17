@@ -1,11 +1,13 @@
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using TaskPilot.Data.Repositories;
 using TaskPilot.Data.Repositories.Interfaces;
 using TaskPilot.DTOs.Sprints;
+using TaskPilot.DTOs.Backlog;
 using TaskPilot.Models.Common.Errors;
 using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Entities;
@@ -364,6 +366,53 @@ namespace TaskPilot.Services
                 TitleAr = completedSprint.TitleAr,
                 EndDate = completedSprint.EndDate
             });
+        }
+
+        public async Task<Result<IEnumerable<TaskItemDto>>> GetSprintTasksAsync(
+            Guid projectId,
+            Guid sprintId,
+            CancellationToken cancellationToken = default)
+        {
+            if (projectId == Guid.Empty) return Result.Failure<IEnumerable<TaskItemDto>>(SprintErrors.InvalidProject);
+            if (sprintId == Guid.Empty) return Result.Failure<IEnumerable<TaskItemDto>>(SprintErrors.InvalidSprint);
+
+            var project = await _projectRepository.GetByIdAsync(projectId);
+            if (project == null)
+            {
+                return Result.Failure<IEnumerable<TaskItemDto>>(SprintErrors.ProjectNotFound);
+            }
+
+            var sprint = await _sprintRepository.GetSprintWithTasksAsync(sprintId, cancellationToken);
+            if (sprint == null)
+            {
+                return Result.Failure<IEnumerable<TaskItemDto>>(SprintErrors.SprintNotFound);
+            }
+
+            if (sprint.ProjectId != projectId)
+            {
+                return Result.Failure<IEnumerable<TaskItemDto>>(SprintErrors.SprintDoesNotBelongToProject);
+            }
+
+            var tasks = sprint.Tasks.Select(t => new TaskItemDto
+            {
+                Id = t.Id,
+                UserStoryId = t.UserStoryId ?? Guid.Empty,
+                TitleEn = t.TitleEn,
+                TitleAr = t.TitleAr,
+                DescriptionEn = t.DescriptionEn,
+                DescriptionAr = t.DescriptionAr,
+                TechnicalSummaryEn = t.TechnicalSummaryEn,
+                TechnicalSummaryAr = t.TechnicalSummaryAr,
+                AcceptanceCriteriaEn = t.AcceptanceCriteriaEn,
+                AcceptanceCriteriaAr = t.AcceptanceCriteriaAr,
+                EstimatedHours = t.EstimatedHours,
+                EffortSize = t.EffortSize.ToString(),
+                Type = t.Type.ToString(),
+                Priority = t.Priority.ToString(),
+                Status = t.Status.ToString()
+            }).ToList();
+
+            return Result.Success<IEnumerable<TaskItemDto>>(tasks);
         }
     }
 }

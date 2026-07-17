@@ -222,6 +222,73 @@ namespace TaskPilot.Services.Implementations
             return Result.Success(result);
         }
 
+        public async Task<Result<MyTasksSummaryDto>> GetMySprintTasksAsync(
+            Guid projectId,
+            Guid sprintId,
+            Guid currentUserId,
+            CancellationToken cancellationToken = default)
+        {
+            if (projectId == Guid.Empty || sprintId == Guid.Empty || currentUserId == Guid.Empty)
+            {
+                _logger.LogWarning("GetMySprintTasksAsync failed: Invalid input for ProjectId {ProjectId}, SprintId {SprintId} or UserId {UserId}", projectId, sprintId, currentUserId);
+                return Result.Failure<MyTasksSummaryDto>(new Error("INVALID_INPUT", ErrorType.Validation, "Invalid project, sprint or user ID."));
+            }
+
+            var sprint = await _sprintRepository.GetByIdAsync(sprintId);
+            if (sprint == null || sprint.IsDeleted)
+            {
+                _logger.LogWarning("GetMySprintTasksAsync failed: Sprint not found for SprintId {SprintId}", sprintId);
+                return Result.Failure<MyTasksSummaryDto>(SprintErrors.SprintNotFound);
+            }
+
+            if (sprint.ProjectId != projectId)
+            {
+                _logger.LogWarning("GetMySprintTasksAsync failed: Sprint {SprintId} does not belong to Project {ProjectId}", sprintId, projectId);
+                return Result.Failure<MyTasksSummaryDto>(SprintErrors.SprintDoesNotBelongToProject);
+            }
+
+            var tasks = await _taskRepository.GetAssignedTasksBySprintAsync(sprintId, currentUserId, cancellationToken);
+
+            var summary = new MyTasksSummaryDto
+            {
+                SprintId = sprint.Id,
+                SprintTitleEn = sprint.TitleEn,
+                DaysRemaining = sprint.EndDate >= DateTime.UtcNow ? (sprint.EndDate - DateTime.UtcNow).Days : 0,
+                TotalTasks = tasks.Count,
+                ToDoCount = tasks.Count(t => t.Status == TaskItemStatus.ToDo),
+                InProgressCount = tasks.Count(t => t.Status == TaskItemStatus.InProgress),
+                DoneCount = tasks.Count(t => t.Status == TaskItemStatus.Done),
+                TotalEstimatedHours = tasks.Sum(t => t.EstimatedHours),
+                TotalActualHours = tasks.Sum(t => t.ActualHours),
+                Tasks = tasks.Select(t => new MyTaskDto
+                {
+                    TaskId = t.Id,
+                    TitleEn = t.TitleEn,
+                    TitleAr = t.TitleAr,
+                    DescriptionEn = t.DescriptionEn,
+                    DescriptionAr = t.DescriptionAr,
+                    AcceptanceCriteriaEn = t.AcceptanceCriteriaEn,
+                    AcceptanceCriteriaAr = t.AcceptanceCriteriaAr,
+                    Priority = t.Priority,
+                    Status = t.Status,
+                    EffortSize = t.EffortSize,
+                    EstimatedHours = t.EstimatedHours,
+                    ActualHours = t.ActualHours,
+                    Type = t.Type,
+                    UserStoryTitleEn = t.UserStory?.TitleEn ?? string.Empty,
+                    UserStoryTitleAr = t.UserStory?.TitleAr ?? string.Empty,
+                    RequiredSkills = t.RequiredSkills.Select(rs => rs.Skill?.Name ?? string.Empty).ToList()
+                }).ToList()
+            };
+
+            if (summary.TotalTasks > 0)
+            {
+                summary.CompletionPercentage = Math.Round(((decimal)summary.DoneCount / summary.TotalTasks) * 100, 2);
+            }
+
+            return Result.Success(summary);
+        }
+
         /*
         private static readonly IReadOnlyDictionary<TaskItemStatus, HashSet<TaskItemStatus>> _allowedTransitions = new Dictionary<TaskItemStatus, HashSet<TaskItemStatus>>
         {

@@ -24,5 +24,11 @@ namespace TaskPilot.Services.Interfaces
             Guid currentUserId,
             LogActualHoursRequest request,
             CancellationToken cancellationToken = default);
+
+        Task<Result<MyTasksSummaryDto>> GetMySprintTasksAsync(
+            Guid projectId,
+            Guid sprintId,
+            Guid currentUserId,
+            CancellationToken cancellationToken = default);
     }
 }

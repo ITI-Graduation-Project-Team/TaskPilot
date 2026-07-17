@@ -254,6 +254,29 @@ namespace TaskPilot.Services
             return Result.Success(transitions);
         }
 
+        public async Task<Result<IEnumerable<ProjectDto>>> GetProjectsByEmployeeIdAsync(Guid employeeId, CancellationToken cancellationToken = default)
+        {
+            if (employeeId == Guid.Empty)
+                return Result.Failure<IEnumerable<ProjectDto>>(CommonErrors.InvalidInput("Employee ID cannot be empty."));
+
+            bool isArabic = _localizationService.CurrentLanguage == "ar";
+
+            var projects = await _projectRepo.GetQueryable()
+                .Where(p => !p.IsDeleted && p.ProjectEmployees.Any(pe => pe.EmployeeId == employeeId))
+                .Select(p => new ProjectDto
+                {
+                    Id = p.Id,
+                    Name = isArabic ? p.NameAr : p.NameEn,
+                    Description = isArabic ? p.DescriptionAr : p.DescriptionEn,
+                    CompanyId = p.CompanyId,
+                    ManagerId = p.ManagerId,
+                    status = p.Status
+                })
+                .ToListAsync(cancellationToken);
+
+            return Result.Success<IEnumerable<ProjectDto>>(projects);
+        }
+
         private List<ProjectStatus> GetAllowedTransitions(ProjectStatus currentStatus)
         {
             return currentStatus switch

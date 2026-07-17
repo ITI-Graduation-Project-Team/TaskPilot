@@ -24,6 +24,7 @@ public class EmployeeController : ApiControllerBase
     private readonly IRepository<Employee> _employeeRepository;
     private readonly IRepository<User> _userRepository;
     private readonly IRepository<Company> _companyRepository;
+    private readonly IProjectService _projectService;
 
     public EmployeeController(
         ICvService cvService,
@@ -32,7 +33,8 @@ public class EmployeeController : ApiControllerBase
         ICurrentUserService currentUser,
         IRepository<Employee> employeeRepository,
         IRepository<User> userRepository,
-        IRepository<Company> companyRepository
+        IRepository<Company> companyRepository,
+        IProjectService projectService
          )
     {
         _cvService = cvService;
@@ -42,6 +44,7 @@ public class EmployeeController : ApiControllerBase
         _employeeRepository = employeeRepository;
         _userRepository = userRepository;
         _companyRepository = companyRepository;
+        _projectService = projectService;
     }
 
     /// <summary>
@@ -213,5 +216,14 @@ public class EmployeeController : ApiControllerBase
             CompanyName = companyName,
             Skills = employee.UserSkills.Select(us => us.Skill.Name).ToList()
         });
+    }
+
+    [HttpGet("{employeeId:guid}/projects")]
+    public async Task<ActionResult> GetEmployeeProjects(
+        Guid employeeId,
+        CancellationToken cancellationToken)
+    {
+        var result = await _projectService.GetProjectsByEmployeeIdAsync(employeeId, cancellationToken);
+        return HandleResult(result);
     }
 }

@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using TaskPilot.DTOs.Sprints;
+using TaskPilot.DTOs.Backlog;
 using TaskPilot.Services.Interfaces;
 using TaskPilot.Services.Assignment;
 using TaskPilot.Models.Common.Results;
@@ -171,6 +172,16 @@ namespace TaskPilot.Presentation.Controllers
         public async Task<IActionResult> GetLatestCompletedSprint(Guid projectId)
         {
             var result = await _sprintLifecycleService.GetLatestCompletedSprintAsync(projectId);
+            return HandleResult(result);
+        }
+
+        [HttpGet("{sprintId:guid}/tasks")]
+        public async Task<ActionResult> GetSprintTasks(
+            Guid projectId,
+            Guid sprintId,
+            CancellationToken cancellationToken)
+        {
+            var result = await _sprintLifecycleService.GetSprintTasksAsync(projectId, sprintId, cancellationToken);
             return HandleResult(result);
         }
     }
