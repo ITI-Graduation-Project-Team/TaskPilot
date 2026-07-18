@@ -85,7 +85,7 @@ namespace TaskPilot.Models.Configurations
             builder.HasMany(t => t.RequiredSkills)
                 .WithOne(rs => rs.Task)
                 .HasForeignKey(rs => rs.TaskId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Cascade);
 
 
             builder.HasIndex(t => t.SprintId);
