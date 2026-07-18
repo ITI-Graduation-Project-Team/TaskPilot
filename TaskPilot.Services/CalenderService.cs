@@ -108,7 +108,7 @@ namespace TaskPilot.Services
                 EventType = e.Type.ToString(),
                 Title = e.Title,
                 Priority = e.TaskPriority.ToString(),
-                Status = e.Status.ToString(),
+                Status = e.Type==CalenderEventType.AssignedTask?e.RelatedTask.Status.ToString():e.Status.ToString(),
                 RelatedTaskId = e.RelatedTaskId,
                 Start = e.StartDate,
                 End = e.EndDate,
@@ -155,7 +155,9 @@ namespace TaskPilot.Services
                     IsAssigned = cee.RelatedTaskId != null,
                     EventType = cee.Type.ToString(),
                     Priority = cee.TaskPriority.ToString(),
-                    Status = cee.Status.ToString(),
+                    Status = cee.Type == CalenderEventType.AssignedTask ? cee.RelatedTask.Status.ToString() : cee.Status.ToString(),
+
+                    //Status = cee.Status.ToString(),
                     ProjectName = cee.RelatedTask != null ? cee.RelatedTask.UserStory.Sprint.TitleEn : null,
                     SprintTitle = cee.RelatedTask != null ? cee.RelatedTask.Sprint.TitleEn : null
                 })
@@ -260,6 +262,7 @@ namespace TaskPilot.Services
                 if (dto.Status.HasValue)
                 {
                     existingEvent.Status = dto.Status.Value;
+                    existingEvent.RelatedTask.Status = dto.Status.Value;
                 }
             }
             else
@@ -285,10 +288,10 @@ namespace TaskPilot.Services
                 {
                     existingEvent.EndDate = existingEvent.StartDate.AddMinutes(dto.DurationInMinutes.Value);
                 }
-                if(existingEvent.Type == CalenderEventType.AssignedTask && existingEvent.RelatedTask != null)
-                {
-                   existingEvent.RelatedTask.Status = dto.Status.Value;
-                }
+                //if(existingEvent.Type == CalenderEventType.AssignedTask && existingEvent.RelatedTask != null)
+                //{
+                //   existingEvent.RelatedTask.Status = dto.Status.Value;
+                //}
             }
 
             return Result.Success();
