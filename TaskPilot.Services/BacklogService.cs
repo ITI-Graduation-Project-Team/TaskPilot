@@ -46,7 +46,7 @@ namespace TaskPilot.Services
             var unassignedStories = (await _userStoryRepository.FindAsync(s => s.ProjectId == projectId && s.SprintId == null)).ToList();
             
             var storyIds = unassignedStories.Select(s => s.Id).ToList();
-            var tasks = await _taskRepository.FindAsync(t => t.UserStoryId.HasValue && storyIds.Contains(t.UserStoryId.Value));
+            var tasks = await _taskRepository.FindAsync(t => t.UserStoryId.HasValue && storyIds.Contains(t.UserStoryId.Value) && t.Status != TaskItemStatus.Done);
 
             var dto = new BacklogDto
             {
