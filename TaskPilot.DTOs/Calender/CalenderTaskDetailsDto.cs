@@ -7,6 +7,7 @@ namespace TaskPilot.DTOs.Calender
     public class CalenderTaskDetailsDto
     {
         public Guid Id { get; set; }
+        public Guid RelatedTaskId {  get; set; }
         public string Title { get; set; } = string.Empty;
         public string? Description { get; set; }
         public string TaskType { get; set; } = string.Empty;

@@ -156,7 +156,7 @@ namespace TaskPilot.Services
                     EventType = cee.Type.ToString(),
                     Priority = cee.TaskPriority.ToString(),
                     Status = cee.Type == CalenderEventType.AssignedTask ? cee.RelatedTask.Status.ToString() : cee.Status.ToString(),
-
+                    RelatedTaskId=cee.RelatedTaskId,
                     //Status = cee.Status.ToString(),
                     ProjectName = cee.RelatedTask != null ? cee.RelatedTask.UserStory.Sprint.TitleEn : null,
                     SprintTitle = cee.RelatedTask != null ? cee.RelatedTask.Sprint.TitleEn : null
@@ -183,6 +183,8 @@ namespace TaskPilot.Services
 
             if (taskDetails.IsAssigned)
             {
+
+                dto.RelatedTaskId = taskDetails.RelatedTaskId.Value;
                 dto.RelatedSprint = taskDetails.SprintTitle;
                 dto.ProjectName = taskDetails.ProjectName;
                 dto.AiQuickSummary = null; // to be implemented (context summary)
