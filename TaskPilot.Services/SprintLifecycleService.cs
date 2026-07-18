@@ -21,6 +21,7 @@ namespace TaskPilot.Services
         private readonly ISprintRepository _sprintRepository;
         private readonly IRepository<Project> _projectRepository;
         private readonly IRepository<SprintRiskAlert> _sprintRiskAlertRepository;
+        private readonly IRepository<UserStory> _userStoryRepository;
         private readonly ILogger<SprintLifecycleService> _logger;
         private readonly INotificationService _notificationService;
         private readonly ICalenderService _calenderService;
@@ -31,11 +32,13 @@ namespace TaskPilot.Services
             IRepository<SprintRiskAlert> sprintRiskAlertRepository,
             ILogger<SprintLifecycleService> logger,
             INotificationService notificationService = null!,
-            ICalenderService calenderService = null!)
+            ICalenderService calenderService = null!,
+            IRepository<UserStory> userStoryRepository = null!)
         {
             _sprintRepository = sprintRepository;
             _projectRepository = projectRepository;
             _sprintRiskAlertRepository = sprintRiskAlertRepository;
+            _userStoryRepository = userStoryRepository;
             _logger = logger;
             _notificationService = notificationService;
             _calenderService = calenderService;
@@ -171,6 +174,22 @@ namespace TaskPilot.Services
             sprint.Status = SprintStatus.Completed;
             sprint.EndDate = DateTime.UtcNow;
 
+            var unfinishedTasks = sprint.Tasks.Where(t => t.Status != TaskItemStatus.Done).ToList();
+            if (unfinishedTasks.Any() && _userStoryRepository != null)
+            {
+                var storyIdsWithUnfinishedTasks = unfinishedTasks
+                    .Where(t => t.UserStoryId.HasValue)
+                    .Select(t => t.UserStoryId!.Value)
+                    .Distinct()
+                    .ToList();
+
+                var storiesToUpdate = await _userStoryRepository.FindAsync(s => s.SprintId == sprintId && storyIdsWithUnfinishedTasks.Contains(s.Id));
+                foreach (var story in storiesToUpdate)
+                {
+                    story.SprintId = null;
+                }
+            }
+
             foreach (var task in sprint.Tasks.ToList())
             {
                 if (task.Status != TaskItemStatus.Done)
@@ -231,6 +250,22 @@ namespace TaskPilot.Services
                 return false;
 
             sprint.Status = SprintStatus.Completed;
+
+            var unfinishedTasks = sprint.Tasks.Where(t => t.Status != TaskItemStatus.Done).ToList();
+            if (unfinishedTasks.Any() && _userStoryRepository != null)
+            {
+                var storyIdsWithUnfinishedTasks = unfinishedTasks
+                    .Where(t => t.UserStoryId.HasValue)
+                    .Select(t => t.UserStoryId!.Value)
+                    .Distinct()
+                    .ToList();
+
+                var storiesToUpdate = await _userStoryRepository.FindAsync(s => s.SprintId == sprintId && storyIdsWithUnfinishedTasks.Contains(s.Id));
+                foreach (var story in storiesToUpdate)
+                {
+                    story.SprintId = null;
+                }
+            }
 
             foreach (var task in sprint.Tasks.ToList())
             {
