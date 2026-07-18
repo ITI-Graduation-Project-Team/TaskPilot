@@ -299,7 +299,7 @@ namespace TaskPilot.AI.Orchestrators
             session.Requirements.MergeFrom(analysis.ExtractedRequirements);
 
             // Add BRD-specific gap questions with full metadata (0â€“6 max)
-            foreach (var gapQuestion in analysis.GapQuestions.Take(6))
+            foreach (var gapQuestion in analysis.GapQuestions)
             {
                 session.QuestionPool.Add(new TaskPilot.AI.Models.Questions.ClarificationQuestion
                 {

@@ -48,6 +48,9 @@ namespace TaskPilot.Data.Context
         public DbSet<SprintRiskAlert> SprintRiskAlerts => Set<SprintRiskAlert>();
         public DbSet<TaskAiSummary> TaskAiSummaries => Set<TaskAiSummary>();
         
+        public DbSet<ProjectChatSession> ProjectChatSessions => Set<ProjectChatSession>();
+        public DbSet<ProjectChatMessage> ProjectChatMessages => Set<ProjectChatMessage>();
+        
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

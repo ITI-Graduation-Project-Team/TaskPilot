@@ -8,7 +8,8 @@ using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Entities;
 using TaskPilot.Services.DTOs;
 using TaskPilot.Services.Interfaces;
-
+using TaskPilot.AI.Persistence.Interfaces;
+using Microsoft.Extensions.Logging;
 namespace TaskPilot.Services
 {
     public class WbsGenerationService : IWbsGenerationService
@@ -18,19 +19,28 @@ namespace TaskPilot.Services
         private readonly IRepository<Skill> _skillRepository;
         private readonly WBSGenerationAgent _wbsAgent;
         private readonly IWbsPersistenceService _wbsPersistenceService;
+        private readonly IProjectChatService _projectChatService;
+        private readonly IRequirementSessionStore _sessionStore;
+        private readonly ILogger<WbsGenerationService> _logger;
 
         public WbsGenerationService(
             IRepository<Project> projectRepository,
             IRepository<UserStory> userStoryRepository,
             IRepository<Skill> skillRepository,
             WBSGenerationAgent wbsAgent,
-            IWbsPersistenceService wbsPersistenceService)
+            IWbsPersistenceService wbsPersistenceService,
+            IProjectChatService projectChatService,
+            IRequirementSessionStore sessionStore,
+            ILogger<WbsGenerationService> logger)
         {
             _projectRepository = projectRepository;
             _userStoryRepository = userStoryRepository;
             _skillRepository = skillRepository;
             _wbsAgent = wbsAgent;
             _wbsPersistenceService = wbsPersistenceService;
+            _projectChatService = projectChatService;
+            _sessionStore = sessionStore;
+            _logger = logger;
         }
 
         public async Task<Result<WbsPersistenceResult>> GenerateAsync(Guid projectId, CancellationToken cancellationToken = default)
@@ -66,7 +76,41 @@ namespace TaskPilot.Services
                 project.RequirementsSessionId ?? Guid.Empty,
                 cancellationToken);
 
-            return await _wbsPersistenceService.PersistAsync(projectId, wbs, cancellationToken);
+            var result = await _wbsPersistenceService.PersistAsync(projectId, wbs, cancellationToken);
+            
+            if (result.IsSuccess && project.RequirementsSessionId.HasValue)
+            {
+                try
+                {
+                    var reqSession = await _sessionStore.GetAsync(project.RequirementsSessionId.Value, cancellationToken);
+                    if (reqSession != null && reqSession.ConversationHistory != null)
+                    {
+                        var messagesToAppend = new System.Collections.Generic.List<(string, string)>();
+                        foreach (var msg in reqSession.ConversationHistory)
+                        {
+                            if (msg.Role.Equals("user", StringComparison.OrdinalIgnoreCase))
+                            {
+                                messagesToAppend.Add(("User", msg.Message));
+                            }
+                            else if (msg.Role.Equals("assistant", StringComparison.OrdinalIgnoreCase))
+                            {
+                                messagesToAppend.Add(("Assistant", msg.Message));
+                            }
+                        }
+
+                        if (messagesToAppend.Count > 0)
+                        {
+                            await _projectChatService.AppendMessagesAsync(projectId, messagesToAppend, cancellationToken);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to persist chat history for project {ProjectId}. The backlog was still generated successfully.", projectId);
+                }
+            }
+
+            return result;
         }
     }
 }

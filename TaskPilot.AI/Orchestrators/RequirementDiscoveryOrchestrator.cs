@@ -95,6 +95,8 @@ namespace TaskPilot.AI.Orchestrators
                 };
             }
 
+
+
             bool isModified = false;
             int documentsProcessed = 0;
             bool conversationUpdated = false;
@@ -165,39 +167,120 @@ namespace TaskPilot.AI.Orchestrators
                 // Evaluate Knowledge Evolution
                 var evolution = await _evolutionAgent.EvaluateAsync(session, request.Message, cancellationToken);
                 
-                if (evolution.Intent == "Answer")
+                // AwaitingBrd check: If we're waiting for a BRD and get a text message with no documents.
+                if (session.Status == RequirementSessionStatus.AwaitingBrd && !session.Knowledge.Documents.Any())
                 {
-                    // Resolve pending questions
-                    if (session.QuestionPool.Any(q => !q.IsAnswered))
+                    if (!evolution.Intent.Equals("NoBRD", StringComparison.OrdinalIgnoreCase))
                     {
-                        var extractedAnswers = await _questionResolutionAgent.ResolveAsync(
-                            session.QuestionPool.Where(q => !q.IsAnswered).ToList(),
-                            request.Message);
-
-                        foreach (var answer in extractedAnswers)
+                        // Affirmative or ambiguous response (e.g. "Yes"). 
+                        // Keep AwaitingBrd, do not invoke further agents, and explicitly ask for the file.
+                        session.QuestionPool.RemoveAll(q => !q.IsAnswered);
+                        session.QuestionPool.Add(new ClarificationQuestion
                         {
-                            var q = session.QuestionPool.FirstOrDefault(x => x.Id == answer.QuestionId);
-                            if (q != null && !q.IsAnswered && answer.IsAnswered)
-                            {
-                                q.IsAnswered = true;
-                                q.Answer = answer.ExtractedAnswer;
-                                q.AnsweredAt = DateTime.UtcNow;
-                                q.AnsweredFromSource = "PM";
-                            }
+                            Id = Guid.NewGuid(),
+                            Question = "Please go ahead and upload your BRD document and I'll analyze it for you.",
+                            Category = TaskPilot.AI.Enums.QuestionCategory.General,
+                            Priority = TaskPilot.AI.Enums.QuestionPriority.Critical,
+                            Reason = "Waiting for BRD upload.",
+                            IsBrdPrompt = true
+                        });
+                        
+                        session.UpdatedAt = DateTime.UtcNow;
+                        await _sessionStore.SaveAsync(session, cancellationToken);
+                        return MapToResponse(session, documentsProcessed, conversationUpdated);
+                    }
+                    // If NoBRD, flow continues downward to activate interview mode.
+                }
+                
+                // Always try to resolve pending questions, regardless of the primary intent,
+                // because the user might provide answers alongside new requirements.
+                if (session.QuestionPool.Any(q => !q.IsAnswered))
+                {
+                    var extractedAnswers = await _questionResolutionAgent.ResolveAsync(
+                        session.QuestionPool.Where(q => !q.IsAnswered).ToList(),
+                        request.Message);
+
+                    foreach (var answer in extractedAnswers)
+                    {
+                        var q = session.QuestionPool.FirstOrDefault(x => x.Id == answer.QuestionId);
+                        if (q != null && !q.IsAnswered && answer.IsAnswered)
+                        {
+                            q.IsAnswered = true;
+                            q.Answer = answer.ExtractedAnswer;
+                            q.AnsweredAt = DateTime.UtcNow;
+                            q.AnsweredFromSource = "PM";
                         }
                     }
                 }
-                else if (evolution.Intent == "Add" || evolution.Intent == "Modify" || evolution.Intent == "Conflict")
+
+                // Always check if we can advance the interview progress
+                if (session.IsInterviewMode)
+                {
+                    var currentGroupQuestions = session.QuestionPool.Where(q => q.InterviewGroupIndex == session.InterviewProgress).ToList();
+                    if (currentGroupQuestions.Any() && currentGroupQuestions.All(q => q.IsAnswered))
+                    {
+                        session.InterviewProgress++;
+                    }
+                }
+
+                if (evolution.Intent.Equals("Add", StringComparison.OrdinalIgnoreCase) || evolution.Intent.Equals("Modify", StringComparison.OrdinalIgnoreCase) || evolution.Intent.Equals("Conflict", StringComparison.OrdinalIgnoreCase))
                 {
                     var proposed = new RequirementIdentity
                     {
                         OriginalText = evolution.ProposedText,
                         Category = evolution.Category,
                         Sources = { "User Conversation" },
-                        IsConflicting = evolution.Intent == "Conflict",
-                        ConflictReason = evolution.Intent == "Conflict" ? evolution.Reasoning : string.Empty
+                        IsConflicting = evolution.Intent.Equals("Conflict", StringComparison.OrdinalIgnoreCase),
+                        ConflictReason = evolution.Intent.Equals("Conflict", StringComparison.OrdinalIgnoreCase) ? evolution.Reasoning : string.Empty
                     };
                     await _consolidationEngine.ConsolidateAsync(session, new List<RequirementIdentity> { proposed }, cancellationToken);
+                }
+                else if (evolution.Intent.Equals("NoBRD", StringComparison.OrdinalIgnoreCase))
+                {
+                    session.IsInterviewMode = true;
+                    session.InterviewProgress = 0;
+                    
+                    var interviewQuestions = await _requirementAnalysisAgent.GenerateInterviewQuestionsAsync(session, cancellationToken);
+                    foreach (var group in interviewQuestions.QuestionGroups)
+                    {
+                        foreach (var q in group.Questions)
+                        {
+                            q.Id = Guid.NewGuid();
+                            q.InterviewGroupIndex = group.GroupIndex;
+                            q.InterviewTopic = group.Topic;
+                            session.QuestionPool.Add(q);
+                        }
+                    }
+                }
+
+                // Robust fallback: If there are no documents and we haven't entered interview mode yet,
+                // and we've already asked for a BRD in a prior turn,
+                // any text response implicitly triggers interview mode because we cannot wait indefinitely.
+                if (session.Status != RequirementSessionStatus.AwaitingBrd && !session.Knowledge.Documents.Any() && !session.IsInterviewMode && session.ConversationHistory.Count > 1)
+                {
+                    session.IsInterviewMode = true;
+                    session.InterviewProgress = 0;
+
+                    var brdPrompt = session.QuestionPool.FirstOrDefault(q => q.IsBrdPrompt);
+                    if (brdPrompt != null && !brdPrompt.IsAnswered)
+                    {
+                        brdPrompt.IsAnswered = true;
+                        brdPrompt.Answer = request.Message;
+                        brdPrompt.AnsweredAt = DateTime.UtcNow;
+                        brdPrompt.AnsweredFromSource = "System";
+                    }
+
+                    var interviewQuestions = await _requirementAnalysisAgent.GenerateInterviewQuestionsAsync(session, cancellationToken);
+                    foreach (var group in interviewQuestions.QuestionGroups)
+                    {
+                        foreach (var q in group.Questions)
+                        {
+                            q.Id = Guid.NewGuid();
+                            q.InterviewGroupIndex = group.GroupIndex;
+                            q.InterviewTopic = group.Topic;
+                            session.QuestionPool.Add(q);
+                        }
+                    }
                 }
 
                 conversationUpdated = true;
@@ -207,6 +290,36 @@ namespace TaskPilot.AI.Orchestrators
             if (!isModified)
             {
                 throw new Exception("Request must contain a Message or Documents.");
+            }
+
+            if (!session.QuestionPool.Any(q => q.IsBrdPrompt) && !session.Knowledge.Documents.Any() && !session.IsInterviewMode)
+            {
+                session.Status = RequirementSessionStatus.AwaitingBrd;
+                session.QuestionPool.Add(new ClarificationQuestion
+                    {
+                        Id = Guid.NewGuid(),
+                        Question = "Do you have a Business Requirements Document (BRD) you would like to upload? If yes, please attach it now. If not, just let me know and we'll get started with some questions instead.",
+                        Category = TaskPilot.AI.Enums.QuestionCategory.General,
+                        Priority = TaskPilot.AI.Enums.QuestionPriority.Critical,
+                        Reason = "A BRD is the primary source of truth.",
+                        IsBrdPrompt = true
+                    });
+                
+                session.UpdatedAt = DateTime.UtcNow;
+                await _sessionStore.SaveAsync(session, cancellationToken);
+                return MapToResponse(session, documentsProcessed, conversationUpdated);
+            }
+
+            // Ensure BRD prompt is marked answered if we have documents or are in interview mode
+            if (session.Knowledge.Documents.Any() || session.IsInterviewMode)
+            {
+                var brdPrompt = session.QuestionPool.FirstOrDefault(q => q.IsBrdPrompt);
+                if (brdPrompt != null && !brdPrompt.IsAnswered)
+                {
+                    brdPrompt.IsAnswered = true;
+                    brdPrompt.AnsweredAt = DateTime.UtcNow;
+                    brdPrompt.AnsweredFromSource = "System";
+                }
             }
 
             // 4. Requirement Analysis
@@ -220,32 +333,68 @@ namespace TaskPilot.AI.Orchestrators
                 await _consolidationEngine.ConsolidateAsync(session, proposedExtractions, cancellationToken);
             }
             
-            session.ConfidenceScores = analysis.ConfidenceScores.Select(c => new RequirementConfidenceScore
+            // Merge Confidence Scores
+            if (analysis.ConfidenceScores != null && analysis.ConfidenceScores.Any())
             {
-                Category = c.Category,
-                Score = c.Score,
-                Status = c.Status,
-                ExtractedValue = c.ExtractedValue,
-                Reason = c.Reason,
-                Evidence = c.Evidence,
-                MissingItems = c.MissingItems
-            }).ToList();
+                foreach (var incomingScore in analysis.ConfidenceScores)
+                {
+                    var existingScore = session.ConfidenceScores.FirstOrDefault(c => c.Category == incomingScore.Category);
+                    if (existingScore != null)
+                    {
+                        existingScore.Score = incomingScore.Score;
+                        existingScore.Status = incomingScore.Status;
+                        existingScore.ExtractedValue = incomingScore.ExtractedValue;
+                        existingScore.Reason = incomingScore.Reason;
+                        existingScore.Evidence = incomingScore.Evidence;
+                        existingScore.MissingItems = incomingScore.MissingItems;
+                    }
+                    else
+                    {
+                        session.ConfidenceScores.Add(new RequirementConfidenceScore
+                        {
+                            Category = incomingScore.Category,
+                            Score = incomingScore.Score,
+                            Status = incomingScore.Status,
+                            ExtractedValue = incomingScore.ExtractedValue,
+                            Reason = incomingScore.Reason,
+                            Evidence = incomingScore.Evidence,
+                            MissingItems = incomingScore.MissingItems
+                        });
+                    }
+                }
+            }
 
             // 6. Update Completeness Report
+            // Always start from the deterministic evaluator — this is the authoritative score.
             var completenessReport = _readinessEvaluator.Evaluate(session);
-            
-            // Prefer AI's estimate if available
-            if (analysis.RequirementCompletenessReport != null)
+
+            // Preserve the LLM's qualitative estimate for display only — do NOT use it as the numeric threshold.
+            if (analysis.RequirementCompletenessReport != null &&
+                analysis.RequirementCompletenessReport.EstimatedCompletenessAfterPendingQuestions > completenessReport.OverallCompleteness)
             {
                 completenessReport.EstimatedCompletenessAfterPendingQuestions = analysis.RequirementCompletenessReport.EstimatedCompletenessAfterPendingQuestions;
             }
+
+            // Score-backwards guard: never let the deterministic score decrease from a previously stored value.
+            var previousScore = session.RequirementCompletenessReport?.OverallCompleteness ?? 0;
+            if (completenessReport.OverallCompleteness < previousScore)
+            {
+                completenessReport.OverallCompleteness = previousScore;
+                // Re-evaluate ReadyForFinalization with the preserved score.
+                if (completenessReport.OverallCompleteness >= 85)
+                {
+                    completenessReport.BlockingFactors.RemoveAll(f => f.Contains("Overall completeness is"));
+                }
+                completenessReport.ReadyForFinalization = !completenessReport.BlockingFactors.Any();
+            }
+
             session.RequirementCompletenessReport = completenessReport;
 
-            // Update backward-compatible CompletenessReport
-            var aiScore = completenessReport.OverallCompleteness / 100f;
+            // Update backward-compatible CompletenessReport using the deterministic score.
+            var deterministicScoreFloat = completenessReport.OverallCompleteness / 100f;
             session.CompletenessReport = new CompletenessReport
             {
-                Score = Math.Clamp(aiScore, 0f, 1f),
+                Score = Math.Clamp(deterministicScoreFloat, 0f, 1f),
                 ReadyForPlanning = completenessReport.ReadyForFinalization,
                 CriticalMissingAreas = completenessReport.MissingCriticalAreas ?? new List<string>(),
                 OptionalMissingAreas = new List<string>(),
@@ -253,25 +402,32 @@ namespace TaskPilot.AI.Orchestrators
             };
 
             // 7. Regenerate Pending Questions
-            session.QuestionPool.RemoveAll(q => !q.IsAnswered && !q.IsBrdPrompt);
-            foreach (var gapQuestion in analysis.GapQuestions.Take(6))
+            if (!session.IsInterviewMode)
             {
-                session.QuestionPool.Add(new ClarificationQuestion
+                session.QuestionPool.RemoveAll(q => !q.IsAnswered && !q.IsBrdPrompt);
+                foreach (var gapQuestion in (analysis.GapQuestions ?? new()))
                 {
-                    Id = Guid.NewGuid(),
-                    Question = gapQuestion.Question,
-                    Category = MapCategory(gapQuestion.Category),
-                    Priority = MapPriority(gapQuestion.Priority),
-                    Reason = gapQuestion.Reason,
-                    MissingItems = gapQuestion.MissingItems,
-                    BusinessImpact = gapQuestion.BusinessImpact,
-                    EstimatedEffectOnCompleteness = gapQuestion.EstimatedEffectOnCompleteness,
-                    IsBrdPrompt = false
-                });
+                    session.QuestionPool.Add(new ClarificationQuestion
+                    {
+                        Id = Guid.NewGuid(),
+                        Question = gapQuestion.Question,
+                        Category = MapCategory(gapQuestion.Category),
+                        Priority = MapPriority(gapQuestion.Priority),
+                        Reason = gapQuestion.Reason,
+                        MissingItems = gapQuestion.MissingItems,
+                        BusinessImpact = gapQuestion.BusinessImpact,
+                        EstimatedEffectOnCompleteness = gapQuestion.EstimatedEffectOnCompleteness,
+                        IsBrdPrompt = false
+                    });
+                }
             }
 
-            // 8. Move to Planning if all questions are answered and ready for finalization
-            if (session.AllQuestionsAnswered && session.RequirementCompletenessReport.ReadyForFinalization)
+            // 8. Move to Planning if all questions are answered and ready for finalization.
+            // Both the BRD path and interview mode now use ReadyForFinalization which is set
+            // deterministically — no more LLM score override for the planning gate.
+            bool isReadyForPlanning = session.AllQuestionsAnswered && session.RequirementCompletenessReport.ReadyForFinalization;
+
+            if (isReadyForPlanning)
             {
                 // Run Validation Agent
                 session.ValidationResult = await _validationAgent.ValidateAsync(session, cancellationToken);
@@ -287,6 +443,64 @@ namespace TaskPilot.AI.Orchestrators
             {
                 session.Status = RequirementSessionStatus.RequirementValidation;
                 session.ValidationResult = null; // Clear if not ready
+                
+                // Clear any old stuck generic fallback questions from previous sessions so they don't block
+                session.QuestionPool.RemoveAll(q => !q.IsAnswered && q.Question.Contains("85% completeness threshold"));
+
+                // Guard against the UI incorrectly enabling finalization when pending questions are exhausted but completeness is low
+                var activeQuestions = session.QuestionPool.Where(q => !q.IsAnswered && (!session.IsInterviewMode || q.InterviewGroupIndex == session.InterviewProgress));
+                if (!activeQuestions.Any())
+                {
+                    // Use actual AI gap questions if available
+                    if (analysis.GapQuestions != null && analysis.GapQuestions.Any())
+                    {
+                        foreach (var gapQuestion in analysis.GapQuestions)
+                        {
+                            session.QuestionPool.Add(new ClarificationQuestion
+                            {
+                                Id = Guid.NewGuid(),
+                                Question = gapQuestion.Question,
+                                Category = MapCategory(gapQuestion.Category),
+                                Priority = MapPriority(gapQuestion.Priority),
+                                Reason = gapQuestion.Reason,
+                                MissingItems = gapQuestion.MissingItems,
+                                BusinessImpact = gapQuestion.BusinessImpact,
+                                EstimatedEffectOnCompleteness = gapQuestion.EstimatedEffectOnCompleteness,
+                                IsBrdPrompt = false,
+                                InterviewGroupIndex = session.IsInterviewMode ? session.InterviewProgress : 0
+                            });
+                        }
+                    }
+                    else
+                    {
+                        var missingStr = session.RequirementCompletenessReport.MissingCriticalAreas.Any() 
+                            ? string.Join(", ", session.RequirementCompletenessReport.MissingCriticalAreas) 
+                            : (session.RequirementCompletenessReport.BlockingCategories.Any() ? string.Join(", ", session.RequirementCompletenessReport.BlockingCategories) : "additional requirements");
+
+                        session.QuestionPool.Add(new ClarificationQuestion
+                        {
+                            Id = Guid.NewGuid(),
+                            Question = $"We need more information to reach the 85% completeness threshold. Could you provide more details regarding: {missingStr}?",
+                            Category = MapCategory("General"),
+                            Priority = MapPriority("High"),
+                            Reason = "Completeness score is below the required 85% threshold.",
+                            BusinessImpact = "Without more details, we cannot generate a reliable Work Breakdown Structure.",
+                            InterviewGroupIndex = session.IsInterviewMode ? session.InterviewProgress : 0
+                        });
+                    }
+                }
+            }
+
+            var finalPendingQuestions = session.QuestionPool.Where(q => !q.IsAnswered && (!session.IsInterviewMode || q.InterviewGroupIndex == session.InterviewProgress)).ToList();
+            if (finalPendingQuestions.Any())
+            {
+                var combinedMessage = string.Join("\n", finalPendingQuestions.Select(q => q.Question));
+                session.ConversationHistory.Add(new ConversationMessage
+                {
+                    Role = "Assistant",
+                    Message = combinedMessage,
+                    Timestamp = DateTime.UtcNow
+                });
             }
 
             session.UpdatedAt = DateTime.UtcNow;
@@ -371,7 +585,7 @@ namespace TaskPilot.AI.Orchestrators
                     Warnings = session.ValidationResult.Warnings ?? new List<string>(),
                     BusinessReadiness = session.ValidationResult.BusinessReadiness
                 } : null,
-                PendingQuestions = session.QuestionPool.Where(q => !q.IsAnswered).Select(q => new ClarificationQuestionDTO
+                PendingQuestions = session.QuestionPool.Where(q => !q.IsAnswered && (!session.IsInterviewMode || q.InterviewGroupIndex == session.InterviewProgress)).Select(q => new ClarificationQuestionDTO
                 {
                     Id = q.Id,
                     Question = q.Question,

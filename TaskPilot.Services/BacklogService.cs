@@ -8,10 +8,11 @@ using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Entities;
 using TaskPilot.Models.Enums;
 using TaskPilot.Services.Interfaces;
+using TaskPilot.AI.Services.Interfaces;
 
 namespace TaskPilot.Services
 {
-    public class BacklogService : IBacklogService
+    public class BacklogService : IBacklogService, IAiBacklogService
     {
         private readonly IRepository<Project> _projectRepository;
         private readonly IRepository<UserStory> _userStoryRepository;

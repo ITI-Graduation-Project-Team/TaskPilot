@@ -1,7 +1,9 @@
-﻿namespace TaskPilot.AI.Enums
+namespace TaskPilot.AI.Enums
 {
     public enum RequirementSessionStatus
     {
+        AwaitingBrd = 0,
+
         RequirementGathering = 1,
 
         RequirementValidation = 2,

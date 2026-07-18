@@ -115,6 +115,7 @@ public class ProjectTeamService : IProjectTeamService
                 .ThenInclude(e => e.AssignedTasks)
                     .ThenInclude(t => t.Sprint)
             .Where(pe => pe.ProjectId == projectId)
+            .AsSplitQuery()
             .ToListAsync(cancellationToken);
 
         var dtos = projectEmployees.Select(pe => {

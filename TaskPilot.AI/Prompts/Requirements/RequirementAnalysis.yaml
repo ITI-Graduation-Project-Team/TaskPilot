@@ -80,8 +80,10 @@ template: |
   - If the answer already exists in the Conversation History, DO NOT generate the question. Instead, update the Confidence Scores directly with the new information.
   - If a previous question was partially answered in the Conversation History, keep it but reduce its priority.
   - If the BRD already defines "Project Manager", "Employee", "System Admin", do NOT ask "What are the user roles?" — instead ask about the SPECIFIC GAP, e.g. "What permissions distinguish Employee from System Admin?"
-  - Maximum 6 questions, minimum 0.
+  - Generate as many questions as necessary to resolve critical or high-priority missing items. Do not limit to a specific number.
   - Each question must reference the specific missing item it addresses.
+  - IMPORTANT: You MUST format the actual `question` text using bullet points to clearly list the specific missing parts. For example:
+  "Could you provide more details on the following missing items:\n- Implementation milestones\n- Project phases"
   - Estimate the completeness improvement (+%) for each question generated.
 
   ## Question Priority Rules
