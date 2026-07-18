@@ -259,6 +259,12 @@ namespace TaskPilot.Services.Implementations
                 return Result.Failure<MyTasksSummaryDto>(SprintErrors.SprintDoesNotBelongToProject);
             }
 
+            if (sprint.Status != SprintStatus.Active)
+            {
+                _logger.LogWarning("GetMySprintTasksAsync failed: Sprint {SprintId} is not active", sprintId);
+                return Result.Failure<MyTasksSummaryDto>(TaskErrors.SprintNotActive);
+            }
+
             var tasks = await _taskRepository.GetAssignedTasksBySprintAsync(sprintId, currentUserId, cancellationToken);
 
             var summary = new MyTasksSummaryDto

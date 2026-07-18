@@ -298,5 +298,49 @@ namespace TaskPilot.Tests.Services
             Assert.False(result.IsSuccess);
             Assert.Equal(TaskErrors.ActualHoursRequired.Code, result.Error.Code);
         }
+
+        [Fact]
+        public async Task GetMySprintTasksAsync_SprintNotActive_ReturnsFailure()
+        {
+            // Arrange
+            var projectId = Guid.NewGuid();
+            var sprintId = Guid.NewGuid();
+            var userId = Guid.NewGuid();
+            var sprint = new Sprint { ProjectId = projectId, Status = SprintStatus.Planned };
+            typeof(Sprint).GetProperty("Id")?.SetValue(sprint, sprintId);
+
+            _sprintRepoMock.Setup(x => x.GetByIdAsync(sprintId))
+                .ReturnsAsync(sprint);
+
+            // Act
+            var result = await _service.GetMySprintTasksAsync(projectId, sprintId, userId);
+
+            // Assert
+            Assert.False(result.IsSuccess);
+            Assert.Equal(TaskErrors.SprintNotActive.Code, result.Error.Code);
+        }
+
+        [Fact]
+        public async Task GetMySprintTasksAsync_SprintActive_ReturnsSuccess()
+        {
+            // Arrange
+            var projectId = Guid.NewGuid();
+            var sprintId = Guid.NewGuid();
+            var userId = Guid.NewGuid();
+            var sprint = new Sprint { ProjectId = projectId, Status = SprintStatus.Active };
+            typeof(Sprint).GetProperty("Id")?.SetValue(sprint, sprintId);
+
+            _sprintRepoMock.Setup(x => x.GetByIdAsync(sprintId))
+                .ReturnsAsync(sprint);
+            _taskRepoMock.Setup(x => x.GetAssignedTasksBySprintAsync(sprintId, userId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new List<TaskItem>());
+
+            // Act
+            var result = await _service.GetMySprintTasksAsync(projectId, sprintId, userId);
+
+            // Assert
+            Assert.True(result.IsSuccess);
+            Assert.NotNull(result.Value);
+        }
     }
 }
