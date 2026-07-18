@@ -20,6 +20,7 @@ namespace TaskPilot.Services
     {
         private readonly ISprintRepository _sprintRepository;
         private readonly IRepository<Project> _projectRepository;
+        private readonly IRepository<SprintRiskAlert> _sprintRiskAlertRepository;
         private readonly ILogger<SprintLifecycleService> _logger;
         private readonly INotificationService _notificationService;
         private readonly ICalenderService _calenderService;
@@ -27,12 +28,14 @@ namespace TaskPilot.Services
         public SprintLifecycleService(
             ISprintRepository sprintRepository,
             IRepository<Project> projectRepository,
+            IRepository<SprintRiskAlert> sprintRiskAlertRepository,
             ILogger<SprintLifecycleService> logger,
-            INotificationService notificationService,
-            ICalenderService calenderService)
+            INotificationService notificationService = null!,
+            ICalenderService calenderService = null!)
         {
             _sprintRepository = sprintRepository;
             _projectRepository = projectRepository;
+            _sprintRiskAlertRepository = sprintRiskAlertRepository;
             _logger = logger;
             _notificationService = notificationService;
             _calenderService = calenderService;
@@ -168,11 +171,28 @@ namespace TaskPilot.Services
             sprint.Status = SprintStatus.Completed;
             sprint.EndDate = DateTime.UtcNow;
 
-            foreach (var task in sprint.Tasks)
+            foreach (var task in sprint.Tasks.ToList())
             {
-                if (task.Status == TaskItemStatus.InProgress)
+                if (task.Status != TaskItemStatus.Done)
                 {
                     task.Status = TaskItemStatus.ToDo;
+
+                    var alert = new SprintRiskAlert
+                    {
+                        SprintId = sprint.Id,
+                        RiskType = SprintRiskType.UnfinishedTask,
+                        Severity = RiskSeverity.High,
+                        AffectedTaskId = task.Id,
+                        AffectedEmployeeId = task.EmployeeId,
+                        MessageEn = $"Task '{task.TitleEn}' was not completed during the sprint.",
+                        MessageAr = $"المهمة '{task.TitleAr}' لم تكتمل خلال السبرنت.",
+                        LastDetectedAt = DateTime.UtcNow,
+                        IsDismissed = false
+                    };
+                    await _sprintRiskAlertRepository.AddAsync(alert);
+
+                    task.SprintId = null;
+                    task.EmployeeId = null;
                 }
             }
 
@@ -212,11 +232,28 @@ namespace TaskPilot.Services
 
             sprint.Status = SprintStatus.Completed;
 
-            foreach (var task in sprint.Tasks)
+            foreach (var task in sprint.Tasks.ToList())
             {
-                if (task.Status == TaskItemStatus.InProgress)
+                if (task.Status != TaskItemStatus.Done)
                 {
                     task.Status = TaskItemStatus.ToDo;
+
+                    var alert = new SprintRiskAlert
+                    {
+                        SprintId = sprint.Id,
+                        RiskType = SprintRiskType.UnfinishedTask,
+                        Severity = RiskSeverity.High,
+                        AffectedTaskId = task.Id,
+                        AffectedEmployeeId = task.EmployeeId,
+                        MessageEn = $"Task '{task.TitleEn}' was not completed during the sprint.",
+                        MessageAr = $"المهمة '{task.TitleAr}' لم تكتمل خلال السبرنت.",
+                        LastDetectedAt = DateTime.UtcNow,
+                        IsDismissed = false
+                    };
+                    await _sprintRiskAlertRepository.AddAsync(alert);
+
+                    task.SprintId = null;
+                    task.EmployeeId = null;
                 }
             }
 

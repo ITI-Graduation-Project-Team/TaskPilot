@@ -18,6 +18,8 @@ namespace TaskPilot.Models.Entities
 
         public double CompletionRate { get; set; }
         public decimal EstimationAccuracy { get; set; }
+        public decimal ExpectedHours { get; set; }
+        public decimal ActualHours { get; set; }
         public string TeamSentimentSummaryEn { get; set; } = string.Empty;
         public string TeamSentimentSummaryAr { get; set; } = string.Empty;
     }

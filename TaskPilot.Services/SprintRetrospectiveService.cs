@@ -14,11 +14,13 @@ namespace TaskPilot.Services
     public class SprintRetrospectiveService(
         IRepository<Sprint> sprintRepository,
         IRepository<SprintRetrospective> retrospectiveRepository,
+        IRepository<SprintRiskAlert> sprintRiskAlertRepository,
         SprintRetrospectiveAgent retrospectiveAgent) : ISprintRetrospectiveService
     {
         public async Task<Result<SprintRetrospectiveResponseDto>> GenerateRetrospectiveAsync(Guid sprintId, CancellationToken cancellationToken = default)
         {
             var sprint = await sprintRepository.GetQueryable()
+                .Include(s => s.Project)
                 .Include(s => s.Tasks)
                     .ThenInclude(t => t.Comments)
                 .FirstOrDefaultAsync(s => s.Id == sprintId, cancellationToken);
@@ -40,8 +42,14 @@ namespace TaskPilot.Services
                 return Result.Success(MapToDto(existing.First()));
             }
 
+            // Fetch delayed tasks from SprintRiskAlerts because they are dissociated from the sprint
+            var riskAlerts = await sprintRiskAlertRepository.GetQueryable()
+                .Include(a => a.AffectedTask)
+                    .ThenInclude(t => t!.Comments)
+                .Where(a => a.SprintId == sprintId && a.RiskType == SprintRiskType.UnfinishedTask)
+                .ToListAsync(cancellationToken);
+
             var completedTasks = sprint.Tasks.Where(t => t.Status == TaskItemStatus.Done).ToList();
-            var delayedTasks = sprint.Tasks.Where(t => t.Status != TaskItemStatus.Done).ToList();
 
             var completedTasksData = completedTasks.Select(t => new
             {
@@ -50,32 +58,81 @@ namespace TaskPilot.Services
                 Actual = t.ActualHours
             }).ToList();
 
-            var delayedTasksData = delayedTasks.Select(t => new
+            var delayedTasksData = riskAlerts.Select(a => new
             {
-                t.TitleEn,
-                Status = t.Status.ToString(),
-                Estimated = t.EstimatedHours
+                TitleEn = a.AffectedTask?.TitleEn ?? string.Empty,
+                Status = a.AffectedTask?.Status.ToString() ?? TaskItemStatus.ToDo.ToString(),
+                Estimated = a.AffectedTask?.EstimatedHours ?? 0
             }).ToList();
 
-            var commentsData = sprint.Tasks
-                .SelectMany(t => t.Comments)
-                .Select(c => new { c.Content })
-                .ToList();
+            var commentsList = new List<object>();
+
+            // Comments from completed tasks
+            foreach (var task in completedTasks)
+            {
+                foreach (var comment in task.Comments)
+                {
+                    string role = "Team Member";
+                    if (comment.UserId == sprint.Project.ManagerId)
+                    {
+                        role = "Project Manager";
+                    }
+                    else if (comment.UserId == task.EmployeeId)
+                    {
+                        role = "Assigned Employee";
+                    }
+
+                    commentsList.Add(new
+                    {
+                        TaskTitle = task.TitleEn,
+                        AuthorRole = role,
+                        Content = comment.Content
+                    });
+                }
+            }
+
+            // Comments from unfinished tasks
+            foreach (var alert in riskAlerts)
+            {
+                if (alert.AffectedTask != null)
+                {
+                    foreach (var comment in alert.AffectedTask.Comments)
+                    {
+                        string role = "Team Member";
+                        if (comment.UserId == sprint.Project.ManagerId)
+                        {
+                            role = "Project Manager";
+                        }
+                        else if (comment.UserId == alert.AffectedEmployeeId)
+                        {
+                            role = "Assigned Employee";
+                        }
+
+                        commentsList.Add(new
+                        {
+                            TaskTitle = alert.AffectedTask.TitleEn,
+                            AuthorRole = role,
+                            Content = comment.Content
+                        });
+                    }
+                }
+            }
+
+            decimal expectedHours = completedTasks.Sum(t => t.EstimatedHours) + riskAlerts.Sum(a => a.AffectedTask?.EstimatedHours ?? 0);
+            decimal actualHours = completedTasks.Sum(t => t.ActualHours);
 
             var aiResult = await retrospectiveAgent.AnalyzeSprintAsync(
                 sprint.SprintGoalEn ?? string.Empty,
                 JsonSerializer.Serialize(completedTasksData),
                 JsonSerializer.Serialize(delayedTasksData),
-                JsonSerializer.Serialize(commentsData),
+                JsonSerializer.Serialize(commentsList),
                 cancellationToken);
 
-            double completionRate = sprint.Tasks.Any()
-                ? (double)completedTasks.Count / sprint.Tasks.Count * 100
+            double completionRate = (completedTasks.Count + riskAlerts.Count) > 0
+                ? (double)completedTasks.Count / (completedTasks.Count + riskAlerts.Count) * 100
                 : 0.0;
 
-            decimal totalEstimated = completedTasks.Sum(t => t.EstimatedHours);
-            decimal totalActual = completedTasks.Sum(t => t.ActualHours);
-            decimal accuracy = totalActual > 0 ? (totalEstimated / totalActual) * 100 : 100;
+            decimal accuracy = actualHours > 0 ? (expectedHours / actualHours) * 100 : 100;
 
             var retrospective = new SprintRetrospective
             {
@@ -88,6 +145,8 @@ namespace TaskPilot.Services
                 ActionItemsAr = aiResult.ActionItemsAr,
                 CompletionRate = completionRate,
                 EstimationAccuracy = accuracy,
+                ExpectedHours = expectedHours,
+                ActualHours = actualHours,
                 TeamSentimentSummaryEn = aiResult.TeamSentimentSummaryEn,
                 TeamSentimentSummaryAr = aiResult.TeamSentimentSummaryAr
             };
@@ -120,6 +179,8 @@ namespace TaskPilot.Services
             ActionItemsAr = sr.ActionItemsAr,
             CompletionRate = sr.CompletionRate,
             EstimationAccuracy = sr.EstimationAccuracy,
+            ExpectedHours = sr.ExpectedHours,
+            ActualHours = sr.ActualHours,
             TeamSentimentSummaryEn = sr.TeamSentimentSummaryEn,
             TeamSentimentSummaryAr = sr.TeamSentimentSummaryAr
         };
