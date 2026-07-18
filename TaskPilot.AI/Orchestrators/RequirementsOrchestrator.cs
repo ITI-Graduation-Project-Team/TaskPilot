@@ -474,7 +474,7 @@ namespace TaskPilot.AI.Orchestrators
                 }).ToList();
 
                 session.QuestionPool.RemoveAll(q => !q.IsAnswered && !q.IsBrdPrompt);
-                foreach (var gapQuestion in analysis.GapQuestions.Take(6))
+                foreach (var gapQuestion in analysis.GapQuestions)
                 {
                     session.QuestionPool.Add(new ClarificationQuestion
                     {

@@ -155,6 +155,9 @@ namespace TaskPilot.AI.Models.Session
             QuestionPool.All(q =>
                 q.IsAnswered);
 
+        public bool IsInterviewMode { get; set; } = false;
+        public int InterviewProgress { get; set; } = 0;
+
         [JsonIgnore]
         public List<ClarificationQuestion>
             UnansweredQuestions =>

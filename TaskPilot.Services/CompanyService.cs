@@ -337,6 +337,7 @@ namespace TaskPilot.Services
                 .Include(e => e.AssignedTasks)
                     .ThenInclude(t => t.Sprint)
                 .Where(e => e.CompanyId == companyId)
+                .AsSplitQuery()
                 .ToListAsync(cancellationToken);
 
             var dtos = employees.Select(e => {

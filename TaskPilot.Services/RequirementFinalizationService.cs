@@ -109,16 +109,23 @@ namespace TaskPilot.Services
                 return Result.Failure<FinalizeRequirementsResponse>(CommonErrors.InvalidInput("Company owner is missing or invalid. Cannot assign a project manager."));
             }
 
-            // Perform deterministic readiness evaluation rather than relying purely on LLM output
-            var evaluationReport = _readinessEvaluator.Evaluate(session);
-            session.RequirementCompletenessReport = evaluationReport; // Update with deterministic values
-
-            if (!evaluationReport.ReadyForFinalization)
+            // Use the stored completeness report for the gate check.
+            // RequirementDiscoveryOrchestrator already stores the authoritative deterministic score
+            // on every chat turn. Only recompute if the session has never been through a chat turn
+            // (i.e., the report is null or has a zero score).
+            var gateReport = session.RequirementCompletenessReport;
+            if (gateReport == null || gateReport.OverallCompleteness == 0)
             {
-                var blocks = evaluationReport.BlockingFactors.Any() 
-                    ? string.Join(" ", evaluationReport.BlockingFactors) 
+                gateReport = _readinessEvaluator.Evaluate(session);
+                session.RequirementCompletenessReport = gateReport;
+            }
+
+            if (!gateReport.ReadyForFinalization)
+            {
+                var blocks = gateReport.BlockingFactors.Any() 
+                    ? string.Join(" ", gateReport.BlockingFactors) 
                     : "Requirements need further clarification.";
-                return Result.Failure<FinalizeRequirementsResponse>(CommonErrors.InvalidInput($"Session is not ready for planning yet. {blocks}"));
+                return Result.Failure<FinalizeRequirementsResponse>(CommonErrors.InvalidInput($"Session is not ready for planning yet. Completeness is {gateReport.OverallCompleteness}%. {blocks}"));
             }
             else
             {

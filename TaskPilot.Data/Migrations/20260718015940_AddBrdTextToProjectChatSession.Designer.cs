@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TaskPilot.Data.Context;
 
@@ -11,9 +12,11 @@ using TaskPilot.Data.Context;
 namespace TaskPilot.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260718015940_AddBrdTextToProjectChatSession")]
+    partial class AddBrdTextToProjectChatSession
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1352,9 +1355,6 @@ namespace TaskPilot.Data.Migrations
 
                     b.Property<decimal>("EstimatedHours")
                         .HasColumnType("decimal(10,2)");
-
-                    b.Property<DateTime?>("InProgressAt")
-                        .HasColumnType("datetime2");
 
                     b.Property<bool>("IsDeleted")
                         .ValueGeneratedOnAdd()

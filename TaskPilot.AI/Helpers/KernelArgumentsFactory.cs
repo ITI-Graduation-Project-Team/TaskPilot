@@ -1,4 +1,10 @@
-﻿using Microsoft.SemanticKernel;
+// TODO: Audit all agents that perform structured scoring or 
+// extraction (not conversational responses) and confirm they 
+// use CreateDeterministicArguments() rather than new KernelArguments().
+// RequirementAnalysisAgent was the first confirmed case — others 
+// may carry the same non-determinism risk.
+
+using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
 
 namespace TaskPilot.AI.Helpers

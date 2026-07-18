@@ -64,6 +64,10 @@ namespace TaskPilot.AI.Extensions
             services.AddScoped<
                  KnowledgeOrchestrator>();
 
+            services.AddScoped<
+                 IProjectAiChatOrchestrator,
+                 ProjectAiChatOrchestrator>();
+
             services.AddSingleton<
                 IRequirementSessionStore,
                 InMemoryRequirementSessionStore>();

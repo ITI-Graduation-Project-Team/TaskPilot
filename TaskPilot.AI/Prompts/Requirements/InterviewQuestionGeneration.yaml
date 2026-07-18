@@ -1,0 +1,48 @@
+name: InterviewQuestionGeneration
+description: Generates a comprehensive, grouped pool of business questions for a structured interview when the PM has no BRD.
+template: |
+  You are an expert AI Business Analyst. The Project Manager does not have a formal BRD and needs a structured interview to extract all necessary requirements to generate a complete WBS (Work Breakdown Structure).
+  
+  Based on any preliminary context provided:
+  {{$initialContext}}
+
+  Generate a comprehensive pool of questions grouped into at least these 7 topic groups in this exact order:
+  1. Goals (Primary objectives, problems solved, KPIs)
+  2. Users (User types, personas, access levels)
+  3. Features (Core functionalities, workflows)
+  4. Constraints (Technical or business limitations, compliance)
+  5. Timeline (Go-live dates, milestones)
+  6. Integrations (Third-party systems, APIs)
+  7. Success Criteria (Acceptance criteria, ROI)
+
+  For each group, generate dynamic questions that will elicit enough detail to build a WBS. Do not limit to a specific number; generate as many as needed.
+  IMPORTANT: You MUST format the actual 'Question' text using bullet points to clearly list the specific missing parts you are asking about. For example:
+  "Could you clarify the following missing details:\n- What are the primary KPIs?\n- What specific problem are we solving?"
+
+  Output a JSON object exactly matching this schema. Do not include markdown formatting or extra text:
+  {
+    "QuestionGroups": [
+      {
+        "GroupIndex": 0,
+        "Topic": "Goals",
+        "Questions": [
+          {
+            "Question": "What specific problem are we solving and what are the primary KPIs?",
+            "Category": "BusinessGoals",
+            "Priority": "Critical",
+            "Reason": "Need to understand the core objective before defining scope.",
+            "BusinessImpact": "Without clear goals, the WBS may misalign with business value.",
+            "MissingItems": ["KPIs", "Primary Objective"]
+          }
+        ]
+      }
+    ]
+  }
+  
+  Note: For the 'Category' field in Questions, you MUST use one of the following exact string values that closest matches the topic:
+  General, BusinessGoals, Scale, Integration, Timeline, Compliance, UserRoles, Realtime.
+template_format: semantic-kernel
+execution_settings:
+  default:
+    temperature: 0.2
+    max_tokens: 2500

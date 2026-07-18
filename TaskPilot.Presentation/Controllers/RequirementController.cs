@@ -14,8 +14,11 @@ using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Common.Errors;
 using TaskPilot.Models.Enums;
 
+using Microsoft.AspNetCore.Authorization;
+
 namespace TaskPilot.Presentation.Controllers
 {
+    //[Authorize(Roles = "Admin,ProjectManager")]
     [ApiController]
     [Route("api/requirements")]
     public class RequirementController : ApiControllerBase

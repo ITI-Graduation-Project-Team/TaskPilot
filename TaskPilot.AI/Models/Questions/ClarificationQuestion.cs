@@ -100,5 +100,8 @@ namespace TaskPilot.AI.Models.Questions
         /// that answering this question would produce.
         /// </summary>
         public int EstimatedEffectOnCompleteness { get; set; }
+
+        public int InterviewGroupIndex { get; set; } = 0;
+        public string InterviewTopic { get; set; } = string.Empty;
     }
 }

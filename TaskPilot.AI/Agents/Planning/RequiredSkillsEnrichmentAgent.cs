@@ -52,14 +52,14 @@ namespace TaskPilot.AI.Agents.Planning
                 ["availableSkills"] = JsonSerializer.Serialize(availableSkills)
             };
 
-            var response = await kernel.InvokeAsync(function, arguments, cancellationToken);
-            var resultText = response.GetValue<string>();
-
-            if (string.IsNullOrWhiteSpace(resultText))
-                return Result.Failure<List<GeneratedRequiredSkill>>(WbsErrors.InvalidGeneratedSkillJson);
-
             try
             {
+                var response = await kernel.InvokeAsync(function, arguments, cancellationToken);
+                var resultText = response.GetValue<string>();
+
+                if (string.IsNullOrWhiteSpace(resultText))
+                    return Result.Failure<List<GeneratedRequiredSkill>>(WbsErrors.InvalidGeneratedSkillJson);
+
                 // Simple JSON extraction assuming it returns an array
                 int startIndex = resultText.IndexOf('[');
                 int endIndex = resultText.LastIndexOf(']');
@@ -77,10 +77,15 @@ namespace TaskPilot.AI.Agents.Planning
                 
                 return Result.Failure<List<GeneratedRequiredSkill>>(WbsErrors.InvalidGeneratedSkillJson);
             }
-            catch (JsonException ex)
+            catch (OperationCanceledException ex)
             {
-                _logger.LogError(ex, "Failed to parse GeneratedRequiredSkill JSON.");
-                return Result.Failure<List<GeneratedRequiredSkill>>(WbsErrors.InvalidGeneratedSkillJson);
+                _logger.LogWarning(ex, "AI skill enrichment invocation was canceled or timed out.");
+                return Result.Failure<List<GeneratedRequiredSkill>>(new Error("EnrichmentCanceled", ErrorType.Failure, "AI invocation was canceled."));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to enrich required skills or parse JSON from AI.");
+                return Result.Failure<List<GeneratedRequiredSkill>>(new Error("EnrichmentFailed", ErrorType.Failure, "Failed to invoke or process AI enrichment."));
             }
         }
     }

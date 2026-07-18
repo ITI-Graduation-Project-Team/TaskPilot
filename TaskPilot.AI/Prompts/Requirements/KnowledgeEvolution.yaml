@@ -11,6 +11,24 @@ template: |
   - Answer: The user is answering a pending question.
   - Comment: The user is just making a statement with no actionable requirement impact.
   - Clarification: The user is asking a question.
+  - NoBRD: >
+      The user explicitly states they do not have a BRD, requirements document, or equivalent file. 
+      A single word 'no' or 'nope' in direct response to the BRD upload question MUST be classified as NoBRD.
+      This MUST ONLY trigger if the user indicates they lack a primary document. 
+      DO NOT trigger this if the user is simply answering "no" to a clarifying question about their business.
+      DO NOT trigger on vague or ambiguous negative statements.
+      Trigger examples:
+      - "I don't have a BRD"
+      - "No, we don't have any formal requirements document"
+      - "I don't have one, let's just do the questions"
+      - "no"
+      - "nope" 
+      - "no I don't"
+      - "no document"
+      - "Skip the document, just ask me questions"
+      Non-trigger examples:
+      - "No, we don't need a mobile app, just web"
+      - "I don't think so"
   - None: No effect.
 
   CURRENT KNOWLEDGE BASE:
@@ -21,7 +39,7 @@ template: |
 
   Output a JSON object exactly matching this schema. Do not include markdown formatting or extra text:
   {
-    "Intent": "Add|Modify|Conflict|Answer|Comment|Clarification|None",
+    "Intent": "Add|Modify|Conflict|Answer|Comment|Clarification|NoBRD|None",
     "TargetRequirementId": "UUID if Modify or Conflict, else null",
     "ProposedText": "The extracted or updated requirement text if applicable",
     "Category": "BusinessGoals|Scale|Integration|Constraints|Timeline|Compliance|UserRoles|Realtime|General",

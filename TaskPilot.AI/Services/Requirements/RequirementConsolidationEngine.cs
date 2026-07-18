@@ -74,6 +74,11 @@ namespace TaskPilot.AI.Services.Requirements
             }
 
             // Sync back to ExtractedRequirements for backward compatibility
+            // TODO: Requirement deduplication — the same extracted fact 
+            // can appear multiple times with slight wording variations 
+            // after consolidation. Implement semantic deduplication 
+            // before populating businessRequirements to avoid noise 
+            // in the WBS generation context.
             SyncToExtractedRequirements(session);
         }
 

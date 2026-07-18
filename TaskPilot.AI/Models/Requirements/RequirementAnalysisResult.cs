@@ -45,10 +45,12 @@ namespace TaskPilot.AI.Models.Requirements
         // ── Overall analysis ──────────────────────────────────────────
 
         /// <summary>
-        /// Weighted completeness score 0–100, reasoned by the AI across all
-        /// categories — NOT a simple average.
+        /// Weighted completeness score 0–100 as estimated by the LLM across all categories.
+        /// NON-AUTHORITATIVE: Do NOT use this as the planning readiness threshold.
+        /// The deterministic score from RequirementReadinessEvaluator is the authoritative value.
+        /// Retained for logging and display purposes only.
         /// </summary>
-        public int OverallCompletenessScore { get; set; }
+        public int LlmEstimatedCompletenessScore { get; set; }
 
         /// <summary>
         /// True only when the AI judges all critical categories are
@@ -67,7 +69,10 @@ namespace TaskPilot.AI.Models.Requirements
         public string Recommendation { get; set; } = string.Empty;
 
         /// <summary>
-        /// Comprehensive completeness report containing dynamic analysis.
+        /// Qualitative completeness analysis from the LLM (gap questions, readiness commentary, etc.).
+        /// NON-AUTHORITATIVE for thresholds: the OverallCompleteness value on this object is the LLM's
+        /// holistic estimate and is used only for EstimatedCompletenessAfterPendingQuestions display.
+        /// The planning gate always uses RequirementReadinessEvaluator.Evaluate() as the authoritative source.
         /// </summary>
         public RequirementCompletenessReport RequirementCompletenessReport { get; set; } = new();
 
