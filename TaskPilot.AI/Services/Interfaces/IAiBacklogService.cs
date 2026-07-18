@@ -11,5 +11,8 @@ namespace TaskPilot.AI.Services.Interfaces
         Task<Result<UserStoryDto>> CreateUserStoryAsync(Guid projectId, CreateUserStoryDto request);
         Task<Result> UpdateUserStoryAsync(Guid storyId, UpdateUserStoryDto request);
         Task<Result> DeleteUserStoryAsync(Guid storyId);
+        Task<Result<TaskItemDto>> CreateTaskAsync(Guid storyId, CreateTaskDto request);
+        Task<Result> UpdateTaskAsync(Guid taskId, UpdateTaskDto request);
+        Task<Result> DeleteTaskAsync(Guid taskId);
     }
 }

@@ -123,8 +123,9 @@ namespace TaskPilot.AI.Orchestrators
             var session = sessionResult.Value;
 
             // 2. Initialize Semantic Kernel
+            var pluginLogger = Microsoft.Extensions.Logging.Abstractions.NullLogger<BacklogEditorPlugin>.Instance;
             var kernel = _kernelService.CreateKernel(ModelConstants.PowerfulModel);
-            var plugin = new BacklogEditorPlugin(_backlogService);
+            var plugin = new BacklogEditorPlugin(_backlogService, pluginLogger);
             kernel.Plugins.AddFromObject(plugin, "BacklogEditor");
 
             // 3. Build history
@@ -134,9 +135,15 @@ namespace TaskPilot.AI.Orchestrators
             var backlogResult = await _backlogService.GetBacklogAsync(projectId);
             if (backlogResult.IsSuccess && backlogResult.Value?.UserStories != null)
             {
-                var lines = backlogResult.Value.UserStories.Select(s =>
-                    $"  - StoryId: {s.Id} | Title: {s.TitleEn} | Priority: {s.Priority} | Status: {s.Status} | Tasks: {s.Tasks.Count}");
-                var backlogBlock = "CURRENT BACKLOG (use these exact IDs for update/delete):\n" + string.Join("\n", lines);
+                var backlogBlock = "CURRENT BACKLOG (use these exact IDs for update/delete):\n";
+                foreach (var s in backlogResult.Value.UserStories)
+                {
+                    backlogBlock += $"  - StoryId: {s.Id} | Title: {s.TitleEn} | Priority: {s.Priority} | Status: {s.Status}\n";
+                    foreach (var t in s.Tasks)
+                    {
+                        backlogBlock += $"      - TaskId: {t.Id} | Title: {t.TitleEn}\n";
+                    }
+                }
                 chatHistory.AddSystemMessage(backlogBlock);
             }
             else
@@ -157,18 +164,19 @@ namespace TaskPilot.AI.Orchestrators
             }
 
             // 4. Force execution of tool calls with idempotency rules
-            chatHistory.AddUserMessage($@"The PM has clicked Confirm Backlog.
+            chatHistory.AddUserMessage($@"The PM has clicked Confirm Backlog. This is the execution phase — not planning, not discussion.
 
-CURRENT BACKLOG STATE is already injected above as a system message. It represents what currently exists in the database RIGHT NOW.
+CURRENT BACKLOG STATE is injected above as a system message. It represents what exists in the database RIGHT NOW.
 
-Your job:
-1. Review the conversation history above.
-2. Identify ONLY the changes the PM agreed to that are NOT already reflected in the current backlog.
-3. For CREATE: Only create a story if a story with the same or very similar title does NOT already exist in the current backlog. If it exists, skip it.
-4. For UPDATE: Only update stories that exist in the current backlog using their exact StoryId.
-5. For DELETE: Only delete stories that exist in the current backlog using their exact StoryId.
-6. Do NOT re-execute changes that were already applied in a previous confirm session.
-7. After executing all tools, return a concise summary of exactly what was added, updated, or deleted. If nothing needed to change, say so explicitly.
+Your job — execute immediately:
+1. Review the full conversation history above.
+2. Find every change you planned, promised, or agreed to make — including additions, updates, AND deletions.
+3. Execute ALL of them now using the available tools.
+4. For CREATE: Only create if the story does not already exist in the current backlog by title.
+5. For UPDATE: Use the exact StoryId or TaskId from the backlog context.
+6. For DELETE: Use the exact StoryId or TaskId from the backlog context. A story the PM asked to remove MUST be deleted now — do not skip it because it was previously described as 'planned'.
+7. Do NOT ask for confirmation — the PM already confirmed by clicking the button.
+8. After executing all tools, return a concise summary of exactly what was added, updated, or deleted. If nothing needed to change, say so explicitly.
 
 The current ProjectId is {projectId}. Use this exact ID for all create operations.");
 
