@@ -24,6 +24,9 @@ namespace TaskPilot.Services
         private readonly IRepository<Employee>
             _employeeRepository;
 
+        private readonly IRepository<User>
+            _userRepository;
+
         private readonly ICompanyPolicyService
             _companyPolicyService;
 
@@ -53,6 +56,7 @@ namespace TaskPilot.Services
             IEmailBodyService emailBodyService,
             IFileStorageService fileStorage,
             IRepository<Employee> employeeRepository,
+            IRepository<User> userRepository,
             IUnitOfWork unitOfWork)
         {
             _companyRepository =
@@ -75,6 +79,9 @@ namespace TaskPilot.Services
 
             _employeeRepository =
                 employeeRepository;
+
+            _userRepository =
+                userRepository;
 
             _fileStorage =
                 fileStorage;
@@ -203,6 +210,10 @@ namespace TaskPilot.Services
                 var alreadyInCompany = await _employeeRepository
                     .AnyAsync(x => x.Email == normalizedEmail && x.CompanyId == company.Id);
                 if (alreadyInCompany) continue;
+
+                var existingUser = await _userRepository
+                    .FindSingleAsync(x => x.Email == normalizedEmail);
+                if (existingUser != null && existingUser.CompanyId.HasValue) continue;
 
                 var invitationExists = await _invitationRepository
                     .AnyAsync(x => x.Email == normalizedEmail && x.CompanyId == company.Id && !x.IsAccepted);
@@ -437,6 +448,12 @@ namespace TaskPilot.Services
 
             if (alreadyInCompany)
                 return Result<bool>.Failure(CompanyErrors.EmployeeAlreadyInCompany);
+
+            var existingUser = await _userRepository
+                .FindSingleAsync(x => x.Email == normalizedEmail);
+
+            if (existingUser != null && existingUser.CompanyId.HasValue)
+                return Result<bool>.Failure(CompanyErrors.UserAlreadyBelongsToCompany);
 
             var invitationExists = await _invitationRepository
                 .AnyAsync(x =>

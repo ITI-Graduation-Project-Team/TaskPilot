@@ -33,6 +33,9 @@ namespace TaskPilot.Models.Common.Errors
         public static readonly Error EmployeeAlreadyInCompany =
             new("EMPLOYEE_ALREADY_IN_COMPANY", ErrorType.Conflict);
 
+        public static readonly Error UserAlreadyBelongsToCompany =
+            new("USER_ALREADY_BELONGS_TO_COMPANY", ErrorType.Conflict);
+
         public static readonly Error InvalidEmail =
             new("INVALID_EMAIL", ErrorType.Validation);
 
