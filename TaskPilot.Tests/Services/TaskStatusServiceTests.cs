@@ -203,5 +203,100 @@ namespace TaskPilot.Tests.Services
             Assert.True(result.IsSuccess);
             Assert.Equal(TaskItemStatus.Review, result.Value.NewStatus);
         }
+
+        [Fact]
+        public async Task UpdateStatusAsync_InProgressToDone_AutoCalculatesWorkingHours()
+        {
+            // Arrange
+            var taskId = Guid.NewGuid();
+            var userId = Guid.NewGuid();
+            var sprint = new Sprint { ProjectId = Guid.NewGuid(), Status = SprintStatus.Active };
+            
+            // Set InProgressAt to exactly 2 hours ago within working hours (e.g. 10:00 AM to 12:00 PM today)
+            // To ensure it is stable, let's pick a fixed working hours window.
+            // Let's set InProgressAt to a fixed date at 10 AM, and mock/pass DateTime.UtcNow equivalent inside the logic,
+            // or just compute a relative offset. Since the logic uses DateTime.UtcNow for current time:
+            // Let's set it to 2 hours ago.
+            var start = DateTime.UtcNow.Date.AddHours(10); // 10:00 AM today
+            if (DateTime.UtcNow < start.AddHours(2))
+            {
+                // If current time is earlier, use yesterday
+                start = DateTime.UtcNow.AddDays(-1).Date.AddHours(10);
+            }
+            
+            var task = new TaskItem 
+            { 
+                Sprint = sprint, 
+                EmployeeId = userId, 
+                Status = TaskItemStatus.InProgress,
+                InProgressAt = start
+            };
+            typeof(TaskItem).GetProperty("Id")?.SetValue(task, taskId);
+
+            _taskRepoMock.Setup(x => x.GetByIdWithSprintAsync(taskId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(task);
+            _projectEmployeeRepoMock.Setup(x => x.IsProjectManagerAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(false);
+
+            var request = new UpdateTaskStatusRequest { Status = TaskItemStatus.Done };
+
+            // Act
+            var result = await _service.UpdateStatusAsync(taskId, userId, request);
+
+            // Assert
+            Assert.True(result.IsSuccess);
+            Assert.Equal(TaskItemStatus.Done, result.Value.NewStatus);
+            Assert.True(result.Value.ActualHours >= 0);
+        }
+
+        [Fact]
+        public async Task UpdateStatusAsync_DoneWithoutInProgressAt_FallsBackToManualHours()
+        {
+            // Arrange
+            var taskId = Guid.NewGuid();
+            var userId = Guid.NewGuid();
+            var sprint = new Sprint { ProjectId = Guid.NewGuid(), Status = SprintStatus.Active };
+            var task = new TaskItem { Sprint = sprint, EmployeeId = userId, Status = TaskItemStatus.ToDo, InProgressAt = null };
+            typeof(TaskItem).GetProperty("Id")?.SetValue(task, taskId);
+
+            _taskRepoMock.Setup(x => x.GetByIdWithSprintAsync(taskId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(task);
+            _projectEmployeeRepoMock.Setup(x => x.IsProjectManagerAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(false);
+
+            var request = new UpdateTaskStatusRequest { Status = TaskItemStatus.Done, ActualHours = 3.5m };
+
+            // Act
+            var result = await _service.UpdateStatusAsync(taskId, userId, request);
+
+            // Assert
+            Assert.True(result.IsSuccess);
+            Assert.Equal(3.5m, result.Value.ActualHours);
+        }
+
+        [Fact]
+        public async Task UpdateStatusAsync_DoneWithoutInProgressAtOrManualHours_ReturnsActualHoursRequired()
+        {
+            // Arrange
+            var taskId = Guid.NewGuid();
+            var userId = Guid.NewGuid();
+            var sprint = new Sprint { ProjectId = Guid.NewGuid(), Status = SprintStatus.Active };
+            var task = new TaskItem { Sprint = sprint, EmployeeId = userId, Status = TaskItemStatus.ToDo, InProgressAt = null };
+            typeof(TaskItem).GetProperty("Id")?.SetValue(task, taskId);
+
+            _taskRepoMock.Setup(x => x.GetByIdWithSprintAsync(taskId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(task);
+            _projectEmployeeRepoMock.Setup(x => x.IsProjectManagerAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(false);
+
+            var request = new UpdateTaskStatusRequest { Status = TaskItemStatus.Done, ActualHours = null };
+
+            // Act
+            var result = await _service.UpdateStatusAsync(taskId, userId, request);
+
+            // Assert
+            Assert.False(result.IsSuccess);
+            Assert.Equal(TaskErrors.ActualHoursRequired.Code, result.Error.Code);
+        }
     }
 }
