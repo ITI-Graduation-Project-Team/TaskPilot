@@ -137,14 +137,26 @@ namespace TaskPilot.Services.Implementations
                 return Result.Failure<TaskStatusUpdateResult>(transitionValidation.Error);
             }
 
+            if (request.Status == TaskItemStatus.InProgress)
+            {
+                task.InProgressAt = DateTime.UtcNow;
+            }
+
             if (request.Status == TaskItemStatus.Done)
             {
-                if (request.ActualHours == null || request.ActualHours <= 0)
+                if (task.InProgressAt.HasValue)
                 {
-                    _logger.LogWarning("UpdateStatusAsync failed: Actual hours required to complete task. TaskId {TaskId}", taskId);
-                    return Result.Failure<TaskStatusUpdateResult>(TaskErrors.ActualHoursRequired);
+                    task.ActualHours = CalculateWorkingHours(task.InProgressAt.Value, DateTime.UtcNow);
                 }
-                task.ActualHours = request.ActualHours.Value;
+                else
+                {
+                    if (request.ActualHours == null || request.ActualHours <= 0)
+                    {
+                        _logger.LogWarning("UpdateStatusAsync failed: Actual hours required to complete task. TaskId {TaskId}", taskId);
+                        return Result.Failure<TaskStatusUpdateResult>(TaskErrors.ActualHoursRequired);
+                    }
+                    task.ActualHours = request.ActualHours.Value;
+                }
             }
 
             var previousStatus = task.Status;
@@ -298,6 +310,37 @@ namespace TaskPilot.Services.Implementations
             { TaskItemStatus.Done, new HashSet<TaskItemStatus> { TaskItemStatus.InProgress } }
         };
         */
+
+        private decimal CalculateWorkingHours(DateTime start, DateTime end)
+        {
+            if (start >= end)
+            {
+                return 0;
+            }
+
+            const int startHour = 9;
+            const int endHour = 17;
+
+            decimal totalHours = 0;
+            DateTime current = start;
+
+            while (current.Date <= end.Date)
+            {
+                DateTime dayStart = current.Date.AddHours(startHour);
+                DateTime dayEnd = current.Date.AddHours(endHour);
+
+                DateTime actualStart = (current > dayStart) ? current : dayStart;
+                DateTime actualEnd = (end < dayEnd) ? end : dayEnd;
+
+                if (actualStart < actualEnd)
+                {
+                    totalHours += (decimal)(actualEnd - actualStart).TotalHours;
+                }
+                current = current.Date.AddDays(1).AddHours(startHour);
+            }
+
+            return Math.Round(totalHours, 2);
+        }
 
         private Result ValidateStatusTransition(TaskItemStatus current, TaskItemStatus requested)
         {
