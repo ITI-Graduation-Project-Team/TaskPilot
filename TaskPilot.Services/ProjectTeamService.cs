@@ -72,6 +72,16 @@ public class ProjectTeamService : IProjectTeamService
         if (existingAssignments.Any())
             return Result.Failure(new Error("AlreadyAssigned", ErrorType.Validation, "One or more employees are already assigned to the project."));
 
+        var alreadyAssignedToActiveProject = await _projectEmployeeRepository.GetQueryable()
+            .AnyAsync(pe => employeeIds.Contains(pe.EmployeeId) && 
+                            pe.ProjectId != projectId && 
+                            pe.Project.Status != ProjectStatus.Completed && 
+                            pe.Project.Status != ProjectStatus.Archived, 
+                      cancellationToken);
+
+        if (alreadyAssignedToActiveProject)
+            return Result.Failure(new Error("EmployeeAlreadyAssignedToAnotherProject", ErrorType.Validation, "One or more employees are already assigned to another active project."));
+
         var newAssignments = request.Assignments.Select(a => new ProjectEmployee
         {
             ProjectId = projectId,

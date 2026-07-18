@@ -466,6 +466,11 @@ namespace TaskPilot.Services
             }
             // Assign Company
 
+            if (user.CompanyId.HasValue)
+            {
+                return Result.Failure(CompanyErrors.EmployeeAlreadyInCompany);
+            }
+
             user.CompanyId =
                 invitation.CompanyId;
 
