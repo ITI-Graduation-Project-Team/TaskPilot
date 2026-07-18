@@ -14,7 +14,7 @@ template: |
   Delayed/Incomplete Tasks (Title, Status, Estimated Hours):
   {{$delayedTasksJson}}
   
-  Developer Comments (representing obstacles, blockers, sentiment):
+  Developer and Project Manager Comments (specifying TaskTitle, AuthorRole like 'Project Manager' or 'Assigned Employee', and Content):
   {{$commentsJson}}
   
   Return ONLY a valid JSON object matching this structure:
@@ -36,4 +36,4 @@ input_variables:
   - name: delayedTasksJson
     description: JSON string of incomplete tasks.
   - name: commentsJson
-    description: JSON string of developer discussion comments.
+    description: JSON string of developer and PM discussion comments containing task title, author role, and content.

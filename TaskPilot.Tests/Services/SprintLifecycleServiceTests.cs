@@ -20,6 +20,7 @@ namespace TaskPilot.Tests.Services
     {
         private readonly Mock<ISprintRepository> _sprintRepoMock;
         private readonly Mock<IRepository<Project>> _projectRepoMock;
+        private readonly Mock<IRepository<SprintRiskAlert>> _sprintRiskAlertRepoMock;
         private readonly Mock<ILogger<SprintLifecycleService>> _loggerMock;
         private readonly SprintLifecycleService _service;
 
@@ -27,8 +28,13 @@ namespace TaskPilot.Tests.Services
         {
             _sprintRepoMock = new Mock<ISprintRepository>();
             _projectRepoMock = new Mock<IRepository<Project>>();
+            _sprintRiskAlertRepoMock = new Mock<IRepository<SprintRiskAlert>>();
             _loggerMock = new Mock<ILogger<SprintLifecycleService>>();
-            _service = new SprintLifecycleService(_sprintRepoMock.Object, _projectRepoMock.Object, _loggerMock.Object);
+            _service = new SprintLifecycleService(
+                _sprintRepoMock.Object,
+                _projectRepoMock.Object,
+                _sprintRiskAlertRepoMock.Object,
+                _loggerMock.Object);
         }
 
         [Fact]

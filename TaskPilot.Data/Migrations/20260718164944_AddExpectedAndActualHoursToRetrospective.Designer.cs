@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TaskPilot.Data.Context;
 
@@ -11,9 +12,11 @@ using TaskPilot.Data.Context;
 namespace TaskPilot.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260718164944_AddExpectedAndActualHoursToRetrospective")]
+    partial class AddExpectedAndActualHoursToRetrospective
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -656,87 +659,6 @@ namespace TaskPilot.Data.Migrations
                     b.ToTable("Projects", (string)null);
                 });
 
-            modelBuilder.Entity("TaskPilot.Models.Entities.ProjectChatMessage", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Content")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<DateTime?>("ModifiedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("ModifiedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Role")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<int>("SequenceIndex")
-                        .HasColumnType("int");
-
-                    b.Property<Guid>("SessionId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTimeOffset>("Timestamp")
-                        .HasColumnType("datetimeoffset");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("SessionId");
-
-                    b.ToTable("ProjectChatMessages");
-                });
-
-            modelBuilder.Entity("TaskPilot.Models.Entities.ProjectChatSession", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("BrdExtractedText")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<DateTime?>("ModifiedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("ModifiedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("ProjectId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ProjectId")
-                        .IsUnique();
-
-                    b.ToTable("ProjectChatSessions");
-                });
-
             modelBuilder.Entity("TaskPilot.Models.Entities.ProjectEmployee", b =>
                 {
                     b.Property<Guid>("ProjectId")
@@ -1358,9 +1280,6 @@ namespace TaskPilot.Data.Migrations
 
                     b.Property<decimal>("EstimatedHours")
                         .HasColumnType("decimal(10,2)");
-
-                    b.Property<DateTime?>("InProgressAt")
-                        .HasColumnType("datetime2");
 
                     b.Property<bool>("IsDeleted")
                         .ValueGeneratedOnAdd()
@@ -2082,28 +2001,6 @@ namespace TaskPilot.Data.Migrations
                     b.Navigation("RequirementsSnapshot");
                 });
 
-            modelBuilder.Entity("TaskPilot.Models.Entities.ProjectChatMessage", b =>
-                {
-                    b.HasOne("TaskPilot.Models.Entities.ProjectChatSession", "Session")
-                        .WithMany("Messages")
-                        .HasForeignKey("SessionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Session");
-                });
-
-            modelBuilder.Entity("TaskPilot.Models.Entities.ProjectChatSession", b =>
-                {
-                    b.HasOne("TaskPilot.Models.Entities.Project", "Project")
-                        .WithOne()
-                        .HasForeignKey("TaskPilot.Models.Entities.ProjectChatSession", "ProjectId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Project");
-                });
-
             modelBuilder.Entity("TaskPilot.Models.Entities.ProjectEmployee", b =>
                 {
                     b.HasOne("TaskPilot.Models.Entities.Employee", "Employee")
@@ -2264,7 +2161,7 @@ namespace TaskPilot.Data.Migrations
                     b.HasOne("TaskPilot.Models.Entities.TaskItem", "Task")
                         .WithMany("RequiredSkills")
                         .HasForeignKey("TaskId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Skill");
@@ -2358,11 +2255,6 @@ namespace TaskPilot.Data.Migrations
                     b.Navigation("Sprints");
 
                     b.Navigation("UserStories");
-                });
-
-            modelBuilder.Entity("TaskPilot.Models.Entities.ProjectChatSession", b =>
-                {
-                    b.Navigation("Messages");
                 });
 
             modelBuilder.Entity("TaskPilot.Models.Entities.Skill", b =>
