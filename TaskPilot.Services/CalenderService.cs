@@ -269,7 +269,7 @@ namespace TaskPilot.Services
                 if (dto.Description != null) existingEvent.Description = dto.Description;
                 if (dto.EventType.HasValue) existingEvent.Type = dto.EventType.Value;
                 if (dto.Priority.HasValue) existingEvent.TaskPriority = dto.Priority.Value;
-                if (dto.Status.HasValue&& existingEvent.Type != CalenderEventType.AssignedTask) existingEvent.Status = dto.Status.Value;
+                if (dto.Status.HasValue) existingEvent.Status = dto.Status.Value;
                 else return Result.Failure(CalenderErrors.CannotUpdateStatusOfAssignedTask);
                 if (dto.StartDate.HasValue)
                 {
@@ -285,9 +285,9 @@ namespace TaskPilot.Services
                 {
                     existingEvent.EndDate = existingEvent.StartDate.AddMinutes(dto.DurationInMinutes.Value);
                 }
-                if(existingEvent.Type == CalenderEventType.AssignedTask && dto.Status== TaskItemStatus.Done&& existingEvent.RelatedTask != null)
+                if(existingEvent.Type == CalenderEventType.AssignedTask && existingEvent.RelatedTask != null)
                 {
-                   existingEvent.RelatedTask.Status = TaskItemStatus.Done;
+                   existingEvent.RelatedTask.Status = dto.Status.Value;
                 }
             }
 
