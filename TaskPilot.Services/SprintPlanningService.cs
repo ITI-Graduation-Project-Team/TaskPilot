@@ -50,6 +50,9 @@ namespace TaskPilot.Services
             }
 
             var unassignedStories = userStories.Where(us => us.SprintId == null).ToList();
+            //var assignedStoriesAndUnassignedTask=
+            //var unassignedStories = userStories.Where(us => us.SprintId == null).ToList();
+
             if (!unassignedStories.Any())
             {
                 return Result.Failure<SprintSuggestionDto>(CommonErrors.InvalidInput("Every UserStory already belongs to a Sprint."));

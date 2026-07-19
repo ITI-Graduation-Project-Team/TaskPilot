@@ -39,11 +39,14 @@ namespace TaskPilot.AI.Orchestrators
         private readonly RequirementValidationAgent _validationAgent;
         private readonly KnowledgeEvolutionAgent _evolutionAgent;
         private readonly TaskPilot.AI.Services.Requirements.RequirementConsolidationEngine _consolidationEngine;
+        private readonly IEnumerable<IDocumentVisualExtractor> _visualExtractors;
+        private readonly VisualAnalysisAgent _visualAnalysisAgent;
 
         public RequirementDiscoveryOrchestrator(
             IRequirementSessionStore sessionStore,
             ILogger<RequirementDiscoveryOrchestrator> logger,
             IEnumerable<IDocumentTextExtractor> extractors,
+            IEnumerable<IDocumentVisualExtractor> visualExtractors,
             DocumentCategorizationAgent categorizationAgent,
             ChunkingAgent chunkingAgent,
             IDocumentStore documentStore,
@@ -55,11 +58,13 @@ namespace TaskPilot.AI.Orchestrators
             RequirementsBuilderAgent builderAgent,
             RequirementValidationAgent validationAgent,
             KnowledgeEvolutionAgent evolutionAgent,
+            VisualAnalysisAgent visualAnalysisAgent,
             TaskPilot.AI.Services.Requirements.RequirementConsolidationEngine consolidationEngine)
         {
             _sessionStore = sessionStore;
             _logger = logger;
             _extractors = extractors;
+            _visualExtractors = visualExtractors;
             _categorizationAgent = categorizationAgent;
             _chunkingAgent = chunkingAgent;
             _documentStore = documentStore;
@@ -71,6 +76,7 @@ namespace TaskPilot.AI.Orchestrators
             _builderAgent = builderAgent;
             _validationAgent = validationAgent;
             _evolutionAgent = evolutionAgent;
+            _visualAnalysisAgent = visualAnalysisAgent;
             _consolidationEngine = consolidationEngine;
         }
 
@@ -133,18 +139,75 @@ namespace TaskPilot.AI.Orchestrators
                     var chunks = await _chunkingAgent.ChunkContentAsync(document.Id, extractedText, cancellationToken: cancellationToken);
                     document.ChunkCount = chunks.Count;
 
+                    // --- Visual Asset Extraction & Analysis ---
+                    var visualExtractors = _visualExtractors.Where(e => e.CanHandle(file.ContentType, file.FileName));
+                    var extractedImages = new List<ExtractedVisualFile>();
+                    foreach (var visExt in visualExtractors)
+                    {
+                        using var visualStream = file.OpenReadStream();
+                        var imgs = await visExt.ExtractImagesAsync(visualStream, cancellationToken);
+                        extractedImages.AddRange(imgs);
+                    }
+
+                    var visualRequirements = new List<RequirementIdentity>();
+                    foreach (var img in extractedImages)
+                    {
+                        var analysisResult = await _visualAnalysisAgent.AnalyzeImageAsync(string.Empty, img.RawBytes, img.ContentType, cancellationToken);
+
+                        var asset = new VisualAsset
+                        {
+                            Id = Guid.NewGuid(),
+                            DocumentId = document.Id,
+                            FileName = img.FileName,
+                            ContentType = img.ContentType,
+                            PageNumber = img.PageNumber,
+                            DiagramType = analysisResult.DiagramType,
+                            Description = analysisResult.SummaryDescription,
+                            ExtractedText = analysisResult.ExtractedText
+                        };
+                        document.VisualAssets.Add(asset);
+
+                        foreach (var req in analysisResult.ExtractedRequirements)
+                        {
+                            visualRequirements.Add(new RequirementIdentity
+                            {
+                                OriginalText = req.Text,
+                                Category = req.Category,
+                                Sources = new List<string> { $"Diagram on page {img.PageNumber} of {file.FileName}" }
+                            });
+                        }
+
+                        var diagramChunk = new KnowledgeChunk
+                        {
+                            Id = Guid.NewGuid(),
+                            DocumentId = document.Id,
+                            RequirementSessionId = session.SessionId,
+                            Category = DocumentCategory.Diagram,
+                            SourceFile = file.FileName,
+                            DocumentType = file.ContentType,
+                            Content = $"Diagram Type: {analysisResult.DiagramType}\nDescription: {analysisResult.SummaryDescription}\nStructured Metadata: {analysisResult.ExtractedText}",
+                            ChunkIndex = 10000 + img.PageNumber
+                        };
+                        chunks.Add(diagramChunk);
+                    }
+
                     await _documentStore.SaveDocumentAsync(document, cancellationToken);
                     await _documentStore.SaveChunksAsync(chunks, cancellationToken);
 
                     foreach (var chunk in chunks)
                     {
                         chunk.RequirementSessionId = session.SessionId;
-                        chunk.Category = category;
+                        chunk.Category = chunk.Category == DocumentCategory.Diagram ? DocumentCategory.Diagram : category;
                         chunk.SourceFile = file.FileName;
                         chunk.DocumentType = file.ContentType;
                     }
 
                     await _vectorStore.UpsertAsync(TaskPilot.Models.Enums.KnowledgeCollectionType.ProjectPolicies, chunks, cancellationToken);
+
+                    if (visualRequirements.Any())
+                    {
+                        await _consolidationEngine.ConsolidateAsync(session, visualRequirements, cancellationToken);
+                    }
 
                     session.Knowledge.Documents.Add(document);
                     session.Knowledge.DocumentIds.Add(document.Id);
