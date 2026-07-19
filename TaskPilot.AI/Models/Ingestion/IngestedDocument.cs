@@ -34,5 +34,7 @@ namespace TaskPilot.AI.Models.Ingestion
             = DateTime.UtcNow;
 
         public int ChunkCount { get; set; }
+
+        public System.Collections.Generic.List<VisualAsset> VisualAssets { get; set; } = new();
     }
 }

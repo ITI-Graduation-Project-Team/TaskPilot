@@ -27,7 +27,8 @@
 #   - Continue selecting additional related User Stories whenever they contribute to the same business milestone.
 #   - Prefer completing one coherent business capability over stopping early because the TargetSprintHours has been reached.
 #   - Use TargetSprintHours only to avoid creating an obviously oversized Sprint.
-#   - A Sprint between approximately 70% and 140% of TargetSprintHours is acceptable when required to deliver a complete business milestone.
+#   - The total hours should reflect the actual scope of the coherent business capability.
+#   - A Sprint may exceed TargetSprintHours naturally if required to complete the business milestone.
 #   5.Never stop after selecting the first User Story unless the backlog contains only one story.
 
 #   If there are additional User Stories that belong to the same business capability,
@@ -171,12 +172,12 @@ template: |
 
   • Do NOT stop simply because the TargetSprintHours has been reached.
 
-  • Business Cohesion is MORE IMPORTANT than perfect capacity utilization.
+  • Business Cohesion and Requirement Coverage are MORE IMPORTANT than perfect capacity utilization.
 
-  • A Sprint between approximately 70% and 140% of TargetSprintHours
-    is acceptable if it results in a complete and meaningful business milestone.
+  • The total hours should reflect the actual scope of the coherent business capability.
+  • A Sprint may exceed TargetSprintHours naturally if required to complete the business milestone.
 
-  Only avoid obviously oversized Sprints.
+  Only avoid obviously oversized Sprints that violate Agile principles.
 
   -------------------------------------------------------------------
   STOPPING RULES

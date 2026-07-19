@@ -39,7 +39,7 @@ input_variables:
   - name: brdContext
     description: >
       Content extracted from uploaded Business Requirement Documents (BRD),
-      technical specs, or any project documentation uploaded by the PM.
+      technical specs, diagrams (UML, ERD, Wireframes), or any project documentation uploaded by the PM.
       This is the PRIMARY source if provided.
       Empty string if no documents were uploaded.
 
@@ -76,12 +76,30 @@ template: |
   - If the document describes sub-types of a feature (e.g. 3 types of patient
     registration), create SEPARATE User Stories for each sub-type.
   - Do NOT invent features not mentioned in the documents or requirements below.
+  --------------------------------------------------------
+  VISUAL DOCUMENT INTERPRETATION RULES
+  --------------------------------------------------------
 
+  If UML, ERD, Use Case Diagrams, BPMN diagrams, Sequence Diagrams, Activity Diagrams, Wireframes, or other visual artifacts exist within the uploaded BRD or project documents:
+
+  - Extract business capabilities, business processes, entities, relationships, actors, workflows, and operations from them.
+
+  - Treat validated visual information as part of the project requirements.
+
+  - Use visual knowledge to enrich the Product Backlog.
+
+  - When diagrams reveal business capabilities not explicitly described in the text, generate User Stories only if the diagram provides sufficient evidence.
+
+  - Never infer unsupported functionality.
+
+  - Never ignore validated visual knowledge extracted from project documentation.
   ════════════════════════════════════════════
   ## SECONDARY SOURCE: Requirements Discovery Summary
   ════════════════════════════════════════════
   Use this to fill in gaps not covered by the BRD above.
   If BRD context is empty, this becomes the primary source.
+  Ensure that any UI wireframes, Sequence Diagrams, or Entity Relationships extracted
+  into the Requirements are accurately represented in your User Stories and Tasks.
 
   --------------------------------------------------------
   PROJECT REQUIREMENTS
@@ -199,7 +217,11 @@ template: |
   generate technology-neutral implementation Tasks.
 
   Never invent technologies that conflict with the provided Tech Stack.
+  The confirmed technology stack must never influence the definition or scope of User Stories.
 
+  User Stories describe business value and user goals.
+
+  The technology stack affects only implementation Tasks and technical execution details.
   --------------------------------------------------------
   LANGUAGE RULES
   --------------------------------------------------------
@@ -237,12 +259,54 @@ template: |
   Never use placeholder values.
 
   Always produce natural human-readable translations.
+  --------------------------------------------------------
+  REQUIREMENTS COVERAGE RULES
+  --------------------------------------------------------
+
+  Before generating User Stories:
+
+  1. Identify every validated business capability from the BRD, Requirements Discovery, and any extracted diagrams.
+
+  2. Group closely related requirements that deliver the same business capability.
+
+  3. Generate one or more User Stories for each business capability.
+
+  4. Verify that every validated functional requirement is represented by at least one User Story.
+
+  5. If any validated requirement is not represented, generate additional User Stories before producing the final Product Backlog.
+
+  6. Do not merge unrelated business capabilities into a single User Story.
+  --------------------------------------------------------
+  --------------------------------------------------------
+  REQUIREMENTS CONSISTENCY RULES
+  --------------------------------------------------------
+
+  Before generating User Stories:
+
+  - Use only validated requirements as the source for Product Backlog generation.
+
+  - If additional business capabilities are discovered in the BRD, UML diagrams, ERD, Use Case diagrams, wireframes, or other project documents, generate User Stories only when those capabilities have been validated and included in the project requirements.
+
+  - Never invent functionality that is not supported by the validated requirements.
+
+  - Every generated User Story must trace back to one or more validated business requirements.
     --------------------------------------------------------
   USER STORY DESIGN RULES
   --------------------------------------------------------
 
-  Generate between 4 and 8 User Stories depending on project complexity.
-  Large projects may reach 8. Small projects should produce fewer.
+  Generate only the number of User Stories required to achieve complete coverage of validated requirements.
+
+  There is no predefined minimum or maximum number of User Stories.
+
+  Every validated functional requirement must be represented by one or more User Stories.
+
+  Do not generate duplicate User Stories.
+
+  Do not merge unrelated business goals.
+
+  Split large business capabilities only when required by INVEST.
+
+  User Stories must maximize business value rather than satisfy numeric targets.
 
   A User Story represents ONE user goal that delivers ONE business value.
 
@@ -410,10 +474,15 @@ template: |
   TASK RULES
   --------------------------------------------------------
 
-  Every User Story must contain between 2 and 4 Tasks Maximum.
+  Generate only the implementation Tasks genuinely required to implement the parent User Story.
+
+  The number of Tasks should naturally vary according to implementation complexity.
+
+  Avoid artificial task splitting.
+
+  Avoid combining unrelated implementation work into one Task.
   
   Only create implementation tasks.
-  Avoid unnecessary task splitting.
 
   Tasks describe HOW the story is implemented.
 
@@ -546,24 +615,13 @@ template: |
 
   • Large
 
-  EstimatedHours must follow:
+  Estimate effort according to actual implementation complexity.
 
-  Small
+  Effort should reflect implementation scope, dependencies, technical difficulty, and engineering effort.
 
-  1–4 hours
+  Avoid arbitrary estimation ranges.
 
-  Medium
-
-  4–16 hours
-
-  Large
-
-  16–40 hours
-
-  EstimatedHours should be realistic.
-
-  The total hours of the User Story should approximately reflect
-  the complexity of the business functionality.
+  Keep estimations internally consistent.
 
   --------------------------------------------------------
   ACCEPTANCE CRITERIA RULES
@@ -571,12 +629,15 @@ template: |
 
   Acceptance Criteria must be written as one string.
   
-  Limit AcceptanceCriteria to maximum 2 items.
-  Limit AcceptanceCriteriaAr to maximum 2 items.
+  Acceptance Criteria should be concise, measurable, and sufficient to validate the business outcome.
+  
+  Include only the acceptance criteria necessary to verify successful completion.
+  
+  Avoid redundant acceptance criteria.
+  
   Each sentence should be concise. Avoid paragraphs.
   
-  Task descriptions should be 1–2 sentences only.
-  Avoid long explanations.
+  Task descriptions should be concise. Avoid long explanations.
   
   Keep titles concise.
   Avoid repeating information already present in the User Story.
@@ -606,28 +667,23 @@ template: |
 
   Always return ONE complete JSON object.
   
-  Target approximately 3000 output tokens.
   Always prioritize returning COMPLETE valid JSON.
-  If there is any risk of truncation, reduce the number of User Stories before reducing response quality.
+
+  Requirement coverage always takes precedence.
+
+  If output size becomes a limitation, split the Product Backlog into multiple valid JSON batches instead of removing requirements.
+
+  Never sacrifice completeness.
+
   Never return partial JSON.
   Never return incomplete arrays.
   Never return incomplete objects.
 
   The response MUST fit within the model output limit.
 
-  If necessary:
-
-  • Reduce the number of User Stories.
-
-  • Reduce the number of Tasks.
-
-  • Keep the highest business value stories.
-
-  • Preserve JSON validity at all costs.
+  Preserve JSON validity at all costs.
 
   Never truncate the JSON.
-
-  Returning fewer high-quality User Stories is always better than returning incomplete JSON.
 
   --------------------------------------------------------
   JSON VALIDITY RULES
@@ -696,7 +752,25 @@ template: |
       }
     ]
   }
+  --------------------------------------------------------
+  COVERAGE VALIDATION RULES
+  --------------------------------------------------------
 
+  Before returning the final Product Backlog:
+
+  □ Verify that every validated functional requirement is covered.
+
+  □ Verify that every business capability is represented.
+
+  □ Verify that every validated diagram-derived capability is represented.
+
+  □ Verify that no validated requirement is omitted.
+
+  □ Verify that every generated User Story must trace back to validated business requirements.
+
+  □ If any coverage gaps are detected, generate additional User Stories before producing the final output.
+
+  □ Do not remove existing User Stories to satisfy arbitrary limits. Coverage takes precedence over quantity.
   --------------------------------------------------------
   FINAL SELF VALIDATION
   --------------------------------------------------------
@@ -712,8 +786,6 @@ template: |
   □ Every User Story delivers clear business value.
 
   □ Every User Story is independently implementable.
-
-  □ Every User Story contains between 2 and 4 Tasks.
 
   □ Tasks are implementation work rather than business features.
 
@@ -745,7 +817,7 @@ template: |
   
   □ Entire response fits within the configured output limit.
 
-  If necessary, reduce the number of User Stories before generating the final response.
+  If necessary, split the response into batches. Requirement coverage takes precedence over output size.
 
   Only after every validation succeeds,
   output the final JSON object.
