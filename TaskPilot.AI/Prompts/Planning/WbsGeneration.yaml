@@ -635,11 +635,9 @@ template: |
   
   Avoid redundant acceptance criteria.
   
-  Each sentence should be concise. Avoid paragraphs.
   
   Task descriptions should be concise. Avoid long explanations.
   
-  Keep titles concise.
   Avoid repeating information already present in the User Story.
 
   Example
