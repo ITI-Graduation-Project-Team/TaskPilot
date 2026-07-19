@@ -19,8 +19,8 @@ namespace TaskPilot.Services
         private readonly ApplicationDbContext _context;
         private readonly ILocalizationService _localizationService;
 
-        private static readonly TimeSpan WorkDayStart = new TimeSpan(9, 0, 0);  
-        private static readonly TimeSpan WorkDayEnd = new TimeSpan(17, 0, 0);   
+        private static readonly TimeSpan WorkDayStart = new TimeSpan(9, 0, 0);
+        private static readonly TimeSpan WorkDayEnd = new TimeSpan(17, 0, 0);
         private static readonly int WorkMinutesPerDay = (int)(WorkDayEnd - WorkDayStart).TotalMinutes;
 
         public CalenderService(ApplicationDbContext context, ILocalizationService localizationService)
@@ -42,7 +42,7 @@ namespace TaskPilot.Services
 
             while (remainingMinutes > 0)
             {
-                    
+
                 DateTime workStart = currentDay.Add(WorkDayStart);
 
                 // Schedule either the remaining minutes or the full work day (8 hours)  if >8 only schedule 8 if less than 8 schedule only taskhours
@@ -55,7 +55,7 @@ namespace TaskPilot.Services
 
                 currentDay = currentDay.AddDays(1);
 
-                
+
                 while (currentDay.DayOfWeek == DayOfWeek.Friday)
                 {
                     currentDay = currentDay.AddDays(1);
@@ -84,7 +84,7 @@ namespace TaskPilot.Services
             };
             await _context.CalenderEvents.AddAsync(newEvent);
         }
-        
+
 
 
 
@@ -92,31 +92,35 @@ namespace TaskPilot.Services
         public async Task<Result<CalendarDashboardResponseDto>> GetCalendarDashboardAsync(Guid employeeId, DateOnly start, DateOnly end)
         {
             DateTime startDateTime = start.ToDateTime(TimeOnly.MinValue);
-
             DateTime endDateTime = end.AddDays(1).ToDateTime(TimeOnly.MinValue);
-            var events = await _context.CalenderEvents
-           .Where(ce => ce.EmployeeId == employeeId &&
-                        ce.StartDate >= startDateTime &&
-                        ce.EndDate < endDateTime) 
-           .OrderBy(e => e.StartDate)
-           .ToListAsync(); ;
 
-            var eventDtos = events.Select(e => new CalendarBlockDto
-            {
-                Id = e.Id,
-                Description = e.Description,
-                EventType = e.Type.ToString(),
-                Title = e.Title,
-                Priority = e.TaskPriority.ToString(),
-                Status = e.Type==CalenderEventType.AssignedTask?e.RelatedTask.Status.ToString():e.Status.ToString(),
-                RelatedTaskId = e.RelatedTaskId,
-                Start = e.StartDate,
-                End = e.EndDate,
-            }).ToList();
+            // 1. استخدام Select قبل ToListAsync لترجمة الكود إلى استعلام SQL آمن وسريع
+            var eventDtos = await _context.CalenderEvents
+                .Where(ce => ce.EmployeeId == employeeId &&
+                             ce.StartDate < endDateTime &&
+                             ce.EndDate >= startDateTime)
+                .OrderBy(e => e.StartDate)
+                .Select(e => new CalendarBlockDto
+                {
+                    Id = e.Id,
+                    Description = e.Description,
+                    EventType = e.Type.ToString(),
+                    Title = e.Title ?? string.Empty,
+                    Priority = e.TaskPriority.ToString(),
+                    // الشرط هنا آمن تماماً لأن التنفيذ يحدث داخل محرك الداتابيز (SQL)
+                    Status = e.Type == CalenderEventType.AssignedTask
+                        ? (e.RelatedTask != null ? e.RelatedTask.Status.ToString() : e.Status.ToString())
+                        : e.Status.ToString(),
+                    RelatedTaskId = e.RelatedTaskId,
+                    Start = e.StartDate,
+                    End = e.EndDate,
+                })
+                .ToListAsync(); // <-- التنفيذ وجلب البيانات يحدث هنا في النهاية
 
+            // 2. العمليات الحسابية
             var today = DateTime.Today;
-            var todayEvents = events.Where(e => e.StartDate.Date == today).ToList();
-            int scheduledTodayMinutes = (int)todayEvents.Sum(e => (e.EndDate - e.StartDate).TotalMinutes);
+            var todayEvents = eventDtos.Where(e => e.Start.Date == today).ToList();
+            int scheduledTodayMinutes = (int)todayEvents.Sum(e => (e.End - e.Start).TotalMinutes);
 
             string workloadStatus;
             if (scheduledTodayMinutes <= WorkMinutesPerDay * 0.75)
@@ -140,7 +144,6 @@ namespace TaskPilot.Services
         }
 
 
-
         public async Task<Result<CalenderTaskDetailsDto>> GetCalenderEventDetailsAsync(Guid eventId, Guid employeeId)
         {
             var taskDetails = await _context.CalenderEvents
@@ -155,8 +158,8 @@ namespace TaskPilot.Services
                     IsAssigned = cee.RelatedTaskId != null,
                     EventType = cee.Type.ToString(),
                     Priority = cee.TaskPriority.ToString(),
-                    Status = cee.Type == CalenderEventType.AssignedTask ? cee.RelatedTask.Status.ToString() : cee.Status.ToString(),
-                    RelatedTaskId=cee.RelatedTaskId,
+                    Status = cee.Type == CalenderEventType.AssignedTask ? (cee.RelatedTask != null ? cee.RelatedTask.Status.ToString() : cee.Status.ToString()) : cee.Status.ToString(),
+                    RelatedTaskId = cee.RelatedTaskId,
                     //Status = cee.Status.ToString(),
                     ProjectName = cee.RelatedTask != null ? cee.RelatedTask.UserStory.Sprint.TitleEn : null,
                     SprintTitle = cee.RelatedTask != null ? cee.RelatedTask.Sprint.TitleEn : null
@@ -207,7 +210,7 @@ namespace TaskPilot.Services
                 Description = dto.Description,
                 StartDate = dto.StartDate,
                 EndDate = endDate,
-                Type = dto.EventType, 
+                Type = dto.EventType,
                 TaskPriority = dto.Priority,
                 Status = TaskItemStatus.ToDo,
             };
@@ -355,7 +358,7 @@ namespace TaskPilot.Services
                 Timeline = BuildTimeline(todayEvents),
                 WeekOverview = BuildWeekOverview(weekEvents, startOfWeek),
                 QuickStats = BuildQuickStats(weekEvents),
-               // SuggestedSlots= // to be implemented
+                // SuggestedSlots= // to be implemented
             };
 
             return Result.Success(response);
