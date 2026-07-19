@@ -103,8 +103,11 @@ namespace TaskPilot.Services
 
                     foreach (var task in tasks)
                     {
-                        task.SprintId = sprint.Id;
-                        taskCount++;
+                        if (task.Status != TaskItemStatus.Done)
+                        {
+                            task.SprintId = sprint.Id;
+                            taskCount++;
+                        }
                     }
                 }
 
