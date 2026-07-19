@@ -78,6 +78,7 @@ namespace TaskPilot.DTOs.AI.Requirements
         public string FileName { get; set; } = string.Empty;
         public DateTime UploadedAt { get; set; }
         public int ChunkCount { get; set; }
+        public int VisualAssetCount { get; set; }
     }
 
     public class AnalysisSummaryDTO

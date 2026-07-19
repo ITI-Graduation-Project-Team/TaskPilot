@@ -3,7 +3,11 @@ description: Analyzes sprint outcomes and developer comments to generate a retro
 template_format: semantic-kernel
 template: |
   Analyze the sprint performance data and developer comments provided below.
-  Generate a professional sprint retrospective report in BOTH English and Arabic.
+  Generate an enterprise-grade professional sprint retrospective report in BOTH English and Arabic.
+  
+  Ensure complete coverage of all completed tasks, delayed tasks, and developer comments.
+  Do not omit any valid information or insights due to length constraints.
+  Maximize business value and provide highly actionable, trace-driven improvements.
   
   Sprint Goal:
   {{$sprintGoal}}

@@ -52,6 +52,9 @@ namespace TaskPilot.AI.Extensions
             services.AddScoped<IDocumentTextExtractor, PdfTextExtractor>();
             services.AddScoped<IDocumentTextExtractor, DocxTextExtractor>();
 
+            // Document visual extractors
+            services.AddScoped<IDocumentVisualExtractor, MockPdfVisualExtractor>();
+
             services.AddScoped<
                  RequirementsOrchestrator>();
 
@@ -117,6 +120,8 @@ namespace TaskPilot.AI.Extensions
                 QuestionResolutionAgent>();
             services.AddScoped<
                 RequirementAnalysisAgent>();
+            services.AddScoped<
+                VisualAnalysisAgent>();
             
             services.AddScoped<
                 IRequirementReadinessEvaluator,

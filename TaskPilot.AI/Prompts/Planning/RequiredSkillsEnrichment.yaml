@@ -5,8 +5,9 @@ template_format: semantic-kernel
 template: |
   You are an Agile Technical Lead mapping implementation tasks to required skills.
 
-  Evaluate the following task and generate 1 to 4 Required Skills needed to implement it.
-  Use the provided Available Skills when appropriate, but you can also suggest new ones if strongly required.
+  Evaluate the following task and generate all Required Skills needed to implement it.
+  Generate exactly the number of skills required by the implementation complexity without artificial limits.
+  Use the provided Available Skills when appropriate, but you can also suggest new ones if strongly required by the technology stack or task scope.
 
   Task Title: {{$title}}
   Task Description: {{$description}}

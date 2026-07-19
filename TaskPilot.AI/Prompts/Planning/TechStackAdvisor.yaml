@@ -180,9 +180,9 @@ template: |
   "Angular 20"
   "SQL Server 2022"
 
-  - Each reasoning field should contain between 2 and 4 concise sentences.
+  - Each reasoning field should provide comprehensive justification based on project requirements, constraints, and scalability.
 
-  - Keep each techStack between 5 and 10 technologies.
+  - Include exactly the technologies required by the project scale and complexity. Do not artificially limit the number of technologies.
 
   - Do not recommend more than one technology for the same responsibility unless there is a strong architectural reason.
   Example:

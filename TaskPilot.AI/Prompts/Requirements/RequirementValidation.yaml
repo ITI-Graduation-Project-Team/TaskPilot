@@ -5,12 +5,12 @@ template: |
   Your task is to validate a set of extracted software requirements before they are finalized.
   
   Review the requirements carefully and check for:
-  1. Consistency & Contradictions (Do any requirements conflict with one another?)
-  2. Duplication (Are there repeating requirements?)
+  1. Consistency & Contradictions (Do any requirements conflict with one another, including between text and visual diagrams or workflows?)
+  2. Duplication (Are there repeating requirements between text and diagrams?)
   3. Weak Requirements (Are any statements vague, ambiguous, or unverifiable?)
   4. NFR Completeness (Are Scale, Performance, Timeline, and Security properly addressed?)
 
-  REQUIREMENTS TO VALIDATE:
+  REQUIREMENTS TO VALIDATE (Including Visual Diagram Semantics):
   {{$requirements}}
 
   You must output a JSON object exactly matching this schema. Return ONLY valid JSON:
