@@ -13,6 +13,7 @@ using TaskPilot.Models.Entities;
 using TaskPilot.Services.Interfaces;
 using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Common.Errors;
+using TaskPilot.Models.Enums;
 
 namespace TaskPilot.Services
 {
@@ -65,7 +66,7 @@ namespace TaskPilot.Services
                 us.AcceptanceCriteriaEn,
                 us.AcceptanceCriteriaAr,
                 Priority = us.Priority.ToString(),
-                Tasks = us.Tasks.Select(t => new
+                Tasks = us.Tasks.Where(t => t.Status != TaskItemStatus.Done).Select(t => new
                 {
                     t.TitleEn,
                     t.TitleAr,
@@ -74,7 +75,7 @@ namespace TaskPilot.Services
                     Priority = t.Priority.ToString(),
                     Type = t.Type.ToString()
                 }).ToList(),
-                TotalEstimatedHours = us.Tasks.Sum(t => t.EstimatedHours)
+                TotalEstimatedHours = us.Tasks.Where(t => t.Status != TaskItemStatus.Done).Sum(t => t.EstimatedHours)
             }).ToList();
 
             var backlogJson = JsonSerializer.Serialize(backlogData, new JsonSerializerOptions
