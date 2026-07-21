@@ -153,6 +153,8 @@ namespace TaskPilot.AI.Extensions
                 TaskPilot.AI.Agents.Sprint.SprintRiskDetectionAgent>();
             services.AddScoped<
                 TaskPilot.AI.Agents.Sprint.WhatIfSimulationAgent>();
+            services.AddScoped<
+                TaskPilot.AI.Agents.Sprint.SprintBurnoutAgent>();
 
             return services;
         }
