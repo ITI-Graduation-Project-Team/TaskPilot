@@ -26,7 +26,7 @@ namespace TaskPilot.AI.Extensions
         {
             services.Configure<QdrantOptions>(configuration.GetSection("Qdrant"));
 
-            services.AddSingleton<
+            services.AddScoped<
                 IAiKernelService,
                 KernelService>();
 
