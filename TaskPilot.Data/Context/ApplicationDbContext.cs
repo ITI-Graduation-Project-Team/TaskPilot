@@ -50,6 +50,7 @@ namespace TaskPilot.Data.Context
         
         public DbSet<ProjectChatSession> ProjectChatSessions => Set<ProjectChatSession>();
         public DbSet<ProjectChatMessage> ProjectChatMessages => Set<ProjectChatMessage>();
+        public DbSet<AiTelemetryLog> AiTelemetryLogs => Set<AiTelemetryLog>();
         
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

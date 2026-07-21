@@ -162,6 +162,12 @@ namespace TaskPilot.Models.Common
             public const string AttachmentDeleted = "TASK_ATTACHMENT_DELETED_SUCCESS";
             public const string AttachmentsRetrieved = "TASK_ATTACHMENTS_RETRIEVED_SUCCESS";
         }
+
+        public static class Telemetry
+        {
+            public const string Retrieved = "TELEMETRY_RETRIEVED_SUCCESS";
+            public const string Logged = "TELEMETRY_LOGGED_SUCCESS";
+        }
     }
 }
 

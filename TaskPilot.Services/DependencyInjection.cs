@@ -6,6 +6,8 @@ using TaskPilot.Services.Interfaces;
 using TaskPilot.Models.Common;
 using TaskPilot.Services.Interfaces.CVExtractorInterfaces;
 using TaskPilot.Services.Interfaces.External;
+using Microsoft.SemanticKernel;
+using TaskPilot.Services.Filters;
 using TaskPilot.Services.Repositories;
 
 namespace TaskPilot.Services
@@ -42,6 +44,8 @@ namespace TaskPilot.Services
             services.AddScoped<INotificationService, TaskPilot.Services.Implementations.NotificationService>();
             services.AddScoped<IProjectChatService, TaskPilot.Services.Implementations.ProjectChatService>();
             services.AddScoped<IAiProjectsService, TaskPilot.Services.Implementations.AiProjectsService>();
+            services.AddScoped<IAiTelemetryService, AiTelemetryService>();
+            services.AddScoped<IFunctionInvocationFilter, AiTelemetryFilter>();
             services.AddScoped<TaskPilot.AI.Services.Interfaces.IAiProjectChatService, TaskPilot.Services.Implementations.ProjectChatService>();
             services.AddScoped<TaskPilot.AI.Services.Interfaces.IAiBacklogService, TaskPilot.Services.BacklogService>();
             services.AddScoped<TaskPilot.Services.Assignment.ITeamSnapshotService, TaskPilot.Services.Assignment.TeamSnapshotService>();
