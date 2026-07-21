@@ -287,6 +287,8 @@ namespace TaskPilot.Services
         {
             return modelName.ToLower() switch
             {
+                "gpt-4.1"          => (promptTokens * 0.0000025m) + (completionTokens * 0.000010m),
+                "gpt-4.1-mini"     => (promptTokens * 0.00000015m) + (completionTokens * 0.0000006m),
                 "gpt-4o"           => (promptTokens * 0.0000025m) + (completionTokens * 0.000010m),
                 "gpt-4o-mini"      => (promptTokens * 0.00000015m) + (completionTokens * 0.0000006m),
                 "gemini-2.5-flash" => (promptTokens * 0.000000075m) + (completionTokens * 0.0000003m),

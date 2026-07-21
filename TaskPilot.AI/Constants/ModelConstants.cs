@@ -10,9 +10,9 @@ namespace TaskPilot.AI.Constants
         // Strong Reasoning
 
         public const string PowerfulModel =
-            "gpt-4o-mini";
+            "gpt-4.1-mini";
         public const string MorePowerfulModel =
-            "gpt-4o";
+            "gpt-4.1";
 
         // Very Cheap
 
