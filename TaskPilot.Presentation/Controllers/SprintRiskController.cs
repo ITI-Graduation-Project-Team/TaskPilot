@@ -55,5 +55,24 @@ namespace TaskPilot.Presentation.Controllers
 
             return Ok(result);
         }
+        [HttpGet("{sprintId}/team-pulse")]
+        [ProducesResponseType(typeof(Result<TeamPulseDto>), 200)]
+        [ProducesResponseType(typeof(Result<TeamPulseDto>), 400)]
+        public async Task<IActionResult> GetTeamPulse(Guid sprintId, CancellationToken ct)
+        {
+            var result = await _riskService.GetTeamPulseAsync(sprintId, ct);
+            if (!result.IsSuccess)
+                return BadRequest(result);
+
+            return Ok(result);
+        }
+
+        [HttpPost("{sprintId}/team-pulse/trigger-analysis")]
+        [ProducesResponseType(typeof(Result), 200)]
+        public async Task<IActionResult> TriggerAnalysis(Guid sprintId, CancellationToken ct)
+        {
+            await _riskService.AnalyzeSprintBurnoutAsync(sprintId, ct);
+            return Ok(Result.Success());
+        }
     }
 }
