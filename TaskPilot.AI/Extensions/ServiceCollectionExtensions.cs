@@ -1,10 +1,9 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.SemanticKernel.Services;
-using TaskPilot.AI.Agents.Requirements;
 using TaskPilot.AI.Agents.Ingestion;
 using TaskPilot.AI.Agents.Planning;
 using TaskPilot.AI.Agents.RAG;
+using TaskPilot.AI.Agents.Requirements;
 using TaskPilot.AI.Options;
 using TaskPilot.AI.Orchestrators;
 using TaskPilot.AI.Persistence.InMemory;
@@ -26,7 +25,7 @@ namespace TaskPilot.AI.Extensions
         {
             services.Configure<QdrantOptions>(configuration.GetSection("Qdrant"));
 
-            services.AddSingleton<
+            services.AddScoped<
                 IAiKernelService,
                 KernelService>();
 
@@ -122,7 +121,7 @@ namespace TaskPilot.AI.Extensions
                 RequirementAnalysisAgent>();
             services.AddScoped<
                 VisualAnalysisAgent>();
-            
+
             services.AddScoped<
                 IRequirementReadinessEvaluator,
                 RequirementReadinessEvaluator>();
