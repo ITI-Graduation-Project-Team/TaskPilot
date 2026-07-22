@@ -21,17 +21,20 @@ namespace TaskPilot.Services
     {
         private readonly IRepository<Project> _projectRepository;
         private readonly IUserStoryRepository _userStoryRepository;
+        private readonly IProjectEmployeeRepository _projectEmployeeRepository;
         private readonly SprintSuggestionAgent _sprintSuggestionAgent;
         private readonly ILogger<SprintPlanningService> _logger;
 
         public SprintPlanningService(
             IRepository<Project> projectRepository,
             IUserStoryRepository userStoryRepository,
+            IProjectEmployeeRepository projectEmployeeRepository,
             SprintSuggestionAgent sprintSuggestionAgent,
             ILogger<SprintPlanningService> logger)
         {
             _projectRepository = projectRepository;
             _userStoryRepository = userStoryRepository;
+            _projectEmployeeRepository = projectEmployeeRepository;
             _sprintSuggestionAgent = sprintSuggestionAgent;
             _logger = logger;
         }
@@ -42,6 +45,12 @@ namespace TaskPilot.Services
             if (project == null)
             {
                 return Result.Failure<SprintSuggestionDto>(CommonErrors.NotFound("Project"));
+            }
+
+            var assignedEmployees = await _projectEmployeeRepository.GetEmployeeIdsByProjectAsync(projectId, cancellationToken);
+            if (!assignedEmployees.Any())
+            {
+                return Result.Failure<SprintSuggestionDto>(SprintErrors.NoEmployeesAssigned);
             }
 
             var userStories = await _userStoryRepository.GetByProjectIdAsync(projectId, cancellationToken);
