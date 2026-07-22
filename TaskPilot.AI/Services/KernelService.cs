@@ -1,4 +1,6 @@
-﻿using Microsoft.Extensions.Configuration;
+using System;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.SemanticKernel;
 using TaskPilot.AI.Services.Interfaces;
 
@@ -7,13 +9,15 @@ namespace TaskPilot.AI.Services
     public class KernelService
         : IAiKernelService
     {
-        private readonly IConfiguration
-            _config;
+        private readonly IConfiguration _config;
+        private readonly IServiceProvider _serviceProvider;
 
         public KernelService(
-            IConfiguration config)
+            IConfiguration config,
+            IServiceProvider serviceProvider)
         {
             _config = config;
+            _serviceProvider = serviceProvider;
         }
 
         public Kernel CreateKernel(
@@ -29,6 +33,12 @@ namespace TaskPilot.AI.Services
                 modelId: modelId,
                 apiKey: apiKey!);
 
+            var filter = _serviceProvider.GetService<IFunctionInvocationFilter>();
+            if (filter != null)
+            {
+                builder.Services.AddSingleton(filter);
+            }
+
             return builder.Build();
         }
         public Kernel CreateGeminiKernel(
@@ -43,6 +53,12 @@ namespace TaskPilot.AI.Services
             builder.AddGoogleAIGeminiChatCompletion(
                 modelId: modelId,
                 apiKey: apiKey!);
+
+            var filter = _serviceProvider.GetService<IFunctionInvocationFilter>();
+            if (filter != null)
+            {
+                builder.Services.AddSingleton(filter);
+            }
 
             return builder.Build();
         }

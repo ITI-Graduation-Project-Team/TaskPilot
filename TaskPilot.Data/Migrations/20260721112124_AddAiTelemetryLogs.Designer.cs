@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TaskPilot.Data.Context;
 
@@ -11,9 +12,11 @@ using TaskPilot.Data.Context;
 namespace TaskPilot.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260721112124_AddAiTelemetryLogs")]
+    partial class AddAiTelemetryLogs
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -988,65 +991,6 @@ namespace TaskPilot.Data.Migrations
                     b.HasIndex("ProjectId");
 
                     b.ToTable("Sprints", (string)null);
-                });
-
-            modelBuilder.Entity("TaskPilot.Models.Entities.SprintBurnoutSnapshot", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("AnalyzedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("BurnoutScore")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("EmployeeId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("EngagementScore")
-                        .HasColumnType("int");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<DateTime?>("ModifiedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("ModifiedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("PaceScore")
-                        .HasColumnType("int");
-
-                    b.Property<string>("RiskLevel")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<Guid>("SprintId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("TrendDirection")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("WorkloadScore")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EmployeeId");
-
-                    b.HasIndex("SprintId");
-
-                    b.ToTable("SprintBurnoutSnapshots");
                 });
 
             modelBuilder.Entity("TaskPilot.Models.Entities.SprintRetrospective", b =>
@@ -2292,25 +2236,6 @@ namespace TaskPilot.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Project");
-                });
-
-            modelBuilder.Entity("TaskPilot.Models.Entities.SprintBurnoutSnapshot", b =>
-                {
-                    b.HasOne("TaskPilot.Models.Entities.Employee", "Employee")
-                        .WithMany()
-                        .HasForeignKey("EmployeeId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("TaskPilot.Models.Entities.Sprint", "Sprint")
-                        .WithMany()
-                        .HasForeignKey("SprintId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Employee");
-
-                    b.Navigation("Sprint");
                 });
 
             modelBuilder.Entity("TaskPilot.Models.Entities.SprintRetrospective", b =>
