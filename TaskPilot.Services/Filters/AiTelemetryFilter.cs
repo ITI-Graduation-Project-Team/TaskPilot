@@ -76,14 +76,39 @@ namespace TaskPilot.Services.Filters
                     completionTokens = 800;
                 }
 
+                Guid? projectId = null;
+                if (context.Arguments != null)
+                {
+                    foreach (var arg in context.Arguments)
+                    {
+                        if ((arg.Key.Equals("projectId", StringComparison.OrdinalIgnoreCase) || 
+                             arg.Key.Equals("projectId", StringComparison.OrdinalIgnoreCase)) && 
+                            arg.Value != null)
+                        {
+                            if (Guid.TryParse(arg.Value.ToString(), out var parsedId))
+                            {
+                                projectId = parsedId;
+                                break;
+                            }
+                        }
+                    }
+                }
+
                 var userId = _currentUserService.UserId;
                 if (userId.HasValue && userId.Value != Guid.Empty)
                 {
                     string modelName = ModelConstants.CheapModel; // default
+                    if (context.Result?.Metadata != null)
+                    {
+                        if (context.Result.Metadata.TryGetValue("ModelId", out var modelIdObj) && modelIdObj != null)
+                        {
+                            modelName = modelIdObj.ToString() ?? modelName;
+                        }
+                    }
                     
                     await _telemetryService.LogTelemetryAsync(
                         userId: userId.Value,
-                        projectId: null,
+                        projectId: projectId,
                         operationType: context.Function.Name,
                         modelName: modelName,
                         promptTokens: promptTokens,
