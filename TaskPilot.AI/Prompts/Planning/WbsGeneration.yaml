@@ -629,17 +629,12 @@ template: |
 
   Acceptance Criteria must be written as one string.
   
-  Acceptance Criteria should be concise, measurable, and sufficient to validate the business outcome.
+  Acceptance Criteria should be measurable, detailed, and sufficient to validate the business outcome.
   
   Include only the acceptance criteria necessary to verify successful completion.
   
   Avoid redundant acceptance criteria.
   
-  Each sentence should be concise. Avoid paragraphs.
-  
-  Task descriptions should be concise. Avoid long explanations.
-  
-  Keep titles concise.
   Avoid repeating information already present in the User Story.
 
   Example

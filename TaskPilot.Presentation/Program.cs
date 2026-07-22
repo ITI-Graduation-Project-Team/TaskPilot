@@ -61,7 +61,10 @@ namespace TaskPilot.Presentation
             builder.Services.AddSignalR();
             builder.Services.AddScoped<TaskPilot.Services.Interfaces.INotificationNotifier, TaskPilot.Presentation.Services.NotificationNotifier>();
             
-            builder.Services.AddControllers()
+            builder.Services.AddControllers(options =>
+            {
+                options.Filters.Add<TaskPilot.Presentation.Filters.ProjectIdTelemetryActionFilter>();
+            })
                 .AddJsonOptions(options =>
                 {
                     options.JsonSerializerOptions.Converters

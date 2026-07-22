@@ -1,7 +1,9 @@
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using TaskPilot.AI.Services.Interfaces;
+using UglyToad.PdfPig;
 
 namespace TaskPilot.AI.Services.Extraction
 {
@@ -16,8 +18,15 @@ namespace TaskPilot.AI.Services.Extraction
 
         public Task<string> ExtractTextAsync(Stream fileStream, CancellationToken cancellationToken = default)
         {
-            // PDF parsing mock fallback as there are no external libraries loaded in project references
-            return Task.FromResult("[PDF Extracted Text]: Project vision and details. Business goals: Improve hospital operations management. Scalability: Support up to 1000 concurrent doctors and staff. compliance requirements: HIPAA compliance must be met. user roles: Administrators, doctors, and nurses.");
+            using var doc = PdfDocument.Open(fileStream);
+            var text = string.Join(" ", doc.GetPages().Select(p => p.Text));
+
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                throw new System.InvalidOperationException("Failed to extract text from the PDF document. The document may be empty, image-based, or corrupted.");
+            }
+
+            return Task.FromResult(text);
         }
     }
 }

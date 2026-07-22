@@ -77,14 +77,11 @@ namespace TaskPilot.AI.Agents.Planning
 
             prompt += "\n" +
                       "  CRITICAL: Your response must be a single complete valid JSON object with no trailing text.\n" +
-                      "  Do not truncate or cut off the response under any circumstances.\n" +
-                      "  Limit each userStory to a maximum of 3 tasks.\n" +
-                      "  Limit acceptanceCriteria and acceptanceCriteriaAr arrays to a maximum of 2 items each.\n" +
-                      "  Keep acceptanceCriteriaAr values short (under 80 characters each).\n";
+                      "  Do not truncate or cut off the response under any circumstances.\n";
 
             var executionSettings = new PromptExecutionSettings
             {
-                ExtensionData = new Dictionary<string, object> { { "max_tokens", 8192 } }
+                ExtensionData = new Dictionary<string, object> { { "max_tokens", 16384 } }
             };
 
             var arguments = new KernelArguments(executionSettings)
@@ -137,14 +134,6 @@ namespace TaskPilot.AI.Agents.Planning
                 try
                 {
                     string currentPrompt = prompt;
-                    if (attempt == 2)
-                    {
-                        currentPrompt += "\n  Reduce the number of User Stories. Prioritize JSON completeness over quantity.";
-                    }
-                    else if (attempt == 3)
-                    {
-                        currentPrompt += "\n  Generate between 3 and 5 User Stories only. Maximum 2 Tasks per Story. Maximum 2 Required Skills per Task. Return the smallest complete valid JSON possible.";
-                    }
 
                     var function = KernelFunctionYaml.FromPromptYaml(currentPrompt);
 
