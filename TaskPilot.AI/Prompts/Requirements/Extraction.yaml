@@ -11,6 +11,7 @@ template: |
     - Extract scale requirements
 
   Rules:
+    - The BRD document may be written in Arabic. If so, extract all requirements from the Arabic text accurately. Do not translate — preserve domain terms as they appear. Produce your structured output (user stories, WBS items, epics) in the same language as the BRD (Arabic if the BRD is Arabic). Ensure all extracted text is read right-to-left where applicable.
     - Return ONLY valid JSON
     - Do NOT explain
     - Do NOT use markdown

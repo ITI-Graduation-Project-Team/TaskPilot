@@ -5,6 +5,8 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.ChatCompletion;
+using Microsoft.SemanticKernel.Connectors.OpenAI;
 using TaskPilot.AI.Constants;
 using TaskPilot.AI.Models.Requirements;
 using TaskPilot.AI.Services.Interfaces;
@@ -35,7 +37,8 @@ namespace TaskPilot.AI.Agents.Requirements
 
         public async Task<RequirementAnalysisResult> AnalyzeAsync(
             RequirementSession session,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            string lang = "en")
         {
             var chunks = new List<TaskPilot.AI.Models.Ingestion.KnowledgeChunk>();
             foreach (var doc in session.Knowledge.Documents)
@@ -51,28 +54,55 @@ namespace TaskPilot.AI.Agents.Requirements
 
             var kernel = _kernelService.CreateKernel(ModelConstants.PowerfulModel);
             var prompt = await _promptLoader.LoadAsync("Requirements/RequirementAnalysis.yaml");
-            var function = KernelFunctionYaml.FromPromptYaml(prompt);
 
             var jsonOptions = new JsonSerializerOptions { WriteIndented = false };
             var conversationHistoryJson = JsonSerializer.Serialize(session.ConversationHistory, jsonOptions);
             var existingConfidenceScoresJson = JsonSerializer.Serialize(session.ConfidenceScores, jsonOptions);
             var existingQuestionsJson = JsonSerializer.Serialize(session.QuestionPool, jsonOptions);
 
-            // Use deterministic settings (Temperature=0.1) for the scoring/analysis call
-            // to reduce LLM variance in the confidence scores and gap questions.
-            // GenerateInterviewQuestionsAsync deliberately keeps its default settings (conversational).
-            var analysisArguments = KernelArgumentsFactory.CreateDeterministicArguments();
-            analysisArguments["documentContent"] = documentContent;
-            analysisArguments["conversationHistory"] = conversationHistoryJson;
-            analysisArguments["existingConfidenceScores"] = existingConfidenceScoresJson;
-            analysisArguments["existingQuestions"] = existingQuestionsJson;
+            int templateIndex = prompt.IndexOf("template: |");
+            var yamlPromptBody = templateIndex >= 0 
+                ? prompt.Substring(templateIndex + 11).Trim() 
+                : prompt;
 
-            var invokeResult = await kernel.InvokeAsync(
-                function,
-                analysisArguments,
-                cancellationToken: cancellationToken);
+            yamlPromptBody = yamlPromptBody
+                .Replace("{{$documentContent}}", documentContent)
+                .Replace("{{$conversationHistory}}", conversationHistoryJson)
+                .Replace("{{$existingConfidenceScores}}", existingConfidenceScoresJson)
+                .Replace("{{$existingQuestions}}", existingQuestionsJson);
 
-            var raw = invokeResult.ToString().Trim();
+            var systemMessage = lang == "ar"
+                ? $"""
+                   أنت مساعد متخصص في تحليل متطلبات المشاريع.
+                   يجب أن تكون جميع ردودك وجميع حقول JSON باللغة العربية الفصحى حصراً.
+                   لا تستخدم الإنجليزية في أي جزء من الإخراج.
+                   لا تضف أي جملة تمهيدية. أخرج JSON فقط بدون أي نص إضافي.
+                   لا تكتب أي نص قبل أو بعد JSON. يجب أن يكون ردك كاملاً عبارة عن كائن JSON واحد صالح. بدون مقدمة أو تفسير أو ملاحظات ختامية.
+
+                   {yamlPromptBody}
+                   """
+                : $"""
+                   You are a project requirements analysis assistant.
+                   Respond in English only. Output raw JSON only, no preamble.
+                   Do NOT output any text before or after the JSON. Your entire response must be a single valid JSON object. No introduction, no explanation, no closing remarks.
+
+                   {yamlPromptBody}
+                   """;
+
+            var chat = new Microsoft.SemanticKernel.ChatCompletion.ChatHistory();
+            chat.AddSystemMessage(systemMessage);
+            chat.AddUserMessage(conversationHistoryJson);
+
+            var chatCompletionService = kernel.GetRequiredService<Microsoft.SemanticKernel.ChatCompletion.IChatCompletionService>();
+            
+            var settings = new Microsoft.SemanticKernel.Connectors.OpenAI.OpenAIPromptExecutionSettings
+            {
+                ResponseFormat = "json_object",
+                Temperature = 0.1
+            };
+
+            var response = await chatCompletionService.GetChatMessageContentAsync(chat, settings, kernel, cancellationToken);
+            var raw = response.Content?.Trim() ?? string.Empty;
             if (raw.StartsWith("```"))
                 raw = raw.Replace("```json", "").Replace("```", "").Trim();
 
@@ -91,24 +121,54 @@ namespace TaskPilot.AI.Agents.Requirements
 
         public async Task<InterviewQuestionGenerationResult> GenerateInterviewQuestionsAsync(
             RequirementSession session,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            string lang = "en")
         {
             var kernel = _kernelService.CreateKernel(ModelConstants.PowerfulModel);
             var prompt = await _promptLoader.LoadAsync("Requirements/InterviewQuestionGeneration.yaml");
-            var function = KernelFunctionYaml.FromPromptYaml(prompt);
-
+            
             var jsonOptions = new JsonSerializerOptions { WriteIndented = false };
             var conversationHistoryJson = JsonSerializer.Serialize(session.ConversationHistory, jsonOptions);
 
-            var invokeResult = await kernel.InvokeAsync(
-                function,
-                new KernelArguments 
-                { 
-                    ["initialContext"] = conversationHistoryJson
-                },
-                cancellationToken: cancellationToken);
+            int templateIndex = prompt.IndexOf("template: |");
+            var yamlPromptBody = templateIndex >= 0 
+                ? prompt.Substring(templateIndex + 11).Trim() 
+                : prompt;
 
-            var raw = invokeResult.ToString().Trim();
+            yamlPromptBody = yamlPromptBody
+                .Replace("{{$initialContext}}", conversationHistoryJson);
+
+            var systemMessage = lang == "ar"
+                ? $"""
+                   أنت مساعد متخصص في تحليل متطلبات المشاريع.
+                   يجب أن تكون جميع ردودك وجميع حقول JSON باللغة العربية الفصحى حصراً.
+                   لا تستخدم الإنجليزية في أي جزء من الإخراج.
+                   لا تضف أي جملة تمهيدية. أخرج JSON فقط بدون أي نص إضافي.
+                   لا تكتب أي نص قبل أو بعد JSON. يجب أن يكون ردك كاملاً عبارة عن كائن JSON واحد صالح. بدون مقدمة أو تفسير أو ملاحظات ختامية.
+
+                   {yamlPromptBody}
+                   """
+                : $"""
+                   You are a project requirements analysis assistant.
+                   Respond in English only. Output raw JSON only, no preamble.
+                   Do NOT output any text before or after the JSON. Your entire response must be a single valid JSON object. No introduction, no explanation, no closing remarks.
+
+                   {yamlPromptBody}
+                   """;
+
+            var chat = new Microsoft.SemanticKernel.ChatCompletion.ChatHistory();
+            chat.AddSystemMessage(systemMessage);
+            chat.AddUserMessage(conversationHistoryJson);
+
+            var chatCompletionService = kernel.GetRequiredService<Microsoft.SemanticKernel.ChatCompletion.IChatCompletionService>();
+            
+            var settings = new Microsoft.SemanticKernel.Connectors.OpenAI.OpenAIPromptExecutionSettings
+            {
+                ResponseFormat = "json_object"
+            };
+
+            var response = await chatCompletionService.GetChatMessageContentAsync(chat, settings, kernel, cancellationToken);
+            var raw = response.Content?.Trim() ?? string.Empty;
             if (raw.StartsWith("```"))
                 raw = raw.Replace("```json", "").Replace("```", "").Trim();
 

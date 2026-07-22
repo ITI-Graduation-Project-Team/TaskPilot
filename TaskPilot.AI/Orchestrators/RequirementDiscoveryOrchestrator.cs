@@ -101,7 +101,12 @@ namespace TaskPilot.AI.Orchestrators
                 };
             }
 
-
+            string textForLang = request.Message;
+            if (string.IsNullOrWhiteSpace(textForLang) && session.ConversationHistory.Any())
+            {
+                textForLang = session.ConversationHistory.Last().Message;
+            }
+            var lang = DetectLanguage(textForLang ?? "");
 
             bool isModified = false;
             int documentsProcessed = 0;
@@ -238,10 +243,11 @@ namespace TaskPilot.AI.Orchestrators
                         // Affirmative or ambiguous response (e.g. "Yes"). 
                         // Keep AwaitingBrd, do not invoke further agents, and explicitly ask for the file.
                         session.QuestionPool.RemoveAll(q => !q.IsAnswered);
+                        var str1 = T(lang, "يرجى المضي قدماً ورفع وثيقة BRD الخاصة بك وسأقوم بتحليلها لك.", "Please go ahead and upload your BRD document and I'll analyze it for you.");
                         session.QuestionPool.Add(new ClarificationQuestion
                         {
                             Id = Guid.NewGuid(),
-                            Question = "Please go ahead and upload your BRD document and I'll analyze it for you.",
+                            Question = str1,
                             Category = TaskPilot.AI.Enums.QuestionCategory.General,
                             Priority = TaskPilot.AI.Enums.QuestionPriority.Critical,
                             Reason = "Waiting for BRD upload.",
@@ -303,7 +309,7 @@ namespace TaskPilot.AI.Orchestrators
                     session.IsInterviewMode = true;
                     session.InterviewProgress = 0;
                     
-                    var interviewQuestions = await _requirementAnalysisAgent.GenerateInterviewQuestionsAsync(session, cancellationToken);
+                    var interviewQuestions = await _requirementAnalysisAgent.GenerateInterviewQuestionsAsync(session, cancellationToken, lang);
                     foreach (var group in interviewQuestions.QuestionGroups)
                     {
                         foreach (var q in group.Questions)
@@ -333,7 +339,7 @@ namespace TaskPilot.AI.Orchestrators
                         brdPrompt.AnsweredFromSource = "System";
                     }
 
-                    var interviewQuestions = await _requirementAnalysisAgent.GenerateInterviewQuestionsAsync(session, cancellationToken);
+                    var interviewQuestions = await _requirementAnalysisAgent.GenerateInterviewQuestionsAsync(session, cancellationToken, lang);
                     foreach (var group in interviewQuestions.QuestionGroups)
                     {
                         foreach (var q in group.Questions)
@@ -358,10 +364,11 @@ namespace TaskPilot.AI.Orchestrators
             if (!session.QuestionPool.Any(q => q.IsBrdPrompt) && !session.Knowledge.Documents.Any() && !session.IsInterviewMode)
             {
                 session.Status = RequirementSessionStatus.AwaitingBrd;
+                var str2 = T(lang, "هل لديك وثيقة متطلبات الأعمال (BRD) تريد رفعها؟ إذا كان الأمر كذلك، يرجى إرفاقها الآن. إذا لم يكن كذلك، فقط أخبرني وسنبدأ ببعض الأسئلة بدلاً من ذلك.", "Do you have a Business Requirements Document (BRD) you would like to upload? If yes, please attach it now. If not, just let me know and we'll get started with some questions instead.");
                 session.QuestionPool.Add(new ClarificationQuestion
                     {
                         Id = Guid.NewGuid(),
-                        Question = "Do you have a Business Requirements Document (BRD) you would like to upload? If yes, please attach it now. If not, just let me know and we'll get started with some questions instead.",
+                        Question = str2,
                         Category = TaskPilot.AI.Enums.QuestionCategory.General,
                         Priority = TaskPilot.AI.Enums.QuestionPriority.Critical,
                         Reason = "A BRD is the primary source of truth.",
@@ -387,7 +394,7 @@ namespace TaskPilot.AI.Orchestrators
 
             // 4. Requirement Analysis
             // Analyze the full BRD context combined with the conversation history.
-            var analysis = await _requirementAnalysisAgent.AnalyzeAsync(session, cancellationToken);
+            var analysis = await _requirementAnalysisAgent.AnalyzeAsync(session, cancellationToken, lang);
 
             // 5. Update Requirements via Consolidation Engine
             var proposedExtractions = MapToIdentities(analysis.ExtractedRequirements, "BRD Analysis");
@@ -540,10 +547,11 @@ namespace TaskPilot.AI.Orchestrators
                             ? string.Join(", ", session.RequirementCompletenessReport.MissingCriticalAreas) 
                             : (session.RequirementCompletenessReport.BlockingCategories.Any() ? string.Join(", ", session.RequirementCompletenessReport.BlockingCategories) : "additional requirements");
 
+                        var str3 = T(lang, $"نحتاج إلى مزيد من المعلومات للوصول إلى نسبة اكتمال 85٪. هل يمكنك تقديم مزيد من التفاصيل بشأن: {missingStr}؟", $"We need more information to reach the 85% completeness threshold. Could you provide more details regarding: {missingStr}?");
                         session.QuestionPool.Add(new ClarificationQuestion
                         {
                             Id = Guid.NewGuid(),
-                            Question = $"We need more information to reach the 85% completeness threshold. Could you provide more details regarding: {missingStr}?",
+                            Question = str3,
                             Category = MapCategory("General"),
                             Priority = MapPriority("High"),
                             Reason = "Completeness score is below the required 85% threshold.",
@@ -751,5 +759,13 @@ namespace TaskPilot.AI.Orchestrators
                 });
             }
         }
+
+        private static string DetectLanguage(string text) =>
+            System.Text.RegularExpressions.Regex.IsMatch(
+                text, @"[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]")
+            ? "ar" : "en";
+
+        private static string T(string lang, string arabic, string english) =>
+            lang == "ar" ? arabic : english;
     }
 }

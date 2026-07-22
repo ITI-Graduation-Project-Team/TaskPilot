@@ -34,6 +34,15 @@ namespace TaskPilot.AI.Orchestrators
             _logger = logger;
         }
 
+        private static string DetectLanguage(string text)
+        {
+            // Arabic Unicode blocks: Arabic, Arabic Supplement, Arabic Extended-A
+            return System.Text.RegularExpressions.Regex.IsMatch(
+                text, @"[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]")
+                ? "ar"
+                : "en";
+        }
+
         public async Task<string> ProcessBacklogChatAsync(Guid projectId, string message, CancellationToken cancellationToken = default)
         {
             // 1. Get existing session
@@ -45,7 +54,21 @@ namespace TaskPilot.AI.Orchestrators
 
             // 2. Initialize Semantic Kernel Chat History
             var systemPrompt = await _promptLoader.LoadAsync("Backlog/backlog_chat.yaml");
-            var chatHistory = new ChatHistory(systemPrompt);
+            
+            if (!systemPrompt.Contains("{{$lang}}"))
+            {
+                systemPrompt += "\n[System] Language to use for your response: {{$lang}}";
+            }
+
+            var lang = DetectLanguage(message);
+            var arguments = new KernelArguments();
+            arguments["lang"] = lang;
+
+            var kernel = _kernelService.CreateKernel(ModelConstants.PowerfulModel);
+            var factory = new KernelPromptTemplateFactory();
+            var renderedPrompt = await factory.Create(new PromptTemplateConfig(systemPrompt)).RenderAsync(kernel, arguments);
+
+            var chatHistory = new ChatHistory(renderedPrompt);
 
             // Inject the backlog context BEFORE replaying chat history
             var backlogResult = await _backlogService.GetBacklogAsync(projectId);
@@ -79,9 +102,6 @@ namespace TaskPilot.AI.Orchestrators
 
             // 3. Add new user message
             chatHistory.AddUserMessage(message);
-
-            // 4. Create Kernel
-            var kernel = _kernelService.CreateKernel(ModelConstants.PowerfulModel);
 
             // 5. Get chat completion service
             var chatCompletionService = kernel.GetRequiredService<IChatCompletionService>();
