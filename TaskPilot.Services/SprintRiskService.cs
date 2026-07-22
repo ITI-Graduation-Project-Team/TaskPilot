@@ -307,6 +307,9 @@ namespace TaskPilot.Services
             if (sprint == null)
                 return Result<TeamPulseDto>.Failure(SprintRiskErrors.SprintNotFound);
 
+            // Force real-time AI burnout analysis before returning the pulse data
+            await AnalyzeSprintBurnoutAsync(sprintId, ct);
+
             var latestSnapshots = await _context.Set<SprintBurnoutSnapshot>()
                 .Include(s => s.Employee)
                 .Where(s => s.SprintId == sprintId)
@@ -487,22 +490,46 @@ namespace TaskPilot.Services
                     Workload = workloadDistribution,
                     Burndown = burndownDto
                 },
-                Members = latestSnapshots.Where(s => s != null).Select(s => new TeamPulseMemberDto
-                {
-                    EmployeeId = s!.EmployeeId,
-                    Initials = $"{s.Employee.FirstNameEn.FirstOrDefault()}{s.Employee.LastNameEn.FirstOrDefault()}",
-                    Name = $"{s.Employee.FirstNameEn} {s.Employee.LastNameEn}",
-                    JobTitle = s.Employee.JobTitle ?? "Software Engineer",
-                    RiskLevel = s.RiskLevel,
-                    BurnoutScore = s.BurnoutScore,
-                    RiskFactors = new RiskFactorsDto
+                Members = sprint.Project.ProjectEmployees.Select(pe => {
+                    var emp = pe.Employee;
+                    var s = latestSnapshots.FirstOrDefault(snap => snap?.EmployeeId == emp.Id);
+                    
+                    if (s != null)
                     {
-                        Workload = s.WorkloadScore,
-                        Pace = s.PaceScore,
-                        Engagement = s.EngagementScore
-                    },
-                    TrendDirection = s.TrendDirection,
-                    History = historySnapshots.Where(h => h.EmployeeId == s.EmployeeId).Select(h => h.BurnoutScore).ToList()
+                        return new TeamPulseMemberDto
+                        {
+                            EmployeeId = emp.Id,
+                            Initials = $"{emp.FirstNameEn.FirstOrDefault()}{emp.LastNameEn.FirstOrDefault()}",
+                            Name = $"{emp.FirstNameEn} {emp.LastNameEn}",
+                            JobTitle = emp.JobTitle ?? "Software Engineer",
+                            RiskLevel = s.RiskLevel,
+                            BurnoutScore = s.BurnoutScore,
+                            RiskFactors = new RiskFactorsDto
+                            {
+                                Workload = s.WorkloadScore,
+                                Pace = s.PaceScore,
+                                Engagement = s.EngagementScore
+                            },
+                            TrendDirection = s.TrendDirection,
+                            History = historySnapshots.Where(h => h.EmployeeId == emp.Id).Select(h => h.BurnoutScore).ToList()
+                        };
+                    }
+                    else
+                    {
+                        // Fallback for members who haven't been analyzed yet
+                        return new TeamPulseMemberDto
+                        {
+                            EmployeeId = emp.Id,
+                            Initials = $"{emp.FirstNameEn.FirstOrDefault()}{emp.LastNameEn.FirstOrDefault()}",
+                            Name = $"{emp.FirstNameEn} {emp.LastNameEn}",
+                            JobTitle = emp.JobTitle ?? "Software Engineer",
+                            RiskLevel = "Healthy",
+                            BurnoutScore = 0,
+                            RiskFactors = new RiskFactorsDto { Workload = 0, Pace = 0, Engagement = 0 },
+                            TrendDirection = "Stable",
+                            History = new List<int> { 0 }
+                        };
+                    }
                 }).ToList()
             };
 
