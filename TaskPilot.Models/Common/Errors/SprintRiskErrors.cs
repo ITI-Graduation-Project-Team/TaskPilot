@@ -12,5 +12,8 @@ namespace TaskPilot.Models.Common.Errors
         
         public static readonly Error SimulationFailed =
             new("RISK_SIMULATION_FAILED", ErrorType.Failure);
+            
+        public static readonly Error SprintNotFound =
+            new("SPRINT_NOT_FOUND", ErrorType.NotFound);
     }
 }

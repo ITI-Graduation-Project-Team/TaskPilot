@@ -22,8 +22,9 @@ template: |
   - Flag `CapacityOverload` if `ScheduledHoursToday > 9` for an employee with `InProgress` tasks.
   - Flag `DependencyBlocker` if a task is blocked AND other `InProgress` tasks depend on its completion.
   - Flag `SkillGap` if a task's required skill is not covered by any team member at the required level.
+  - Flag `ContextSwitching` if a single `Employee` has more than 3 tasks in the `InProgress` status simultaneously.
   - Severity rules: Critical if sprint completion is directly threatened; High if a specific task will be delayed; Medium if it's a warning.
-  - RiskType must match: VelocityDeviation, CapacityOverload, DependencyBlocker, SkillGap
+  - RiskType must match: VelocityDeviation, CapacityOverload, DependencyBlocker, SkillGap, UnfinishedTask, BurnoutRisk, ContextSwitching
   - Severity must match: Medium, High, Critical
   - Never wrap JSON inside markdown.
   - Never return code fences.

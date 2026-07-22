@@ -46,6 +46,7 @@ namespace TaskPilot.Data.Context
         public DbSet<CalenderEvent>CalenderEvents => Set<CalenderEvent>();
         public DbSet<SprintRetrospective> SprintRetrospectives => Set<SprintRetrospective>();
         public DbSet<SprintRiskAlert> SprintRiskAlerts => Set<SprintRiskAlert>();
+        public DbSet<SprintBurnoutSnapshot> SprintBurnoutSnapshots => Set<SprintBurnoutSnapshot>();
         public DbSet<TaskAiSummary> TaskAiSummaries => Set<TaskAiSummary>();
         
         public DbSet<ProjectChatSession> ProjectChatSessions => Set<ProjectChatSession>();

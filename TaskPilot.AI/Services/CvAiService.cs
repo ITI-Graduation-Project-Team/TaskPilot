@@ -11,8 +11,7 @@ namespace TaskPilot.AI.Services
     public class CvAiService
         : ICvAiService
     {
-        private readonly Kernel
-            _kernel;
+        private readonly IAiKernelService _kernelService;
         private readonly IPromptLoaderService _promptLoaderService;
 
         private static readonly
@@ -34,11 +33,7 @@ namespace TaskPilot.AI.Services
             IPromptLoaderService
                 promptLoaderService)
         {
-            _kernel =
-                kernelService
-                    .CreateKernel(
-                        ModelConstants
-                            .CheapModel);
+            _kernelService = kernelService;
 
             _promptLoaderService = promptLoaderService;
         }
@@ -53,9 +48,10 @@ namespace TaskPilot.AI.Services
 
             var function =
                 KernelFunctionYaml.FromPromptYaml(prompt);
+            var kernel = _kernelService.CreateKernel(ModelConstants.CheapModel);
 
             var result =
-                await _kernel.InvokeAsync(
+                await kernel.InvokeAsync(
                     function,
                     new KernelArguments
                     {

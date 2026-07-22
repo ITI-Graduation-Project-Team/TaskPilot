@@ -20,17 +20,20 @@ namespace TaskPilot.Services
     {
         private readonly ApplicationDbContext _context;
         private readonly SprintRiskDetectionAgent _detectionAgent;
+        private readonly SprintBurnoutAgent _burnoutAgent;
         private readonly WhatIfSimulationAgent _simulationAgent;
         private readonly INotificationService _notificationService;
 
         public SprintRiskService(
             ApplicationDbContext context,
             SprintRiskDetectionAgent detectionAgent,
+            SprintBurnoutAgent burnoutAgent,
             WhatIfSimulationAgent simulationAgent,
             INotificationService notificationService)
         {
             _context = context;
             _detectionAgent = detectionAgent;
+            _burnoutAgent = burnoutAgent;
             _simulationAgent = simulationAgent;
             _notificationService = notificationService;
         }
@@ -239,6 +242,279 @@ namespace TaskPilot.Services
             };
 
             return Result<SprintRiskSimulationResponseDto>.Success(response);
+        }
+        public async Task AnalyzeSprintBurnoutAsync(Guid sprintId, CancellationToken ct = default)
+        {
+            var sprint = await _context.Set<Sprint>()
+                .Include(s => s.Project)
+                .ThenInclude(p => p.ProjectEmployees)
+                .ThenInclude(pe => pe.Employee)
+                .Include(s => s.Tasks)
+                .ThenInclude(t => t.Comments)
+                .FirstOrDefaultAsync(s => s.Id == sprintId, ct);
+
+            if (sprint == null || sprint.Status != SprintStatus.Active || sprint.IsDeleted)
+                return;
+
+            foreach (var pe in sprint.Project.ProjectEmployees)
+            {
+                var employee = pe.Employee;
+                var assignedTasks = sprint.Tasks.Where(t => t.EmployeeId == employee.Id && !t.IsDeleted).ToList();
+                var commentsCount = assignedTasks.SelectMany(t => t.Comments).Count(c => c.CreatedBy == employee.Id);
+
+                var employeeContext = new EmployeeSprintBurnoutContext
+                {
+                    EmployeeId = employee.Id,
+                    EmployeeName = $"{employee.FirstNameEn} {employee.LastNameEn}",
+                    MaxSprintCapacity = employee.MaxSprintHours ?? 40,
+                    AssignedHours = assignedTasks.Sum(t => t.EstimatedHours),
+                    ActualHours = assignedTasks.Sum(t => t.ActualHours),
+                    TasksAssigned = assignedTasks.Count,
+                    TasksOverdue = assignedTasks.Count(t => t.Status != TaskItemStatus.Done && t.ActualHours > t.EstimatedHours),
+                    CommentsMade = commentsCount,
+                    StatusUpdates = assignedTasks.Count(t => t.Status == TaskItemStatus.Done || t.Status == TaskItemStatus.Review)
+                };
+
+                var burnoutResult = await _burnoutAgent.AnalyzeAsync(employeeContext, ct);
+
+                var snapshot = new SprintBurnoutSnapshot
+                {
+                    SprintId = sprint.Id,
+                    EmployeeId = employee.Id,
+                    BurnoutScore = burnoutResult.BurnoutScore,
+                    WorkloadScore = burnoutResult.WorkloadScore,
+                    PaceScore = burnoutResult.PaceScore,
+                    EngagementScore = burnoutResult.EngagementScore,
+                    RiskLevel = burnoutResult.RiskLevel,
+                    TrendDirection = burnoutResult.TrendDirection,
+                    AnalyzedAt = DateTime.UtcNow
+                };
+
+                _context.Set<SprintBurnoutSnapshot>().Add(snapshot);
+            }
+
+            await _context.SaveChangesAsync(ct);
+        }
+        public async Task<Result<TeamPulseDto>> GetTeamPulseAsync(Guid sprintId, CancellationToken ct = default)
+        {
+            var sprint = await _context.Set<Sprint>()
+                .Include(s => s.Tasks)
+                .Include(s => s.Project)
+                .ThenInclude(p => p.ProjectEmployees)
+                .ThenInclude(pe => pe.Employee)
+                .FirstOrDefaultAsync(s => s.Id == sprintId, ct);
+                
+            if (sprint == null)
+                return Result<TeamPulseDto>.Failure(SprintRiskErrors.SprintNotFound);
+
+            var latestSnapshots = await _context.Set<SprintBurnoutSnapshot>()
+                .Include(s => s.Employee)
+                .Where(s => s.SprintId == sprintId)
+                .GroupBy(s => s.EmployeeId)
+                .Select(g => g.OrderByDescending(s => s.AnalyzedAt).FirstOrDefault())
+                .ToListAsync(ct);
+
+            var historySnapshots = await _context.Set<SprintBurnoutSnapshot>()
+                .Where(s => s.SprintId == sprintId && s.AnalyzedAt >= DateTime.UtcNow.AddDays(-7))
+                .OrderBy(s => s.AnalyzedAt)
+                .ToListAsync(ct);
+
+            var activeAlertsCount = await _context.Set<SprintRiskAlert>()
+                .CountAsync(a => a.SprintId == sprintId && !a.IsDismissed, ct);
+
+            // KPI 1: Progress
+            int totalTasks = sprint.Tasks.Count(t => !t.IsDeleted);
+            int completedTasks = sprint.Tasks.Count(t => !t.IsDeleted && t.Status == TaskItemStatus.Done);
+            int approachingDeadline = sprint.Tasks.Count(t => !t.IsDeleted && t.Status != TaskItemStatus.Done && (sprint.EndDate - DateTime.UtcNow).TotalDays < 2);
+            
+            // KPI 2: Velocity
+            int totalVelocity = (int)sprint.Tasks.Where(t => !t.IsDeleted).Sum(t => t.ActualHours);
+            int targetVelocity = (int)sprint.Project.ProjectEmployees.Sum(pe => pe.Employee.MaxSprintHours ?? 40);
+            
+            // KPI 3: Health
+            int overdueTasksCount = sprint.Tasks.Count(t => !t.IsDeleted && t.Status != TaskItemStatus.Done && t.ActualHours > t.EstimatedHours);
+            int healthScore = Math.Max(0, 100 - (activeAlertsCount * 10) - (overdueTasksCount * 5));
+            
+            // KPI 4: Burnout
+            int teamBurnoutAvg = latestSnapshots.Any(s => s != null) ? (int)latestSnapshots.Where(s => s != null).Average(s => s!.BurnoutScore) : 0;
+            int highRiskCount = latestSnapshots.Count(s => s != null && s.RiskLevel == "High");
+
+            // Activity Feed (Alerts & Task Completions)
+            var alerts = await _context.Set<SprintRiskAlert>()
+                .Include(a => a.AffectedEmployee)
+                .Where(a => a.SprintId == sprintId)
+                .OrderByDescending(a => a.CreatedAt)
+                .Take(5)
+                .ToListAsync(ct);
+
+            var doneTasks = sprint.Tasks
+                .Where(t => t.Status == TaskItemStatus.Done && t.ModifiedAt != null)
+                .OrderByDescending(t => t.ModifiedAt)
+                .Take(5)
+                .ToList();
+
+            var activities = new List<ActivityFeedItemDto>();
+            
+            foreach(var a in alerts)
+            {
+                activities.Add(new ActivityFeedItemDto {
+                    Id = a.Id,
+                    Initials = a.AffectedEmployee != null ? $"{a.AffectedEmployee.FirstNameEn.FirstOrDefault()}{a.AffectedEmployee.LastNameEn.FirstOrDefault()}" : "AI",
+                    Name = a.AffectedEmployee != null ? $"{a.AffectedEmployee.FirstNameEn} {a.AffectedEmployee.LastNameEn}" : "System",
+                    ActionType = a.Severity == RiskSeverity.Critical ? "CRITICAL" : "ALERT",
+                    Description = a.MessageEn,
+                    Timestamp = a.CreatedAt,
+                    TimeAgo = GetTimeAgo(a.CreatedAt),
+                    AgentTag = "Agile Coach"
+                });
+            }
+            
+            foreach(var t in doneTasks)
+            {
+                var emp = sprint.Project.ProjectEmployees.FirstOrDefault(pe => pe.EmployeeId == t.EmployeeId)?.Employee;
+                activities.Add(new ActivityFeedItemDto {
+                    Id = t.Id,
+                    Initials = emp != null ? $"{emp.FirstNameEn.FirstOrDefault()}{emp.LastNameEn.FirstOrDefault()}" : "UK",
+                    Name = emp != null ? $"{emp.FirstNameEn} {emp.LastNameEn}" : "Unknown",
+                    ActionType = "SUCCESS",
+                    Description = $"Completed task: {t.TitleEn}",
+                    Timestamp = t.ModifiedAt ?? DateTime.UtcNow,
+                    TimeAgo = GetTimeAgo(t.ModifiedAt ?? DateTime.UtcNow),
+                    AgentTag = ""
+                });
+            }
+
+            // --- CHARTS CALCULATIONS ---
+            
+            // 1. Top Contributors
+            var topContributors = sprint.Tasks
+                .Where(t => t.Status == TaskItemStatus.Done && !t.IsDeleted && t.EmployeeId.HasValue)
+                .GroupBy(t => t.EmployeeId)
+                .Select(g => new {
+                    EmployeeId = g.Key,
+                    CompletedHours = g.Sum(t => t.ActualHours),
+                    CompletedTasksCount = g.Count()
+                })
+                .OrderByDescending(x => x.CompletedHours)
+                .Take(3)
+                .ToList();
+                
+            var topContributorDtos = topContributors.Select(tc => {
+                var emp = sprint.Project.ProjectEmployees.FirstOrDefault(pe => pe.EmployeeId == tc.EmployeeId)?.Employee;
+                return new TopContributorDto
+                {
+                    Initials = emp != null ? $"{emp.FirstNameEn.FirstOrDefault()}{emp.LastNameEn.FirstOrDefault()}" : "UK",
+                    Name = emp != null ? $"{emp.FirstNameEn} {emp.LastNameEn}" : "Unknown",
+                    CompletedHours = (int)tc.CompletedHours,
+                    CompletedTasksCount = tc.CompletedTasksCount
+                };
+            }).ToList();
+
+            // 2. Workload Distribution
+            var activeTasksWorkload = sprint.Tasks
+                .Where(t => t.Status != TaskItemStatus.Done && !t.IsDeleted && t.EmployeeId.HasValue)
+                .Select(t => new { 
+                    t.EstimatedHours, 
+                    JobTitle = sprint.Project.ProjectEmployees.FirstOrDefault(pe => pe.EmployeeId == t.EmployeeId)?.Employee?.JobTitle ?? "Unspecified" 
+                })
+                .GroupBy(x => x.JobTitle)
+                .Select(g => new { JobTitle = g.Key, TotalHours = g.Sum(x => x.EstimatedHours) })
+                .ToList();
+
+            var workloadDistribution = new WorkloadDistributionDto
+            {
+                Labels = activeTasksWorkload.Select(w => w.JobTitle).ToList(),
+                Series = activeTasksWorkload.Select(w => (int)w.TotalHours).ToList()
+            };
+
+            // 3. Sprint Burndown (Simulated for visualization)
+            int totalSprintEstimatedHours = (int)sprint.Tasks.Where(t => !t.IsDeleted).Sum(t => t.EstimatedHours);
+            int sprintDurationDays = (sprint.EndDate - sprint.StartDate).Days > 0 ? (sprint.EndDate - sprint.StartDate).Days : 1;
+            int daysPassed = (DateTime.UtcNow - sprint.StartDate).Days;
+            daysPassed = Math.Clamp(daysPassed, 0, sprintDurationDays);
+            
+            var burndownLabels = new List<string>();
+            var idealTrend = new List<int>();
+            var actualTrend = new List<int>();
+            
+            int remainingHoursNow = (int)sprint.Tasks.Where(t => !t.IsDeleted && t.Status != TaskItemStatus.Done).Sum(t => t.EstimatedHours);
+            
+            for (int i = 0; i <= sprintDurationDays; i++)
+            {
+                DateTime currentDay = sprint.StartDate.AddDays(i);
+                burndownLabels.Add(currentDay.ToString("ddd")); // e.g. Mon, Tue
+                
+                int idealRemaining = totalSprintEstimatedHours - (totalSprintEstimatedHours / sprintDurationDays * i);
+                idealTrend.Add(Math.Max(0, idealRemaining));
+                
+                if (i <= daysPassed)
+                {
+                    if (i == daysPassed) actualTrend.Add(remainingHoursNow);
+                    else if (i == 0) actualTrend.Add(totalSprintEstimatedHours);
+                    else
+                    {
+                        int diff = totalSprintEstimatedHours - remainingHoursNow;
+                        int simulatedBurn = totalSprintEstimatedHours - (diff / (daysPassed == 0 ? 1 : daysPassed) * i);
+                        actualTrend.Add(simulatedBurn);
+                    }
+                }
+            }
+            
+            var burndownDto = new SprintBurndownDto
+            {
+                Labels = burndownLabels,
+                IdealTrend = idealTrend,
+                ActualTrend = actualTrend
+            };
+
+            var teamPulse = new TeamPulseDto
+            {
+                TeamBurnoutRisk = teamBurnoutAvg,
+                Kpis = new DashboardKpisDto {
+                    SprintProgressValue = $"{completedTasks} / {totalTasks}",
+                    SprintProgressSubtext = $"{approachingDeadline} approaching deadline",
+                    SprintVelocityValue = totalVelocity,
+                    SprintVelocitySubtext = $"Target: {targetVelocity} hrs/sprint",
+                    SprintHealthValue = healthScore,
+                    SprintHealthSubtext = healthScore < 70 ? "Below 70% threshold" : "On track",
+                    TeamBurnoutRiskValue = teamBurnoutAvg,
+                    TeamBurnoutRiskSubtext = $"{highRiskCount} members at HIGH risk"
+                },
+                LiveActivity = activities.OrderByDescending(a => a.Timestamp).Take(10).ToList(),
+                Charts = new TeamPulseChartsDto
+                {
+                    TopContributors = topContributorDtos,
+                    Workload = workloadDistribution,
+                    Burndown = burndownDto
+                },
+                Members = latestSnapshots.Where(s => s != null).Select(s => new TeamPulseMemberDto
+                {
+                    EmployeeId = s!.EmployeeId,
+                    Initials = $"{s.Employee.FirstNameEn.FirstOrDefault()}{s.Employee.LastNameEn.FirstOrDefault()}",
+                    Name = $"{s.Employee.FirstNameEn} {s.Employee.LastNameEn}",
+                    JobTitle = s.Employee.JobTitle ?? "Software Engineer",
+                    RiskLevel = s.RiskLevel,
+                    BurnoutScore = s.BurnoutScore,
+                    RiskFactors = new RiskFactorsDto
+                    {
+                        Workload = s.WorkloadScore,
+                        Pace = s.PaceScore,
+                        Engagement = s.EngagementScore
+                    },
+                    TrendDirection = s.TrendDirection,
+                    History = historySnapshots.Where(h => h.EmployeeId == s.EmployeeId).Select(h => h.BurnoutScore).ToList()
+                }).ToList()
+            };
+
+            return Result<TeamPulseDto>.Success(teamPulse);
+        }
+
+        private string GetTimeAgo(DateTime timestamp)
+        {
+            var span = DateTime.UtcNow - timestamp;
+            if (span.TotalMinutes < 60) return $"{(int)span.TotalMinutes}m ago";
+            if (span.TotalHours < 24) return $"{(int)span.TotalHours}h ago";
+            return $"{(int)span.TotalDays}d ago";
         }
     }
 }
