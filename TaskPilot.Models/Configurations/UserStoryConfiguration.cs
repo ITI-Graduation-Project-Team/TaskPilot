@@ -15,24 +15,10 @@ namespace TaskPilot.Models.Configurations
             builder.ToTable("UserStories");
 
             builder.Property(us => us.TitleEn)
-                   .IsRequired()
-                   .HasMaxLength(200);
+                   .IsRequired();
 
             builder.Property(us => us.TitleAr)
-                   .IsRequired()
-                   .HasMaxLength(200);
-
-            builder.Property(us => us.DescriptionEn)
-                   .HasMaxLength(2000);
-
-            builder.Property(us => us.DescriptionAr)
-                   .HasMaxLength(2000);
-
-            builder.Property(us => us.AcceptanceCriteriaEn)
-                   .HasMaxLength(2000);
-
-            builder.Property(us => us.AcceptanceCriteriaAr)
-                   .HasMaxLength(2000);
+                   .IsRequired();
 
             builder.Property(us => us.Priority)
                 .IsRequired()

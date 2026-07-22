@@ -62,6 +62,10 @@ description: Analyzes the project backlog and suggests ONLY the next Sprint (Spr
 
 template_format: semantic-kernel
 
+execution_settings:
+  default:
+    max_tokens: 16384
+
 template: |
   You are a Senior Agile Coach and Scrum Sprint Planning Expert.
 
@@ -98,7 +102,7 @@ template: |
   SPRINT PLANNING PRINCIPLES
   -------------------------------------------------------------------
 
-  Your primary objective is NOT to maximize story count.
+  Assign as many user stories as the targetSprintHours capacity allows, based purely on priority score and estimated hours. Do not artificially limit the number of stories per sprint. A sprint may include stories from multiple features or capabilities if capacity and priority justify it.
 
   Your primary objective is to deliver ONE valuable business milestone that
   could realistically be demonstrated at the Sprint Review.
@@ -152,8 +156,7 @@ template: |
   - Refunds
   - Billing Reports
 
-  NEVER mix unrelated capabilities in the same Sprint unless the backlog
-  itself is extremely small.
+
 
   -------------------------------------------------------------------
   CAPACITY RULES
@@ -177,7 +180,7 @@ template: |
   • The total hours should reflect the actual scope of the coherent business capability.
   • A Sprint may exceed TargetSprintHours naturally if required to complete the business milestone.
 
-  Only avoid obviously oversized Sprints that violate Agile principles.
+
 
   -------------------------------------------------------------------
   STOPPING RULES
