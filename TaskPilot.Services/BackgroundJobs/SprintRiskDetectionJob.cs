@@ -43,7 +43,6 @@ namespace TaskPilot.Services.BackgroundJobs
                 try
                 {
                     await riskService.DetectAndPersistRisksAsync(sprintId, stoppingToken);
-                    await riskService.AnalyzeSprintBurnoutAsync(sprintId, stoppingToken);
                 }
                 catch (Exception ex)
                 {
