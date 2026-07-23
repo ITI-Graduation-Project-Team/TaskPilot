@@ -14,30 +14,10 @@ namespace TaskPilot.Models.Configurations
             builder.ToTable("Tasks");
 
             builder.Property(t => t.TitleEn)
-                .IsRequired()
-                .HasMaxLength(200);
+                .IsRequired();
 
             builder.Property(t => t.TitleAr)
-                .IsRequired()
-                .HasMaxLength(200);
-
-            builder.Property(t => t.DescriptionEn)
-                .HasMaxLength(2000);
-
-            builder.Property(t => t.DescriptionAr)
-                .HasMaxLength(2000);
-
-            builder.Property(t => t.TechnicalSummaryEn)
-                .HasMaxLength(2000);
-
-            builder.Property(t => t.TechnicalSummaryAr)
-                .HasMaxLength(2000);
-
-            builder.Property(t => t.AcceptanceCriteriaEn)
-                .HasMaxLength(2000);
-
-            builder.Property(t => t.AcceptanceCriteriaAr)
-                .HasMaxLength(2000);
+                .IsRequired();
 
             builder.Property(t => t.EstimatedHours)
                 .HasColumnType("decimal(10,2)")
