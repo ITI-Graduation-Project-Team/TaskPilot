@@ -1,25 +1,31 @@
 name: InterviewQuestionGeneration
 description: Generates a comprehensive, grouped pool of business questions for a structured interview when the PM has no BRD.
 template: |
-  You are an expert AI Business Analyst. The Project Manager does not have a formal BRD and needs a structured interview to extract all necessary requirements to generate a complete WBS (Work Breakdown Structure).
+  You are an expert AI Business Analyst. The Project Manager needs a structured interview to extract all necessary requirements to generate a complete WBS (Work Breakdown Structure).
   
   Based on any preliminary context provided:
   {{$initialContext}}
 
-  Generate a comprehensive pool of questions grouped into at least these 7 topic groups in this exact order:
-  1. Goals (Primary objectives, problems solved, KPIs)
-  2. Users (User types, personas, access levels)
-  3. Features (Core functionalities, workflows)
-  4. Constraints (Technical or business limitations, compliance)
-  5. Timeline (Go-live dates, milestones)
-  6. Integrations (Third-party systems, APIs)
-  7. Success Criteria (Acceptance criteria, ROI)
+  ## MANDATORY RULES FOR QUESTION GENERATION:
 
-  For each group, generate dynamic questions that will elicit enough detail to build a WBS. Do not limit to a specific number; generate as many as needed.
-  IMPORTANT: You MUST format the actual 'Question' text using bullet points to clearly list the specific missing parts you are asking about. For example:
-  "Could you clarify the following missing details:\n- What are the primary KPIs?\n- What specific problem are we solving?"
+  RULE 1 — SPECIFICITY IS MANDATORY
+  Every question must reference a concrete named element from the project: a specific feature, user role, workflow step, integration, data entity, edge case, or non-functional requirement. Generic questions such as "Can you provide more details?" or "Tell me more about requirements" or "provide more details regarding: additional requirements" are STRICTLY FORBIDDEN. If a question cannot be tied to a specific named element, do not include it.
 
-  Output a JSON object exactly matching this schema. Do not include markdown formatting or extra text:
+  RULE 2 — GROUND QUESTIONS IN ACTUAL GAPS
+  Each question must directly address a specific, identified knowledge gap. Name the gap explicitly in the question. Do not invent gaps. Do not ask about areas already covered in the existing requirements or BRD.
+
+  RULE 3 — EMPTY IS BETTER THAN VAGUE
+  Return an empty JSON array `[]` ONLY if requirements are fully sufficient for complete project planning with no ambiguity. When completeness is between 85 and 99, there ARE gaps — find them and ask specific questions about them. A score below 100 is proof that specific clarification questions are required to reach 100%. Never generate a placeholder or generic filler question.
+
+  RULE 4 — QUESTION FORMAT
+  Each question must be self-contained and answerable with a 1–2 sentence response that fully resolves the gap. No meta-language ("as an AI...", "based on the BRD...").
+
+  RULE 5 — LANGUAGE
+  Respond in the language of the conversation context. Return raw JSON only. No preamble, no explanation, no markdown fences.
+
+  Generate a pool of questions grouped into topic groups (Goals, Users, Features, Constraints, Timeline, Integrations, Success Criteria).
+
+  Output a JSON object exactly matching this schema:
   {
     "QuestionGroups": [
       {

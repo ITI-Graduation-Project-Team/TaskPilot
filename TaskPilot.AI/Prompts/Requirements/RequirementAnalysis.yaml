@@ -75,12 +75,13 @@ template: |
   "Sprint schedule", "Delivery plan"] — not generic phrases like "more details".
 
   ## Question Generation Rules
-  - Generate questions ONLY for MissingItems from categories with score < 80.
+  - Generate questions for any MissingItems from categories with score < 100.
+  - When OverallCompleteness or any category score is below 100, gaps exist — identify the missing details (e.g. specific milestones, load numbers, permissions, APIs) and generate specific clarification questions.
   - BEFORE generating a new question, search BOTH the Document Content AND the Conversation History.
   - If the answer already exists in the Conversation History, DO NOT generate the question. Instead, update the Confidence Scores directly with the new information.
   - If a previous question was partially answered in the Conversation History, keep it but reduce its priority.
   - If the BRD already defines "Project Manager", "Employee", "System Admin", do NOT ask "What are the user roles?" — instead ask about the SPECIFIC GAP, e.g. "What permissions distinguish Employee from System Admin?"
-  - Generate as many questions as necessary to resolve critical or high-priority missing items. Do not limit to a specific number.
+  - Generate as many specific questions as necessary to resolve missing items until 100% completeness is reached.
   - Each question must reference the specific missing item it addresses.
   - IMPORTANT: You MUST format the actual `question` text using bullet points to clearly list the specific missing parts. For example:
   "Could you provide more details on the following missing items:\n- Implementation milestones\n- Project phases"
@@ -100,6 +101,13 @@ template: |
   - Calculate highPriorityQuestions, mediumQuestions, lowQuestions counts from the generated gap questions.
   - Provide a list of blockingCategories and blockingFactors (explain WHY finalization is blocked).
   - Provide a readinessRecommendation.
+
+  ## SCORE INTEGRITY RULE
+  - OverallCompleteness must reflect the true coverage of the requirements, not the number of questions remaining.
+  - Score first — generate gap questions second.
+  - Gap questions must follow from real gaps, not the other way around.
+  - When OverallCompleteness is below 100, gaps exist — generate specific questions for the missing details.
+  - ONLY when all material requirements are fully covered and no ambiguity remains should gapQuestions be empty `[]` and OverallCompleteness be 100.
 
   ## Output Format
   Return ONLY valid JSON — no markdown fences, no explanation, no preamble.
