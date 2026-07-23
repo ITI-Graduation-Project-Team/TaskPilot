@@ -280,6 +280,15 @@ namespace TaskPilot.Services
             var userResult = await _identityService.GetOrCreateExternalUser(googleUser.FirstName, googleUser.LastName, googleUser.Email, "Google", googleUser.GoogleId);
             if (userResult.IsFailure)
             {
+                if (userResult.Error.Code == AuthErrors.RoleSelectionRequired.Code)
+                {
+                    return Result.Success(new AuthResponseDTO
+                    {
+                        RequireRoleSelection = true,
+                        Email = googleUser.Email,
+                        FullName = $"{googleUser.FirstName} {googleUser.LastName}".Trim()
+                    });
+                }
                 return userResult.Error;
             }
             var user = userResult.Value;
@@ -303,7 +312,52 @@ namespace TaskPilot.Services
                 IsProfileCompleted = user is Employee emp ? emp.IsProfileCompleted : user.CompanyId.HasValue
             };
             return response;
+        }
 
+        public async Task<Result<AuthResponseDTO>> CompleteGoogleSignupAsync(string idToken, UserRole role)
+        {
+            var googleResult = await _googleAuthService.ValidateTokenAsync(idToken);
+            if (googleResult.IsFailure)
+            {
+                return googleResult.Error;
+            }
+            var googleUser = googleResult.Value;
+
+            var userResult = await _identityService.CompleteExternalUserSignup(
+                googleUser.FirstName,
+                googleUser.LastName,
+                googleUser.Email,
+                "Google",
+                googleUser.GoogleId,
+                role
+            );
+
+            if (userResult.IsFailure)
+            {
+                return userResult.Error;
+            }
+
+            var user = userResult.Value;
+
+            var token = await _tokenService.GenerateAccessToken(user);
+            var refreshToken = await _refreshTokenService.GenerateAsync(user);
+            var roles = (await _identityService.GetRolesAsync(user)).Value.ToList();
+
+            if (refreshToken.IsFailure)
+                return Result.Failure<AuthResponseDTO>(refreshToken.Error);
+
+            bool isArabic = _localizationService.CurrentLanguage == "ar";
+
+            return new AuthResponseDTO
+            {
+                Email = user.Email,
+                FullName = isArabic ? $"{user.FirstNameAr} {user.LastNameAr}".Trim() : $"{user.FirstNameEn} {user.LastNameEn}".Trim(),
+                Token = token,
+                Roles = roles,
+                UserId = user.Id,
+                RefreshToken = refreshToken.Value,
+                IsProfileCompleted = user is Employee emp ? emp.IsProfileCompleted : user.CompanyId.HasValue
+            };
         }
 
         public async Task<Result> ForgotPasswordAsync(ForgotPasswordDto dto)

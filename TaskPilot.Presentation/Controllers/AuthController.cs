@@ -63,6 +63,13 @@ namespace TaskPilot.Presentation.Controllers
             return HandleResult(result, SuccessCodes.Auth.GoogleLogin);
         }
 
+        [HttpPost("google/complete-signup")]
+        public async Task<ActionResult> CompleteGoogleSignup([FromBody] GoogleCompleteSignupDTO request)
+        {
+            var result = await _authService.CompleteGoogleSignupAsync(request.IdToken, request.Role);
+            return HandleResult(result, SuccessCodes.Auth.GoogleLogin);
+        }
+
         [HttpPost("refresh-token")]
         public async Task<ActionResult> RefreshToken([FromBody] RefreshTokenDTO request)
         {
