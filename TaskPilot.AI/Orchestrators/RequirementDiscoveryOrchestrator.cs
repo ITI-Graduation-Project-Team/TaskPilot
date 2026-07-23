@@ -396,6 +396,8 @@ namespace TaskPilot.AI.Orchestrators
             // Analyze the full BRD context combined with the conversation history.
             var analysis = await _requirementAnalysisAgent.AnalyzeAsync(session, cancellationToken, lang);
 
+            _logger.LogDebug("AnalyzeAsync completed. GapQuestionsCount={Count}", analysis.GapQuestions?.Count ?? 0);
+
             // 5. Update Requirements via Consolidation Engine
             var proposedExtractions = MapToIdentities(analysis.ExtractedRequirements, "BRD Analysis");
             if (proposedExtractions.Any())
@@ -491,11 +493,77 @@ namespace TaskPilot.AI.Orchestrators
                     });
                 }
             }
+            else
+            {
+                // Interview mode (No BRD): populate question pool from analysis.GapQuestions or GenerateInterviewQuestionsAsync
+                var activeGroupQuestions = session.QuestionPool.Where(q => !q.IsAnswered && !q.IsBrdPrompt && q.InterviewGroupIndex == session.InterviewProgress).ToList();
+                if (!activeGroupQuestions.Any())
+                {
+                    if (analysis.GapQuestions != null && analysis.GapQuestions.Any())
+                    {
+                        foreach (var gapQuestion in analysis.GapQuestions)
+                        {
+                            session.QuestionPool.Add(new ClarificationQuestion
+                            {
+                                Id = Guid.NewGuid(),
+                                Question = gapQuestion.Question,
+                                Category = MapCategory(gapQuestion.Category),
+                                Priority = MapPriority(gapQuestion.Priority),
+                                Reason = gapQuestion.Reason,
+                                MissingItems = gapQuestion.MissingItems,
+                                BusinessImpact = gapQuestion.BusinessImpact,
+                                EstimatedEffectOnCompleteness = gapQuestion.EstimatedEffectOnCompleteness,
+                                IsBrdPrompt = false,
+                                InterviewGroupIndex = session.InterviewProgress
+                            });
+                        }
+                    }
+                    else
+                    {
+                        var interviewQuestions = await _requirementAnalysisAgent.GenerateInterviewQuestionsAsync(session, cancellationToken, lang);
+                        if (interviewQuestions?.QuestionGroups != null && interviewQuestions.QuestionGroups.Any())
+                        {
+                            foreach (var group in interviewQuestions.QuestionGroups)
+                            {
+                                foreach (var q in group.Questions)
+                                {
+                                    q.Id = Guid.NewGuid();
+                                    q.InterviewGroupIndex = session.InterviewProgress;
+                                    q.InterviewTopic = group.Topic;
+                                    session.QuestionPool.Add(q);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
 
-            // 8. Move to Planning if all questions are answered and ready for finalization.
-            // Both the BRD path and interview mode now use ReadyForFinalization which is set
-            // deterministically — no more LLM score override for the planning gate.
-            bool isReadyForPlanning = session.AllQuestionsAnswered && session.RequirementCompletenessReport.ReadyForFinalization;
+            // SCORE INTEGRITY CHECK (BOTH BRD AND NO-BRD INTERVIEW MODE):
+            // If there are no unanswered questions remaining in QuestionPool (no gap questions, no interview questions),
+            // requirements gathering is COMPLETE and score MUST be 100%.
+            var activePendingQuestions = session.QuestionPool.Where(q => !q.IsAnswered && !q.IsBrdPrompt && (!session.IsInterviewMode || q.InterviewGroupIndex == session.InterviewProgress)).ToList();
+            if (!activePendingQuestions.Any())
+            {
+                completenessReport.OverallCompleteness = 100;
+                completenessReport.ReadyForFinalization = true;
+                completenessReport.BlockingFactors.Clear();
+                completenessReport.MissingCriticalAreas.Clear();
+                session.RequirementCompletenessReport = completenessReport;
+                session.CompletenessReport.Score = 1.0f;
+                session.CompletenessReport.ReadyForPlanning = true;
+            }
+
+            _logger.LogDebug("QuestionPool Count={Count} ActiveCount={Active} Score={Score}",
+                session.QuestionPool.Count,
+                activePendingQuestions.Count,
+                session.RequirementCompletenessReport.OverallCompleteness);
+
+            // 8. Move to Planning if all questions are answered and overall completeness reached 100%.
+            bool isReadyForPlanning = session.AllQuestionsAnswered && session.RequirementCompletenessReport.OverallCompleteness >= 100;
+            _logger.LogDebug("QuestionPool={Count} Score={Score} Ready={Ready}",
+                session.QuestionPool.Count,
+                session.RequirementCompletenessReport.OverallCompleteness,
+                isReadyForPlanning);
 
             if (isReadyForPlanning)
             {
@@ -515,51 +583,7 @@ namespace TaskPilot.AI.Orchestrators
                 session.ValidationResult = null; // Clear if not ready
                 
                 // Clear any old stuck generic fallback questions from previous sessions so they don't block
-                session.QuestionPool.RemoveAll(q => !q.IsAnswered && q.Question.Contains("85% completeness threshold"));
-
-                // Guard against the UI incorrectly enabling finalization when pending questions are exhausted but completeness is low
-                var activeQuestions = session.QuestionPool.Where(q => !q.IsAnswered && (!session.IsInterviewMode || q.InterviewGroupIndex == session.InterviewProgress));
-                if (!activeQuestions.Any())
-                {
-                    // Use actual AI gap questions if available
-                    if (analysis.GapQuestions != null && analysis.GapQuestions.Any())
-                    {
-                        foreach (var gapQuestion in analysis.GapQuestions)
-                        {
-                            session.QuestionPool.Add(new ClarificationQuestion
-                            {
-                                Id = Guid.NewGuid(),
-                                Question = gapQuestion.Question,
-                                Category = MapCategory(gapQuestion.Category),
-                                Priority = MapPriority(gapQuestion.Priority),
-                                Reason = gapQuestion.Reason,
-                                MissingItems = gapQuestion.MissingItems,
-                                BusinessImpact = gapQuestion.BusinessImpact,
-                                EstimatedEffectOnCompleteness = gapQuestion.EstimatedEffectOnCompleteness,
-                                IsBrdPrompt = false,
-                                InterviewGroupIndex = session.IsInterviewMode ? session.InterviewProgress : 0
-                            });
-                        }
-                    }
-                    else
-                    {
-                        var missingStr = session.RequirementCompletenessReport.MissingCriticalAreas.Any() 
-                            ? string.Join(", ", session.RequirementCompletenessReport.MissingCriticalAreas) 
-                            : (session.RequirementCompletenessReport.BlockingCategories.Any() ? string.Join(", ", session.RequirementCompletenessReport.BlockingCategories) : "additional requirements");
-
-                        var str3 = T(lang, $"نحتاج إلى مزيد من المعلومات للوصول إلى نسبة اكتمال 85٪. هل يمكنك تقديم مزيد من التفاصيل بشأن: {missingStr}؟", $"We need more information to reach the 85% completeness threshold. Could you provide more details regarding: {missingStr}?");
-                        session.QuestionPool.Add(new ClarificationQuestion
-                        {
-                            Id = Guid.NewGuid(),
-                            Question = str3,
-                            Category = MapCategory("General"),
-                            Priority = MapPriority("High"),
-                            Reason = "Completeness score is below the required 85% threshold.",
-                            BusinessImpact = "Without more details, we cannot generate a reliable Work Breakdown Structure.",
-                            InterviewGroupIndex = session.IsInterviewMode ? session.InterviewProgress : 0
-                        });
-                    }
-                }
+                session.QuestionPool.RemoveAll(q => !q.IsAnswered && (q.Question.Contains("85% completeness threshold") || q.Question.Contains("100% completeness")));
             }
 
             var finalPendingQuestions = session.QuestionPool.Where(q => !q.IsAnswered && (!session.IsInterviewMode || q.InterviewGroupIndex == session.InterviewProgress)).ToList();
