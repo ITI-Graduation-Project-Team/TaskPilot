@@ -13,6 +13,7 @@ using TaskPilot.Models.Common.Errors;
 using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Entities;
 using TaskPilot.Models.Enums;
+using TaskPilot.Models.Extensions;
 using TaskPilot.Services.Interfaces;
 using TaskPilot.Services.Interfaces.ExternalServicesInterfaces;
 
@@ -196,8 +197,10 @@ namespace TaskPilot.Services
                 return Result.Failure<CompanyPolicyAnswerResponse>(CommonErrors.NotFound("Company"));
             }
 
+            var collectionType = KnowledgeCollectionType.CompanyPolicies;
+
             var result = await _knowledgeOrchestrator.AskAsync(
-                KnowledgeCollectionType.CompanyPolicies,
+                collectionType,
                 requirementSessionId: null,
                 projectId: null,
                 companyId: request.CompanyId,
@@ -215,7 +218,7 @@ namespace TaskPilot.Services
                 Sources = result.Value.Sources.Select(s => new CompanyPolicySourceDto
                 {
                     FileName = s.FileName,
-                    Category = s.Category.ToString()
+                    Category = collectionType.ToDisplayName()
                 }).ToList()
             };
 

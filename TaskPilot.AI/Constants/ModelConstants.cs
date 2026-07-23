@@ -12,7 +12,7 @@ namespace TaskPilot.AI.Constants
         public const string PowerfulModel =
             "gpt-4.1-mini";
         public const string MorePowerfulModel =
-            "gpt-4.1";
+            "gpt-4.1-mini";
 
         // Very Cheap
 
