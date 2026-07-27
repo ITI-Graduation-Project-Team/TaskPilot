@@ -1,11 +1,17 @@
-using TaskPilot.Models.Common.Results;
 using TaskPilot.DTOs.Sprint;
 
 namespace TaskPilot.Services.Interfaces
 {
     public interface ISprintRetrospectiveService
     {
-        Task<Result<SprintRetrospectiveResponseDto>> GenerateRetrospectiveAsync(Guid sprintId, CancellationToken cancellationToken = default);
-        Task<Result<SprintRetrospectiveResponseDto>> GetRetrospectiveAsync(Guid sprintId, CancellationToken cancellationToken = default);
+        Task<SprintRetrospectiveDto> GenerateAsync(
+            Guid projectId,
+            Guid sprintId,
+            string userLanguage,
+            CancellationToken cancellationToken = default);
+
+        Task<SprintRetrospectiveDto?> GetAsync(
+            Guid sprintId,
+            CancellationToken cancellationToken = default);
     }
 }

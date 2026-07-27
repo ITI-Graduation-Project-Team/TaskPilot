@@ -54,9 +54,9 @@ namespace TaskPilot.Tests.Requirements
 
         private static RequirementAnalysisResult CreateFullAnalysisResult(int gapCount = 2)
         {
-            var gaps = new List<string>();
+            var gaps = new List<GapQuestion>();
             for (int i = 0; i < gapCount; i++)
-                gaps.Add($"Gap question {i + 1}");
+                gaps.Add(new GapQuestion { Question = $"Gap question {i + 1}" });
 
             return new RequirementAnalysisResult
             {
@@ -107,7 +107,7 @@ namespace TaskPilot.Tests.Requirements
                 Mock.Of<IAiKernelService>(),
                 Mock.Of<IPromptLoaderService>());
             catAgent.Setup(a => a.CategorizeAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-                    .ReturnsAsync(DocumentCategory.BRD);
+                    .ReturnsAsync(DocumentCategory.Requirements);
 
             // --- chunkingAgent
             var chunkAgent = new Mock<ChunkingAgent>(MockBehavior.Loose);
@@ -169,8 +169,9 @@ namespace TaskPilot.Tests.Requirements
                 MockBehavior.Loose,
                 Mock.Of<IAiKernelService>(),
                 Mock.Of<IPromptLoaderService>(),
-                vectorStore.Object);
-            analysisAgent.Setup(a => a.AnalyzeAsync(sessionId, It.IsAny<CancellationToken>()))
+                vectorStore.Object,
+                docStore.Object);
+            analysisAgent.Setup(a => a.AnalyzeAsync(It.IsAny<RequirementSession>(), It.IsAny<CancellationToken>(), It.IsAny<string>()))
                          .ReturnsAsync(analysisResult);
 
             // --- logger
@@ -293,7 +294,7 @@ namespace TaskPilot.Tests.Requirements
                     new() { Category = "UserRoles",     Score = 0, Status = "Missing" },
                     new() { Category = "Realtime",      Score = 0, Status = "Missing" },
                 },
-                GapQuestions = new List<string> { "What are the primary business goals?" }
+                GapQuestions = new List<GapQuestion> { new GapQuestion { Question = "What are the primary business goals?" } }
             };
 
             var orchestrator = BuildOrchestrator(
@@ -373,7 +374,7 @@ namespace TaskPilot.Tests.Requirements
                     new() { Category = "UserRoles",     Score = 60, Status = "PartiallyMentioned" },
                     new() { Category = "Realtime",      Score = 72, Status = "PartiallyMentioned" },
                 },
-                GapQuestions = new List<string> { "What is the timeline?" }
+                GapQuestions = new List<GapQuestion> { new GapQuestion { Question = "What is the timeline?" } }
             };
 
             var orchestrator = BuildOrchestrator(sessionId, session, analysis);

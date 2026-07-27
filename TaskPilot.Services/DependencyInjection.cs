@@ -72,6 +72,7 @@ namespace TaskPilot.Services
             services.AddScoped<ISkillMigrationService, SkillMigrationService>();
             services.AddScoped<ISkillRepository, SkillRepository>();
             services.AddScoped<ISprintRetrospectiveService, SprintRetrospectiveService>();
+            services.AddScoped<TaskPilot.Services.Implementations.SprintDataCollectionService>();
 
             services.AddScoped<ISprintLifecycleService, SprintLifecycleService>();
             services.AddScoped<IProjectTeamService, ProjectTeamService>();

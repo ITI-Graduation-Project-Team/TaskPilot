@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -19,6 +20,7 @@ namespace TaskPilot.Tests.Services
         private readonly Mock<IRepository<Project>> _projectRepoMock;
         private readonly Mock<IUserStoryRepository> _userStoryRepoMock;
         private readonly Mock<IProjectEmployeeRepository> _projectEmployeeRepoMock;
+        private readonly Mock<IRepository<SprintRetrospective>> _retrospectiveRepoMock;
         private readonly Mock<SprintSuggestionAgent> _agentMock;
         private readonly Mock<ILogger<SprintPlanningService>> _loggerMock;
         private readonly SprintPlanningService _service;
@@ -28,13 +30,18 @@ namespace TaskPilot.Tests.Services
             _projectRepoMock = new Mock<IRepository<Project>>();
             _userStoryRepoMock = new Mock<IUserStoryRepository>();
             _projectEmployeeRepoMock = new Mock<IProjectEmployeeRepository>();
+            _retrospectiveRepoMock = new Mock<IRepository<SprintRetrospective>>();
             _loggerMock = new Mock<ILogger<SprintPlanningService>>();
             _agentMock = new Mock<SprintSuggestionAgent>(null!, null!);
+
+            _retrospectiveRepoMock.Setup(r => r.GetQueryable())
+                .Returns(new List<SprintRetrospective>().AsQueryable());
 
             _service = new SprintPlanningService(
                 _projectRepoMock.Object,
                 _userStoryRepoMock.Object,
                 _projectEmployeeRepoMock.Object,
+                _retrospectiveRepoMock.Object,
                 _agentMock.Object,
                 _loggerMock.Object);
         }

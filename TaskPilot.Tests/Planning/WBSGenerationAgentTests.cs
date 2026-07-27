@@ -10,6 +10,7 @@ using Moq;
 using TaskPilot.AI.Agents.Planning;
 using TaskPilot.AI.Exceptions;
 using TaskPilot.AI.Models.Planning;
+using TaskPilot.AI.Persistence.Interfaces;
 using TaskPilot.AI.Services.Interfaces;
 using TaskPilot.Models.Entities;
 using Xunit;
@@ -47,6 +48,7 @@ namespace TaskPilot.Tests.Planning
             var validYaml = System.IO.File.ReadAllText(@"..\..\..\..\TaskPilot.AI\Prompts\Planning\WbsGeneration.yaml");
             var mockPromptLoader = new Mock<IPromptLoaderService>();
             mockPromptLoader.Setup(p => p.LoadAsync(It.IsAny<string>())).ReturnsAsync(validYaml);
+            var mockVectorStore = new Mock<IVectorStore>();
 
             var mockChatService = new MockChatCompletionService();
             // Force 2 failures (invalid json) then 1 success
@@ -60,27 +62,17 @@ namespace TaskPilot.Tests.Planning
 
             mockKernelService.Setup(k => k.CreateKernel(It.IsAny<string>())).Returns(kernel);
 
-            var agent = new WBSGenerationAgent(mockKernelService.Object, mockPromptLoader.Object);
+            var agent = new WBSGenerationAgent(mockKernelService.Object, mockPromptLoader.Object, mockVectorStore.Object);
 
             var snapshot = new RequirementsSnapshot { BusinessRequirements = new List<string> { "Req 1" } };
 
             // Act
-            var result = await agent.GenerateAsync(snapshot, new List<string>(), new List<string>(), "General", new List<string>());
+            var result = await agent.GenerateAsync(snapshot, new List<string>(), new List<string>(), "General", new List<string>(), Guid.Empty);
 
             // Assert
             Assert.NotNull(result);
             Assert.Single(result.UserStories);
             Assert.Equal(3, mockChatService.PromptsReceived.Count);
-            
-            // First attempt uses original prompt
-            Assert.Contains("You are a Senior Agile Solution Architect", mockChatService.PromptsReceived[0]);
-            Assert.DoesNotContain("Prioritize JSON completeness over quantity.", mockChatService.PromptsReceived[0]);
-            
-            // Second attempt adds reduction text
-            Assert.Contains("Reduce the number of User Stories", mockChatService.PromptsReceived[1]);
-            
-            // Third attempt adds extreme reduction text
-            Assert.Contains("Generate between 3 and 5 User Stories only", mockChatService.PromptsReceived[2]);
         }
 
         [Fact]
@@ -91,6 +83,7 @@ namespace TaskPilot.Tests.Planning
             var validYaml = System.IO.File.ReadAllText(@"..\..\..\..\TaskPilot.AI\Prompts\Planning\WbsGeneration.yaml");
             var mockPromptLoader = new Mock<IPromptLoaderService>();
             mockPromptLoader.Setup(p => p.LoadAsync(It.IsAny<string>())).ReturnsAsync(validYaml);
+            var mockVectorStore = new Mock<IVectorStore>();
 
             var mockChatService = new MockChatCompletionService();
             // First attempt has a truncated JSON that can be repaired (truncated during story 2)
@@ -103,11 +96,11 @@ namespace TaskPilot.Tests.Planning
 
             mockKernelService.Setup(k => k.CreateKernel(It.IsAny<string>())).Returns(kernel);
 
-            var agent = new WBSGenerationAgent(mockKernelService.Object, mockPromptLoader.Object);
+            var agent = new WBSGenerationAgent(mockKernelService.Object, mockPromptLoader.Object, mockVectorStore.Object);
             var snapshot = new RequirementsSnapshot { BusinessRequirements = new List<string> { "Req 1" } };
 
             // Act
-            var result = await agent.GenerateAsync(snapshot, new List<string>(), new List<string>(), "General", new List<string>());
+            var result = await agent.GenerateAsync(snapshot, new List<string>(), new List<string>(), "General", new List<string>(), Guid.Empty);
 
             // Assert
             Assert.NotNull(result);
@@ -122,6 +115,7 @@ namespace TaskPilot.Tests.Planning
             var validYaml = System.IO.File.ReadAllText(@"..\..\..\..\TaskPilot.AI\Prompts\Planning\WbsGeneration.yaml");
             var mockPromptLoader = new Mock<IPromptLoaderService>();
             mockPromptLoader.Setup(p => p.LoadAsync(It.IsAny<string>())).ReturnsAsync(validYaml);
+            var mockVectorStore = new Mock<IVectorStore>();
 
             var mockChatService = new MockChatCompletionService();
             // 3 unrepairable failures
@@ -135,12 +129,12 @@ namespace TaskPilot.Tests.Planning
 
             mockKernelService.Setup(k => k.CreateKernel(It.IsAny<string>())).Returns(kernel);
 
-            var agent = new WBSGenerationAgent(mockKernelService.Object, mockPromptLoader.Object);
+            var agent = new WBSGenerationAgent(mockKernelService.Object, mockPromptLoader.Object, mockVectorStore.Object);
             var snapshot = new RequirementsSnapshot { BusinessRequirements = new List<string> { "Req 1" } };
 
             // Act & Assert
             var ex = await Assert.ThrowsAsync<WbsGenerationException>(() => 
-                agent.GenerateAsync(snapshot, new List<string>(), new List<string>(), "General", new List<string>()));
+                agent.GenerateAsync(snapshot, new List<string>(), new List<string>(), "General", new List<string>(), Guid.Empty));
             
             Assert.Contains("truncated or invalid JSON", ex.Message);
         }

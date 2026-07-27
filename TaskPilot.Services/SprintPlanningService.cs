@@ -4,11 +4,13 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using TaskPilot.AI.Agents.Planning;
 using TaskPilot.Data.Repositories;
 using TaskPilot.Data.Repositories.Interfaces;
 using TaskPilot.DTOs.Planning;
+using TaskPilot.DTOs.Sprint;
 using TaskPilot.Models.Entities;
 using TaskPilot.Services.Interfaces;
 using TaskPilot.Models.Common.Results;
@@ -22,6 +24,7 @@ namespace TaskPilot.Services
         private readonly IRepository<Project> _projectRepository;
         private readonly IUserStoryRepository _userStoryRepository;
         private readonly IProjectEmployeeRepository _projectEmployeeRepository;
+        private readonly IRepository<SprintRetrospective> _retrospectiveRepository;
         private readonly SprintSuggestionAgent _sprintSuggestionAgent;
         private readonly ILogger<SprintPlanningService> _logger;
 
@@ -29,12 +32,14 @@ namespace TaskPilot.Services
             IRepository<Project> projectRepository,
             IUserStoryRepository userStoryRepository,
             IProjectEmployeeRepository projectEmployeeRepository,
+            IRepository<SprintRetrospective> retrospectiveRepository,
             SprintSuggestionAgent sprintSuggestionAgent,
             ILogger<SprintPlanningService> logger)
         {
             _projectRepository = projectRepository;
             _userStoryRepository = userStoryRepository;
             _projectEmployeeRepository = projectEmployeeRepository;
+            _retrospectiveRepository = retrospectiveRepository;
             _sprintSuggestionAgent = sprintSuggestionAgent;
             _logger = logger;
         }
@@ -60,8 +65,6 @@ namespace TaskPilot.Services
             }
 
             var unassignedStories = userStories.Where(us => us.SprintId == null).ToList();
-            //var assignedStoriesAndUnassignedTask=
-            //var unassignedStories = userStories.Where(us => us.SprintId == null).ToList();
 
             if (!unassignedStories.Any())
             {
@@ -96,6 +99,30 @@ namespace TaskPilot.Services
                 WriteIndented = true
             });
 
+            // Fetch previous retrospective context
+            var previousRetrospective = await _retrospectiveRepository.GetQueryable()
+                .Include(r => r.Sprint)
+                .Where(r => r.Sprint.ProjectId == projectId)
+                .OrderByDescending(r => r.Sprint.EndDate)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            var retrospectiveContext = string.Empty;
+
+            if (previousRetrospective is not null)
+            {
+                var improvements = string.IsNullOrEmpty(previousRetrospective.ImprovementsJson) 
+                    ? new List<SprintImprovementDto>() 
+                    : JsonSerializer.Deserialize<List<SprintImprovementDto>>(previousRetrospective.ImprovementsJson);
+
+                if (improvements != null && improvements.Any())
+                {
+                    retrospectiveContext = "Previous Sprint Lessons:\n" +
+                        string.Join("\n", improvements
+                            .Where(i => i.Priority == "High")
+                            .Select(i => $"- [{i.ActionType}] {i.RecommendationEn}"));
+                }
+            }
+
             _logger.LogInformation("Generating Sprint suggestion for ProjectId: {ProjectId} with {StoryCount} unassigned stories", projectId, unassignedStories.Count);
 
             var suggestion = await _sprintSuggestionAgent.SuggestSprintAsync(
@@ -104,6 +131,7 @@ namespace TaskPilot.Services
                 project.SprintDurationInDays,
                 project.TargetSprintHours,
                 backlogJson,
+                retrospectiveContext,
                 cancellationToken);
 
             return Result.Success(suggestion);

@@ -1,7 +1,6 @@
 using System.Text.Json;
 using Microsoft.SemanticKernel;
 using TaskPilot.AI.Constants;
-using TaskPilot.AI.Exceptions;
 using TaskPilot.AI.Services.Interfaces;
 using TaskPilot.DTOs.Planning;
 
@@ -26,6 +25,7 @@ namespace TaskPilot.AI.Agents.Planning
             int sprintDurationInDays,
             decimal targetSprintHours,
             string backlogJson,
+            string retrospectiveContext = "",
             CancellationToken cancellationToken = default)
         {
             var kernel = _kernelService.CreateKernel(
@@ -44,7 +44,8 @@ namespace TaskPilot.AI.Agents.Planning
                     ["projectName"] = projectName,
                     ["sprintDurationInDays"] = sprintDurationInDays.ToString(),
                     ["targetSprintHours"] = targetSprintHours.ToString(),
-                    ["backlog"] = backlogJson
+                    ["backlog"] = backlogJson,
+                    ["retrospectiveContext"] = retrospectiveContext ?? string.Empty
                 },
                 cancellationToken: cancellationToken);
 
@@ -55,10 +56,15 @@ namespace TaskPilot.AI.Agents.Planning
             {
                 raw = raw.Substring(7);
             }
+            if (raw.StartsWith("```"))
+            {
+                raw = raw.Substring(3);
+            }
             if (raw.EndsWith("```"))
             {
                 raw = raw.Substring(0, raw.Length - 3);
             }
+            raw = raw.Trim();
 
             try
             {

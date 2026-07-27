@@ -99,6 +99,17 @@ template: |
   {{$backlog}}
 
   -------------------------------------------------------------------
+  PREVIOUS SPRINT LESSONS
+  -------------------------------------------------------------------
+
+  {{$retrospectiveContext}}
+
+  If retrospectiveContext is not empty:
+  - Apply ReduceCapacity suggestions by reducing hours for flagged developers
+  - Apply ReduceTaskCount by selecting fewer stories than normal
+  - Apply AddBuffer by preferring stories with more task slack
+
+  -------------------------------------------------------------------
   SPRINT PLANNING PRINCIPLES
   -------------------------------------------------------------------
 
