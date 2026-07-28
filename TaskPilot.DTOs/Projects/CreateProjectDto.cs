@@ -10,5 +10,6 @@ namespace TaskPilot.DTOs.Projects
         public string? DescriptionAr { get; set; }
         public Guid ManagerId { get; set; }
         public Guid CompanyId { get; set; }
+        public Guid? RequirementSessionId { get; set; }
     }
 }

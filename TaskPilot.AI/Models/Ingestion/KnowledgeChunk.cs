@@ -24,6 +24,10 @@ namespace TaskPilot.AI.Models.Ingestion
 
         public int ChunkIndex { get; set; }
 
+        public int VersionNumber { get; set; } = 1;
+
+        public bool IsActive { get; set; } = true;
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 }
