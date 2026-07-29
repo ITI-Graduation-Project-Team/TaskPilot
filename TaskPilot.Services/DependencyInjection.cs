@@ -30,6 +30,7 @@ namespace TaskPilot.Services
             services.AddScoped<ILocalizationService, LocalizationService>();
             services.AddScoped<IRequirementFinalizationService, RequirementFinalizationService>();
             services.AddScoped<ICompanyPolicyService, CompanyPolicyService>();
+            services.AddScoped<IProjectPolicyService, ProjectPolicyService>();
             services.AddScoped<IWbsSkillEnrichmentService, WbsSkillEnrichmentService>();
             services.AddScoped<ICalenderService, CalenderService>();
             services.AddScoped<IWbsPersistenceService, WbsPersistenceService>();
@@ -72,6 +73,7 @@ namespace TaskPilot.Services
             services.AddScoped<ISkillMigrationService, SkillMigrationService>();
             services.AddScoped<ISkillRepository, SkillRepository>();
             services.AddScoped<ISprintRetrospectiveService, SprintRetrospectiveService>();
+            services.AddScoped<TaskPilot.Services.Implementations.SprintDataCollectionService>();
 
             services.AddScoped<ISprintLifecycleService, SprintLifecycleService>();
             services.AddScoped<IProjectTeamService, ProjectTeamService>();

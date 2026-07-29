@@ -39,7 +39,7 @@ namespace TaskPilot.AI.Services.Interfaces
         Task PromoteKnowledgeAsync(
             KnowledgeCollectionType collectionType,
             Guid projectId,
-            IEnumerable<Guid> chunkIds,
+            Guid documentId,
             CancellationToken cancellationToken = default);
     }
 }

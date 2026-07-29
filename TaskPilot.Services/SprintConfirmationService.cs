@@ -16,6 +16,7 @@ namespace TaskPilot.Services
         private readonly IUserStoryRepository _userStoryRepository;
         private readonly ITaskRepository _taskRepository;
         private readonly IRepository<Sprint> _sprintRepository;
+        private readonly IProjectEmployeeRepository _projectEmployeeRepository;
         private readonly IUnitOfWork _unitOfWork;
 
         private readonly IBackgroundJobClient _backgroundJobClient;
@@ -24,6 +25,7 @@ namespace TaskPilot.Services
             IUserStoryRepository userStoryRepository,
             ITaskRepository taskRepository,
             IRepository<Sprint> sprintRepository,
+            IProjectEmployeeRepository projectEmployeeRepository,
             IUnitOfWork unitOfWork,
             IBackgroundJobClient backgroundJobClient)
         {
@@ -31,6 +33,7 @@ namespace TaskPilot.Services
             _userStoryRepository = userStoryRepository;
             _taskRepository = taskRepository;
             _sprintRepository = sprintRepository;
+            _projectEmployeeRepository = projectEmployeeRepository;
             _unitOfWork = unitOfWork;
             _backgroundJobClient = backgroundJobClient;
         }
@@ -47,6 +50,10 @@ namespace TaskPilot.Services
             var project = await _projectRepository.GetByIdAsync(projectId);
             if (project is null)
                 return Result.Failure<ConfirmSprintResult>(CommonErrors.NotFound("Project"));
+
+            var assignedEmployees = await _projectEmployeeRepository.GetEmployeeIdsByProjectAsync(projectId, cancellationToken);
+            if (!assignedEmployees.Any())
+                return Result.Failure<ConfirmSprintResult>(SprintErrors.NoEmployeesAssigned);
 
             // 2. Load the selected UserStories and validate they belong to
             //    this project AND are currently unassigned (SprintId == null).

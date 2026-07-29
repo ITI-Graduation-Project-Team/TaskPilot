@@ -15,5 +15,6 @@ namespace TaskPilot.Models.Common.Errors
         public static readonly Error InvalidSprintStatus = new("INVALID_SPRINT_STATUS", ErrorType.Validation, "Sprint.InvalidStatus");
         public static readonly Error InvalidSprint = new("INVALID_SPRINT", ErrorType.Validation, "Sprint.Invalid");
         public static readonly Error InvalidProject = new("INVALID_PROJECT", ErrorType.Validation, "Project.Invalid");
+        public static readonly Error NoEmployeesAssigned = new("NO_EMPLOYEES_ASSIGNED", ErrorType.Validation, "Cannot perform sprint planning for a project with no assigned employees.");
     }
 }

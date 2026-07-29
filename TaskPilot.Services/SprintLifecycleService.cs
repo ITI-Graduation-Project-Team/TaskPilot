@@ -22,6 +22,7 @@ namespace TaskPilot.Services
         private readonly IRepository<Project> _projectRepository;
         private readonly IRepository<SprintRiskAlert> _sprintRiskAlertRepository;
         private readonly IRepository<UserStory> _userStoryRepository;
+        private readonly IProjectEmployeeRepository _projectEmployeeRepository;
         private readonly ILogger<SprintLifecycleService> _logger;
         private readonly INotificationService _notificationService;
         private readonly ICalenderService _calenderService;
@@ -33,12 +34,14 @@ namespace TaskPilot.Services
             ILogger<SprintLifecycleService> logger,
             INotificationService notificationService = null!,
             ICalenderService calenderService = null!,
-            IRepository<UserStory> userStoryRepository = null!)
+            IRepository<UserStory> userStoryRepository = null!,
+            IProjectEmployeeRepository projectEmployeeRepository = null!)
         {
             _sprintRepository = sprintRepository;
             _projectRepository = projectRepository;
             _sprintRiskAlertRepository = sprintRiskAlertRepository;
             _userStoryRepository = userStoryRepository;
+            _projectEmployeeRepository = projectEmployeeRepository;
             _logger = logger;
             _notificationService = notificationService;
             _calenderService = calenderService;
@@ -84,6 +87,15 @@ namespace TaskPilot.Services
             if (project == null)
             {
                 return Result.Failure<SprintStatusDto>(SprintErrors.ProjectNotFound);
+            }
+
+            if (_projectEmployeeRepository != null)
+            {
+                var assignedEmployees = await _projectEmployeeRepository.GetEmployeeIdsByProjectAsync(projectId, cancellationToken);
+                if (!assignedEmployees.Any())
+                {
+                    return Result.Failure<SprintStatusDto>(SprintErrors.NoEmployeesAssigned);
+                }
             }
 
             var sprint = await _sprintRepository.GetSprintWithTasksAsync(sprintId);

@@ -1,43 +1,86 @@
 name: SprintRetrospective
-description: Analyzes sprint outcomes and developer comments to generate a retrospective report.
+description: Analyzes completed sprint data and generates improvements
 template_format: semantic-kernel
-template: |
-  Analyze the sprint performance data and developer comments provided below.
-  Generate an enterprise-grade professional sprint retrospective report in BOTH English and Arabic.
-  
-  Ensure complete coverage of all completed tasks, delayed tasks, and developer comments.
-  Do not omit any valid information or insights due to length constraints.
-  Maximize business value and provide highly actionable, trace-driven improvements.
-  
-  Sprint Goal:
-  {{$sprintGoal}}
-  
-  Completed Tasks (Title, Estimated Hours, Actual Hours):
-  {{$completedTasksJson}}
-  
-  Delayed/Incomplete Tasks (Title, Status, Estimated Hours):
-  {{$delayedTasksJson}}
-  
-  Developer and Project Manager Comments (specifying TaskTitle, AuthorRole like 'Project Manager' or 'Assigned Employee', and Content):
-  {{$commentsJson}}
-  
-  Return ONLY a valid JSON object matching this structure:
-  {
-    "whatWentWellEn": "...",
-    "whatWentWellAr": "...",
-    "challengesEn": "...",
-    "challengesAr": "...",
-    "actionItemsEn": "...",
-    "actionItemsAr": "...",
-    "teamSentimentSummaryEn": "...",
-    "teamSentimentSummaryAr": "..."
-  }
+execution_settings:
+  default:
+    temperature: 0.2
+    max_tokens: 2000
 input_variables:
-  - name: sprintGoal
-    description: The goal of the sprint.
-  - name: completedTasksJson
-    description: JSON string of completed tasks.
-  - name: delayedTasksJson
-    description: JSON string of incomplete tasks.
-  - name: commentsJson
-    description: JSON string of developer and PM discussion comments containing task title, author role, and content.
+  - name: sprintTitle
+    description: Title of the completed sprint
+  - name: metricsJson
+    description: JSON object containing all sprint metrics and developer breakdowns
+  - name: userLanguage
+    description: User's preferred language - "Arabic" or "English"
+template: |
+  You are an expert Agile Coach analyzing a completed sprint.
+  Your task is to provide honest, actionable retrospective insights.
+
+  Sprint: {{$sprintTitle}}
+
+  ## Sprint Metrics
+  {{$metricsJson}}
+
+  ## Velocity Interpretation Guide
+  velocityRatio < 0.8  = Team completed work faster than estimated (good)
+  velocityRatio 0.8-1.1 = On track (good)
+  velocityRatio 1.1-1.3 = Slightly over estimate (warning)
+  velocityRatio > 1.3   = Significantly over estimate (problem)
+
+  ## Analysis Rules
+  - Base ALL analysis ONLY on the provided metrics — do NOT invent facts
+  - If completionRate > 90% → highlight as success
+  - If completionRate < 70% → identify it as a significant issue
+  - If any developer velocityRatio > 1.3 → flag as overloaded or underestimated
+  - If unfinishedTasks > 30% of total → identify capacity planning issue
+  - Be specific — mention actual names and numbers from the data
+  - Be honest but constructive — no sugar-coating poor performance
+
+  ## Improvement Action Types (use EXACTLY these values)
+  - "ReduceCapacity"    → assign fewer hours to this developer next sprint
+  - "ReassignDeveloper" → consider different task types for this developer
+  - "AddBuffer"         → add 15-20% buffer to similar task estimates
+  - "ReduceTaskCount"   → overall team took on too much, reduce next sprint
+  - "SplitLargeTasks"   → specific tasks should be broken into pieces
+  - "None"              → informational improvement, no specific action
+
+  ## Language Rule
+  Generate ALL text fields in {{$userLanguage}} ONLY.
+  Both En and Ar fields must be populated:
+  - If userLanguage = "Arabic": write Arabic naturally, translate to English
+  - If userLanguage = "English": write English naturally, translate to Arabic
+  Never leave any En or Ar field empty.
+
+  ## Output Rules
+  - Return ONLY valid JSON — no markdown, no explanation
+  - Maximum 3 items in whatWentWell
+  - Maximum 3 items in whatNeedsImprovement
+  - Maximum 2 riskSignals
+  - Maximum 5 improvements total
+  - improvements must have actionType from the list above
+  - CRITICAL: For developer-specific actions ("ReduceCapacity", "ReassignDeveloper"), you MUST set "targetEmployeeId" to the developer's "employeeId" GUID string from the developers list. Set to null only for team-wide actions.
+
+  ## Required JSON Structure
+  {
+    "analysis": {
+      "summaryEn": "string",
+      "summaryAr": "string",
+      "whatWentWellEn": ["string"],
+      "whatWentWellAr": ["string"],
+      "whatNeedsImprovementEn": ["string"],
+      "whatNeedsImprovementAr": ["string"],
+      "riskSignalsEn": ["string"],
+      "riskSignalsAr": ["string"]
+    },
+    "improvements": [
+      {
+        "category": "Capacity",
+        "recommendationEn": "string",
+        "recommendationAr": "string",
+        "priority": "High",
+        "actionType": "ReduceCapacity",
+        "targetEmployeeId": "guid-string-or-null",
+        "suggestedAdjustment": 0.85
+      }
+    ]
+  }

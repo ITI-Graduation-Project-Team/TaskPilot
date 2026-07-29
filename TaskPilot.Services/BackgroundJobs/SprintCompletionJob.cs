@@ -22,11 +22,12 @@ namespace TaskPilot.Services.BackgroundJobs
                 return;
             }
 
-            var retrospectiveService = scope.ServiceProvider.GetRequiredService<ISprintRetrospectiveService>();
-            var result = await retrospectiveService.GenerateRetrospectiveAsync(sprintId);
+            var sprintRepo = scope.ServiceProvider.GetRequiredService<IRepository<TaskPilot.Models.Entities.Sprint>>();
+            var sprint = await sprintRepo.GetByIdAsync(sprintId);
+            if (sprint == null) throw new InvalidOperationException("Sprint not found");
 
-            if (!result.IsSuccess)
-                throw new InvalidOperationException($"Could not generate retrospective for sprint {sprintId}");
+            var retrospectiveService = scope.ServiceProvider.GetRequiredService<ISprintRetrospectiveService>();
+            var result = await retrospectiveService.GenerateAsync(sprint.ProjectId, sprintId, "English");
 
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
             await unitOfWork.SaveChangesAsync();
