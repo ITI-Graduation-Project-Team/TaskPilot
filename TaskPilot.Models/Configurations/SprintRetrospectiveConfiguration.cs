@@ -10,6 +10,8 @@ namespace TaskPilot.Models.Configurations
         {
             builder.HasKey(sr => sr.Id);
 
+            builder.Property(sr => sr.AnalysisJson);
+            builder.Property(sr => sr.ImprovementsJson);
             builder.Property(sr => sr.WhatWentWellEn).HasMaxLength(4000);
             builder.Property(sr => sr.WhatWentWellAr).HasMaxLength(4000);
             builder.Property(sr => sr.ChallengesEn).HasMaxLength(4000);
