@@ -7,11 +7,7 @@ namespace TaskPilot.DTOs.AI.AgileCoach
     {
         public Guid Id { get; set; }
         public Guid TaskItemId { get; set; }
-        public string CodebaseNotes { get; set; } = string.Empty;
-        public string RelatedPastTasks { get; set; } = string.Empty;
-        public string TechStackContext { get; set; } = string.Empty;
-        public string SuggestedImplementationGuidance { get; set; } = string.Empty;
-        public List<CitationDto> Citations { get; set; } = new List<CitationDto>();
+        public string Content { get; set; } = string.Empty;
         public DateTime GeneratedAt { get; set; }
         public bool IsNewlyGenerated { get; set; }
     }

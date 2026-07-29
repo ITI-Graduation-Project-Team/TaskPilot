@@ -29,7 +29,7 @@ namespace TaskPilot.Presentation
             builder.Services.AddServices(builder.Configuration);
            // builder.Services.AddScoped<TaskPilot.Services.Interfaces.IAgileCoachService, TaskPilot.Services.Implementations.AgileCoachService>();
             builder.Services.AddAiLayer(builder.Configuration);
-            builder.Services.AddScoped<TaskPilot.AI.Agents.AgileCoachAgent>();
+
             builder.Services.AddInfrastructure(
     builder.Configuration);
             builder.Services.AddPaymentLayer(builder.Configuration);
