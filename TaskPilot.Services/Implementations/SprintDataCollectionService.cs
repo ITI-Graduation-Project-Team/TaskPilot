@@ -35,8 +35,12 @@ namespace TaskPilot.Services.Implementations
             // ── Completed tasks ──────────────────────────────────────────────
             // These tasks still have TaskItem.SprintId set because sprint completion
             // only clears SprintId on *unfinished* tasks.
+            // ── Completed tasks ──────────────────────────────────────────────
+            // These tasks still have TaskItem.SprintId set because sprint completion
+            // only clears SprintId on *unfinished* tasks.
             var doneTasks = await _taskRepository.GetQueryable()
                 .Include(t => t.Employee)
+                .Include(t => t.UserStory)
                 .Where(t => t.SprintId == sprintId && t.Status == TaskItemStatus.Done)
                 .ToListAsync(cancellationToken);
 
@@ -45,7 +49,7 @@ namespace TaskPilot.Services.Implementations
             // EmployeeId set to NULL. The ONLY remaining link is the SprintRiskAlert,
             // which preserves both AffectedTaskId and AffectedEmployeeId.
             var unfinishedAlerts = await _riskAlertRepository.GetQueryable()
-                .Include(a => a.AffectedTask)
+                .Include(a => a.AffectedTask).ThenInclude(t => t!.UserStory)
                 .Include(a => a.AffectedEmployee)   // ← employee saved before clearing
                 .Where(a => a.SprintId == sprintId
                          && a.RiskType == SprintRiskType.UnfinishedTask
@@ -61,6 +65,34 @@ namespace TaskPilot.Services.Implementations
 
             var unfinishedTasks = uniqueUnfinishedAlerts
                 .Select(a => a.AffectedTask!)
+                .ToList();
+
+            // ── Feature Completeness Index (Partially Completed Stories) ──────
+            // Group all sprint tasks (Done + Unfinished) by UserStoryId
+            var allTasks = doneTasks.Cast<TaskItem>().Concat(unfinishedTasks).ToList();
+            var partiallyCompletedStories = allTasks
+                .Where(t => t.UserStoryId.HasValue)
+                .GroupBy(t => t.UserStoryId!.Value)
+                .Select(g =>
+                {
+                    var story = g.First().UserStory;
+                    var doneCountInStory = g.Count(t => t.Status == TaskItemStatus.Done);
+                    var totalCountInStory = g.Count();
+                    var pct = totalCountInStory > 0 ? (double)doneCountInStory / totalCountInStory * 100 : 0;
+
+                    return new PartiallyCompletedStoryData
+                    {
+                        UserStoryId          = g.Key,
+                        TitleEn              = story?.TitleEn ?? g.First().TitleEn,
+                        TitleAr              = story?.TitleAr ?? g.First().TitleAr,
+                        TotalTasks           = totalCountInStory,
+                        CompletedTasks       = doneCountInStory,
+                        RemainingTasks       = totalCountInStory - doneCountInStory,
+                        CompletionPercentage = Math.Round(pct, 1)
+                    };
+                })
+                .Where(s => s.CompletionPercentage > 0 && s.CompletionPercentage < 100)
+                .OrderByDescending(s => s.CompletionPercentage)
                 .ToList();
 
             // ── Aggregate totals ─────────────────────────────────────────────
@@ -135,6 +167,7 @@ namespace TaskPilot.Services.Implementations
                     return new UnfinishedTaskData
                     {
                         TaskId         = task.Id,
+                        UserStoryId    = task.UserStoryId,
                         TitleEn        = task.TitleEn,
                         EstimatedHours = task.EstimatedHours,
                         Reason         = "NotStarted",
@@ -147,26 +180,27 @@ namespace TaskPilot.Services.Implementations
 
             return new SprintRetrospectiveData
             {
-                SprintId            = sprintId,
-                SprintTitleEn       = sprint.TitleEn,
-                StartDate           = sprint.StartDate,
-                EndDate             = sprint.EndDate,
-                ActualDurationDays  = (int)(sprint.EndDate - sprint.StartDate).TotalDays,
-                PlannedDurationDays = 14,
-                TotalTasks          = totalCount,
-                CompletedTasks      = doneTasks.Count,
-                InProgressTasks     = 0,
-                NotStartedTasks     = unfinishedTasks.Count,
-                CompletionRate      = totalCount > 0
+                SprintId                  = sprintId,
+                SprintTitleEn             = sprint.TitleEn,
+                StartDate                 = sprint.StartDate,
+                EndDate                   = sprint.EndDate,
+                ActualDurationDays        = (int)(sprint.EndDate - sprint.StartDate).TotalDays,
+                PlannedDurationDays       = 14,
+                TotalTasks                = totalCount,
+                CompletedTasks            = doneTasks.Count,
+                InProgressTasks           = 0,
+                NotStartedTasks           = unfinishedTasks.Count,
+                CompletionRate            = totalCount > 0
                     ? Math.Round((double)doneTasks.Count / totalCount * 100, 2)
                     : 0,
-                TotalEstimatedHours = totalEstimated,
-                TotalActualHours    = totalActual,
-                VelocityRatio       = totalEstimated > 0
+                TotalEstimatedHours       = totalEstimated,
+                TotalActualHours          = totalActual,
+                VelocityRatio             = totalEstimated > 0
                     ? (double)(totalActual / totalEstimated)
                     : 0,
-                DeveloperBreakdowns = developerBreakdowns,
-                UnfinishedTasks     = unfinishedTaskData
+                DeveloperBreakdowns       = developerBreakdowns,
+                UnfinishedTasks           = unfinishedTaskData,
+                PartiallyCompletedStories = partiallyCompletedStories
             };
         }
     }

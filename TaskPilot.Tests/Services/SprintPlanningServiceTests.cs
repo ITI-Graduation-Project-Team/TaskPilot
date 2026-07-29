@@ -25,23 +25,30 @@ namespace TaskPilot.Tests.Services
         private readonly Mock<ILogger<SprintPlanningService>> _loggerMock;
         private readonly SprintPlanningService _service;
 
+        private readonly Mock<IRepository<Sprint>> _sprintRepoMock;
+
         public SprintPlanningServiceTests()
         {
             _projectRepoMock = new Mock<IRepository<Project>>();
             _userStoryRepoMock = new Mock<IUserStoryRepository>();
             _projectEmployeeRepoMock = new Mock<IProjectEmployeeRepository>();
             _retrospectiveRepoMock = new Mock<IRepository<SprintRetrospective>>();
+            _sprintRepoMock = new Mock<IRepository<Sprint>>();
             _loggerMock = new Mock<ILogger<SprintPlanningService>>();
             _agentMock = new Mock<SprintSuggestionAgent>(null!, null!);
 
             _retrospectiveRepoMock.Setup(r => r.GetQueryable())
                 .Returns(new List<SprintRetrospective>().AsQueryable());
+            _sprintRepoMock.Setup(r => r.GetQueryable())
+                .Returns(new List<Sprint>().AsQueryable());
 
             _service = new SprintPlanningService(
                 _projectRepoMock.Object,
                 _userStoryRepoMock.Object,
                 _projectEmployeeRepoMock.Object,
                 _retrospectiveRepoMock.Object,
+                _sprintRepoMock.Object,
+                null!,
                 _agentMock.Object,
                 _loggerMock.Object);
         }

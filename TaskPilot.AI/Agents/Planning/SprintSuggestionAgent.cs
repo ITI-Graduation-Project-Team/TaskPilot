@@ -26,6 +26,7 @@ namespace TaskPilot.AI.Agents.Planning
             decimal targetSprintHours,
             string backlogJson,
             string retrospectiveContext = "",
+            int sprintNumber = 1,
             CancellationToken cancellationToken = default)
         {
             var kernel = _kernelService.CreateKernel(
@@ -45,7 +46,8 @@ namespace TaskPilot.AI.Agents.Planning
                     ["sprintDurationInDays"] = sprintDurationInDays.ToString(),
                     ["targetSprintHours"] = targetSprintHours.ToString(),
                     ["backlog"] = backlogJson,
-                    ["retrospectiveContext"] = retrospectiveContext ?? string.Empty
+                    ["retrospectiveContext"] = retrospectiveContext ?? string.Empty,
+                    ["sprintNumber"] = sprintNumber.ToString()
                 },
                 cancellationToken: cancellationToken);
 
@@ -77,6 +79,21 @@ namespace TaskPilot.AI.Agents.Planning
 
                 if (suggestion is null || !suggestion.Stories.Any())
                     throw new InvalidOperationException("Sprint suggestion returned empty or null result.");
+
+                if (suggestion.SprintNumber <= 0)
+                {
+                    suggestion.SprintNumber = sprintNumber;
+                }
+
+                if (string.IsNullOrWhiteSpace(suggestion.SprintTitleEn))
+                {
+                    suggestion.SprintTitleEn = $"Sprint {sprintNumber}";
+                }
+
+                if (string.IsNullOrWhiteSpace(suggestion.SprintTitleAr))
+                {
+                    suggestion.SprintTitleAr = $"السبرينت {sprintNumber}";
+                }
 
                 return suggestion;
             }

@@ -41,6 +41,7 @@ namespace TaskPilot.AI.Agents.Planning
                 totalActualHours    = data.TotalActualHours,
                 developers          = data.DeveloperBreakdowns.Select(d => new
                 {
+                    employeeId        = d.EmployeeId.ToString(),
                     name              = d.FullName,
                     completionRate    = Math.Round(d.CompletionRate, 1),
                     velocityRatio     = Math.Round(d.VelocityRatio, 2),
@@ -93,10 +94,40 @@ namespace TaskPilot.AI.Agents.Planning
                         PropertyNameCaseInsensitive = true
                     });
 
-                return (
-                    parsed?.Analysis ?? new SprintAnalysisDto(),
-                    parsed?.Improvements ?? new List<SprintImprovementDto>()
-                );
+                var analysis = parsed?.Analysis ?? new SprintAnalysisDto();
+                var improvements = parsed?.Improvements ?? new List<SprintImprovementDto>();
+
+                // Fallback resolution for targetEmployeeId if AI didn't populate it or populated Guid.Empty
+                foreach (var imp in improvements)
+                {
+                    if (!imp.TargetEmployeeId.HasValue || imp.TargetEmployeeId.Value == Guid.Empty)
+                    {
+                        foreach (var dev in data.DeveloperBreakdowns)
+                        {
+                            if (dev.EmployeeId == Guid.Empty || string.IsNullOrWhiteSpace(dev.FullName))
+                                continue;
+
+                            var nameParts = dev.FullName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                            var firstName = nameParts.FirstOrDefault();
+
+                            bool isMatch = (!string.IsNullOrEmpty(imp.RecommendationEn) &&
+                                            imp.RecommendationEn.Contains(dev.FullName, StringComparison.OrdinalIgnoreCase))
+                                        || (!string.IsNullOrEmpty(imp.RecommendationAr) &&
+                                            imp.RecommendationAr.Contains(dev.FullName, StringComparison.OrdinalIgnoreCase))
+                                        || (!string.IsNullOrEmpty(firstName) && firstName.Length > 2 &&
+                                            ((!string.IsNullOrEmpty(imp.RecommendationEn) && imp.RecommendationEn.Contains(firstName, StringComparison.OrdinalIgnoreCase)) ||
+                                             (!string.IsNullOrEmpty(imp.RecommendationAr) && imp.RecommendationAr.Contains(firstName, StringComparison.OrdinalIgnoreCase))));
+
+                            if (isMatch)
+                            {
+                                imp.TargetEmployeeId = dev.EmployeeId;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                return (analysis, improvements);
             }
             catch (JsonException)
             {

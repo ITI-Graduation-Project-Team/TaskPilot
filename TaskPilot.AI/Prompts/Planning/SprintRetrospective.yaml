@@ -58,6 +58,7 @@ template: |
   - Maximum 2 riskSignals
   - Maximum 5 improvements total
   - improvements must have actionType from the list above
+  - CRITICAL: For developer-specific actions ("ReduceCapacity", "ReassignDeveloper"), you MUST set "targetEmployeeId" to the developer's "employeeId" GUID string from the developers list. Set to null only for team-wide actions.
 
   ## Required JSON Structure
   {
@@ -78,7 +79,7 @@ template: |
         "recommendationAr": "string",
         "priority": "High",
         "actionType": "ReduceCapacity",
-        "targetEmployeeId": null,
+        "targetEmployeeId": "guid-string-or-null",
         "suggestedAdjustment": 0.85
       }
     ]

@@ -30,6 +30,20 @@ namespace TaskPilot.DTOs.Sprint
 
         // Unfinished Work
         public List<UnfinishedTaskData> UnfinishedTasks { get; set; } = new();
+
+        // Feature Completeness Index (Partially Completed Stories: 0% < Completion < 100%)
+        public List<PartiallyCompletedStoryData> PartiallyCompletedStories { get; set; } = new();
+    }
+
+    public class PartiallyCompletedStoryData
+    {
+        public Guid UserStoryId { get; set; }
+        public string TitleEn { get; set; } = string.Empty;
+        public string TitleAr { get; set; } = string.Empty;
+        public int TotalTasks { get; set; }
+        public int CompletedTasks { get; set; }
+        public int RemainingTasks { get; set; }
+        public double CompletionPercentage { get; set; }
     }
 
     public class DeveloperRetrospectiveData
@@ -49,6 +63,7 @@ namespace TaskPilot.DTOs.Sprint
     public class UnfinishedTaskData
     {
         public Guid TaskId { get; set; }
+        public Guid? UserStoryId { get; set; }
         public string TitleEn { get; set; } = string.Empty;
         public decimal EstimatedHours { get; set; }
         public string Reason { get; set; } = string.Empty;

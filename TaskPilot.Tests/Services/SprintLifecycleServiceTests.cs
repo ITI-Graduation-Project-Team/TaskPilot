@@ -47,7 +47,7 @@ namespace TaskPilot.Tests.Services
             typeof(BaseEntity<Guid>).GetProperty("Id")!.SetValue(sprint, sprintId);
 
             _projectRepoMock.Setup(r => r.GetByIdAsync(projectId)).ReturnsAsync(project);
-            _sprintRepoMock.Setup(r => r.GetByIdAsync(sprintId)).ReturnsAsync(sprint);
+            _sprintRepoMock.Setup(r => r.GetSprintWithTasksAsync(sprintId, It.IsAny<CancellationToken>())).ReturnsAsync(sprint);
             _sprintRepoMock.Setup(r => r.GetActiveSprintByProjectIdAsync(projectId, It.IsAny<CancellationToken>())).ReturnsAsync((Sprint?)null);
 
             var result = await _service.StartSprintAsync(projectId, sprintId);
@@ -70,7 +70,7 @@ namespace TaskPilot.Tests.Services
             typeof(BaseEntity<Guid>).GetProperty("Id")!.SetValue(activeSprint, Guid.NewGuid());
 
             _projectRepoMock.Setup(r => r.GetByIdAsync(projectId)).ReturnsAsync(project);
-            _sprintRepoMock.Setup(r => r.GetByIdAsync(sprintId)).ReturnsAsync(sprint);
+            _sprintRepoMock.Setup(r => r.GetSprintWithTasksAsync(sprintId, It.IsAny<CancellationToken>())).ReturnsAsync(sprint);
             _sprintRepoMock.Setup(r => r.GetActiveSprintByProjectIdAsync(projectId, It.IsAny<CancellationToken>())).ReturnsAsync(activeSprint);
 
             var result = await _service.StartSprintAsync(projectId, sprintId);

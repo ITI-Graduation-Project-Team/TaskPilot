@@ -80,10 +80,15 @@ namespace TaskPilot.Tests.Services
                 EndDate   = DateTime.UtcNow
             }, sprintId);
 
+            var storyId = Guid.NewGuid();
+            var story   = SetEntityId(new UserStory { TitleEn = "Authentication Story", TitleAr = "قصة مصادقة الهوية" }, storyId);
+
             // Task 1 — Done (SprintId still set)
             var task1 = SetEntityId(new TaskItem
             {
                 SprintId       = sprintId,
+                UserStoryId    = storyId,
+                UserStory      = story,
                 Status         = TaskItemStatus.Done,
                 EstimatedHours = 10,
                 ActualHours    = 8,
@@ -97,6 +102,8 @@ namespace TaskPilot.Tests.Services
             var task2 = SetEntityId(new TaskItem
             {
                 SprintId       = sprintId,
+                UserStoryId    = storyId,
+                UserStory      = story,
                 Status         = TaskItemStatus.Done,
                 EstimatedHours = 5,
                 ActualHours    = 6,
@@ -111,6 +118,8 @@ namespace TaskPilot.Tests.Services
             var task3 = SetEntityId(new TaskItem
             {
                 SprintId       = null,   // ← cleared by sprint completion
+                UserStoryId    = storyId,
+                UserStory      = story,
                 EmployeeId     = null,   // ← cleared by sprint completion
                 Status         = TaskItemStatus.ToDo,
                 EstimatedHours = 4,
@@ -160,6 +169,16 @@ namespace TaskPilot.Tests.Services
             Assert.Equal(Math.Round(2.0 / 3.0 * 100, 2), devBreakdown.CompletionRate);     // 66.67
             Assert.Equal(19m, devBreakdown.EstimatedHours);                                 // all 3 tasks
             Assert.Equal(14m, devBreakdown.ActualHours);                                    // done tasks only
+
+            // ── Feature Completeness Index (Idea 5) ──
+            Assert.Single(result.PartiallyCompletedStories);
+            var partialStory = result.PartiallyCompletedStories[0];
+            Assert.Equal(storyId, partialStory.UserStoryId);
+            Assert.Equal("Authentication Story", partialStory.TitleEn);
+            Assert.Equal(3, partialStory.TotalTasks);
+            Assert.Equal(2, partialStory.CompletedTasks);
+            Assert.Equal(1, partialStory.RemainingTasks);
+            Assert.Equal(Math.Round(2.0 / 3.0 * 100, 1), partialStory.CompletionPercentage);
 
             // ── Unfinished tasks ──
             Assert.Single(result.UnfinishedTasks);

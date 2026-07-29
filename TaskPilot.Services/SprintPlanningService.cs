@@ -16,6 +16,7 @@ using TaskPilot.Services.Interfaces;
 using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Common.Errors;
 using TaskPilot.Models.Enums;
+using TaskPilot.Services.Implementations;
 
 namespace TaskPilot.Services
 {
@@ -25,6 +26,8 @@ namespace TaskPilot.Services
         private readonly IUserStoryRepository _userStoryRepository;
         private readonly IProjectEmployeeRepository _projectEmployeeRepository;
         private readonly IRepository<SprintRetrospective> _retrospectiveRepository;
+        private readonly IRepository<Sprint> _sprintRepository;
+        private readonly SprintDataCollectionService _dataCollectionService;
         private readonly SprintSuggestionAgent _sprintSuggestionAgent;
         private readonly ILogger<SprintPlanningService> _logger;
 
@@ -33,6 +36,8 @@ namespace TaskPilot.Services
             IUserStoryRepository userStoryRepository,
             IProjectEmployeeRepository projectEmployeeRepository,
             IRepository<SprintRetrospective> retrospectiveRepository,
+            IRepository<Sprint> sprintRepository,
+            SprintDataCollectionService dataCollectionService,
             SprintSuggestionAgent sprintSuggestionAgent,
             ILogger<SprintPlanningService> logger)
         {
@@ -40,6 +45,8 @@ namespace TaskPilot.Services
             _userStoryRepository = userStoryRepository;
             _projectEmployeeRepository = projectEmployeeRepository;
             _retrospectiveRepository = retrospectiveRepository;
+            _sprintRepository = sprintRepository;
+            _dataCollectionService = dataCollectionService;
             _sprintSuggestionAgent = sprintSuggestionAgent;
             _logger = logger;
         }
@@ -110,20 +117,75 @@ namespace TaskPilot.Services
 
             if (previousRetrospective is not null)
             {
+                var contextLines = new List<string>();
+
+                // 1. High Priority Improvements
                 var improvements = string.IsNullOrEmpty(previousRetrospective.ImprovementsJson) 
                     ? new List<SprintImprovementDto>() 
                     : JsonSerializer.Deserialize<List<SprintImprovementDto>>(previousRetrospective.ImprovementsJson);
 
-                if (improvements != null && improvements.Any())
+                if (improvements != null && improvements.Any(i => i.Priority == "High"))
                 {
-                    retrospectiveContext = "Previous Sprint Lessons:\n" +
-                        string.Join("\n", improvements
-                            .Where(i => i.Priority == "High")
-                            .Select(i => $"- [{i.ActionType}] {i.RecommendationEn}"));
+                    contextLines.Add("Previous Sprint Actionable Improvements:");
+                    foreach (var imp in improvements.Where(i => i.Priority == "High"))
+                    {
+                        contextLines.Add($"  - [{imp.ActionType}] {imp.RecommendationEn}");
+                    }
+                }
+
+                // 2. Fetch Detailed Retrospective Metrics & Carry-over Data
+                try
+                {
+                    var retroData = await _dataCollectionService.CollectAsync(previousRetrospective.SprintId, cancellationToken);
+
+                    // Feature Completeness & Hierarchical Carry-over Tasks (Ideas 1 & 5)
+                    if (retroData.PartiallyCompletedStories.Any() || retroData.UnfinishedTasks.Any())
+                    {
+                        contextLines.Add("PARTIALLY COMPLETED FEATURES & CARRY-OVER WORK FROM PREVIOUS SPRINT (Close these first for 100% Shippable Value):");
+
+                        var attachedTaskIds = new HashSet<Guid>();
+
+                        foreach (var story in retroData.PartiallyCompletedStories)
+                        {
+                            contextLines.Add($"  - Story '{story.TitleEn}' (ID: {story.UserStoryId}) is {story.CompletionPercentage}% complete ({story.CompletedTasks}/{story.TotalTasks} tasks done):");
+
+                            var storyTasks = retroData.UnfinishedTasks.Where(t => t.UserStoryId == story.UserStoryId).ToList();
+                            foreach (var task in storyTasks)
+                            {
+                                attachedTaskIds.Add(task.TaskId);
+                                contextLines.Add($"      └── Remaining Task: '{task.TitleEn}' (Estimated: {task.EstimatedHours}h, Status: {task.Reason}, Assignee: {task.AssigneeName})");
+                            }
+                        }
+
+                        var orphanTasks = retroData.UnfinishedTasks.Where(t => !attachedTaskIds.Contains(t.TaskId)).ToList();
+                        if (orphanTasks.Any())
+                        {
+                            contextLines.Add("  - Unattached Carry-Over Tasks:");
+                            foreach (var task in orphanTasks)
+                            {
+                                contextLines.Add($"      └── Task: '{task.TitleEn}' (Estimated: {task.EstimatedHours}h, Status: {task.Reason}, Assignee: {task.AssigneeName})");
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Could not collect detailed retrospective metrics for SprintId {SprintId}", previousRetrospective.SprintId);
+                }
+
+                if (contextLines.Any())
+                {
+                    retrospectiveContext = string.Join("\n", contextLines);
                 }
             }
 
             _logger.LogInformation("Generating Sprint suggestion for ProjectId: {ProjectId} with {StoryCount} unassigned stories", projectId, unassignedStories.Count);
+
+            var existingSprintsCount = _sprintRepository != null
+                ? await _sprintRepository.GetQueryable().CountAsync(s => s.ProjectId == projectId, cancellationToken)
+                : 0;
+
+            var nextSprintNumber = existingSprintsCount + 1;
 
             var suggestion = await _sprintSuggestionAgent.SuggestSprintAsync(
                 projectId,
@@ -132,6 +194,7 @@ namespace TaskPilot.Services
                 project.TargetSprintHours,
                 backlogJson,
                 retrospectiveContext,
+                nextSprintNumber,
                 cancellationToken);
 
             return Result.Success(suggestion);
