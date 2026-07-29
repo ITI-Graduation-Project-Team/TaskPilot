@@ -6,7 +6,6 @@ namespace TaskPilot.Presentation.Controllers
 {
     [ApiController]
     [Route("api/projects/{projectId:guid}/sprints/{sprintId:guid}/retrospective")]
-    [Route("api/projects/{projectId:guid}/sprint-retrospectives/sprints/{sprintId:guid}")]
     public class SprintRetrospectivesController(
         ISprintRetrospectiveService retrospectiveService,
         IUnitOfWork unitOfWork) : ApiControllerBase
