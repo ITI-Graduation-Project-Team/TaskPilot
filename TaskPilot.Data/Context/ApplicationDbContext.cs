@@ -47,11 +47,14 @@ namespace TaskPilot.Data.Context
         public DbSet<SprintRetrospective> SprintRetrospectives => Set<SprintRetrospective>();
         public DbSet<SprintRiskAlert> SprintRiskAlerts => Set<SprintRiskAlert>();
         public DbSet<SprintBurnoutSnapshot> SprintBurnoutSnapshots => Set<SprintBurnoutSnapshot>();
-        public DbSet<TaskAiSummary> TaskAiSummaries => Set<TaskAiSummary>();
+
         
         public DbSet<ProjectChatSession> ProjectChatSessions => Set<ProjectChatSession>();
         public DbSet<ProjectChatMessage> ProjectChatMessages => Set<ProjectChatMessage>();
         public DbSet<AiTelemetryLog> AiTelemetryLogs => Set<AiTelemetryLog>();
+        
+        public DbSet<TaskPilot.Models.AgileCoach.AgileCoachChatMessage> AgileCoachChatMessages => Set<TaskPilot.Models.AgileCoach.AgileCoachChatMessage>();
+
         
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -59,6 +62,8 @@ namespace TaskPilot.Data.Context
 
             // Scan the Models assembly for IEntityTypeConfiguration implementations
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(User).Assembly);//ApplicationDbContext is in TaskPilot.Data, but the entities are in TaskPilot.Models, so we need to specify the assembly of the entities
+            
+            modelBuilder.ApplyConfiguration(new TaskPilot.Data.Configurations.AgileCoachChatMessageConfiguration());
         }
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {

@@ -11,6 +11,6 @@ namespace TaskPilot.Models.Common.Errors
             => new("CHAT_GENERATION_FAILED", ErrorType.Failure, description ?? "Failed to generate AI chat response.");
 
         public static Error KnowledgeBaseEmpty(string? description = null)
-            => new("KNOWLEDGE_BASE_EMPTY", ErrorType.NotFound, description ?? "No relevant context found in the knowledge base for this task.");
+            => new("KNOWLEDGE_BASE_EMPTY", ErrorType.Validation, description ?? "No relevant context found in the knowledge base for this task.");
     }
 }

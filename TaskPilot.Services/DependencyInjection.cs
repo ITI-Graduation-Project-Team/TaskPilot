@@ -1,13 +1,10 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using TaskPilot.Data.Repositories;
-using TaskPilot.Services.Helpers;
-using TaskPilot.Services.Interfaces;
-using TaskPilot.Models.Common;
-using TaskPilot.Services.Interfaces.CVExtractorInterfaces;
-using TaskPilot.Services.Interfaces.External;
 using Microsoft.SemanticKernel;
+using TaskPilot.Models.Common;
 using TaskPilot.Services.Filters;
+using TaskPilot.Services.Interfaces;
+using TaskPilot.Services.Interfaces.CVExtractorInterfaces;
 using TaskPilot.Services.Repositories;
 
 namespace TaskPilot.Services
@@ -23,7 +20,7 @@ namespace TaskPilot.Services
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<ITaskCommentService, TaskPilot.Services.Implementations.TaskCommentService>();
             services.AddScoped<ITaskAttachmentService, TaskPilot.Services.Implementations.TaskAttachmentService>();
-            
+
             services.AddScoped<IRoleService, RoleService>();
             services.AddScoped<ISubscriptionPlanService, SubscriptionPlanService>();
             services.AddScoped<IUserSubscriptionService, UserSubscriptionService>();
@@ -48,6 +45,7 @@ namespace TaskPilot.Services
             services.AddScoped<IAiTelemetryService, AiTelemetryService>();
             services.AddScoped<IFunctionInvocationFilter, AiTelemetryFilter>();
             services.AddScoped<TaskPilot.AI.Services.Interfaces.IAiProjectChatService, TaskPilot.Services.Implementations.ProjectChatService>();
+            services.AddScoped<IAgileCoachService, TaskPilot.Services.Implementations.AgileCoachService>();
             services.AddScoped<TaskPilot.AI.Services.Interfaces.IAiBacklogService, TaskPilot.Services.BacklogService>();
             services.AddScoped<TaskPilot.Services.Assignment.ITeamSnapshotService, TaskPilot.Services.Assignment.TeamSnapshotService>();
             services.AddScoped<TaskPilot.Services.Assignment.ICapacityValidationService, TaskPilot.Services.Assignment.CapacityValidationService>();
@@ -61,7 +59,7 @@ namespace TaskPilot.Services
             // الآن التكوين (configuration) متاح للاستخدام
             services.Configure<AssignmentOptions>(configuration.GetSection(AssignmentOptions.SectionName));
             services.Configure<TaskPilot.Services.Assignment.ScoringWeights>(configuration.GetSection("Assignment:Scoring"));
-          
+
             // ── External ──
 
             //for ---CV
@@ -77,9 +75,9 @@ namespace TaskPilot.Services
 
             services.AddScoped<ISprintLifecycleService, SprintLifecycleService>();
             services.AddScoped<IProjectTeamService, ProjectTeamService>();
-            services.AddScoped<ICompanyService,CompanyService>();
+            services.AddScoped<ICompanyService, CompanyService>();
             services.AddScoped<ITaskStatusService, TaskPilot.Services.Implementations.TaskStatusService>();
-            services.AddScoped<ICompanyService,CompanyService>();
+            services.AddScoped<ICompanyService, CompanyService>();
 
             services.AddHostedService<BackgroundJobs.SubscriptionExpiryJob>();
 
