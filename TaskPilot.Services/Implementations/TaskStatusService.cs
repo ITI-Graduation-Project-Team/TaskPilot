@@ -130,40 +130,161 @@ namespace TaskPilot.Services.Implementations
                 return Result.Failure<TaskStatusUpdateResult>(TaskErrors.TaskAlreadyInRequestedStatus);
             }
 
-            var transitionValidation = ValidateStatusTransition(task.Status, request.Status);
+            var transitionValidation = ValidateStatusTransition(task.Status, request.Status, isProjectManager);
             if (transitionValidation.IsFailure)
             {
                 _logger.LogWarning("UpdateStatusAsync failed: Invalid transition from {CurrentStatus} to {RequestedStatus}. TaskId {TaskId}", task.Status, request.Status, taskId);
                 return Result.Failure<TaskStatusUpdateResult>(transitionValidation.Error);
             }
 
+            var previousStatus = task.Status;
+
+            // Accumulate time if leaving InProgress
+            if (previousStatus == TaskItemStatus.InProgress && request.Status != TaskItemStatus.InProgress)
+            {
+                if (task.InProgressAt.HasValue)
+                {
+                    task.ActualHours += CalculateWorkingHours(task.InProgressAt.Value, DateTime.UtcNow);
+                    task.InProgressAt = null;
+                }
+            }
+
+            // Start time if entering InProgress
             if (request.Status == TaskItemStatus.InProgress)
             {
                 task.InProgressAt = DateTime.UtcNow;
             }
 
-            if (request.Status == TaskItemStatus.Done)
-            {
-                if (task.InProgressAt.HasValue)
-                {
-                    task.ActualHours = CalculateWorkingHours(task.InProgressAt.Value, DateTime.UtcNow);
-                }
-                else
-                {
-                    if (request.ActualHours == null || request.ActualHours <= 0)
-                    {
-                        _logger.LogWarning("UpdateStatusAsync failed: Actual hours required to complete task. TaskId {TaskId}", taskId);
-                        return Result.Failure<TaskStatusUpdateResult>(TaskErrors.ActualHoursRequired);
-                    }
-                    task.ActualHours = request.ActualHours.Value;
-                }
-            }
-
-            var previousStatus = task.Status;
             task.Status = request.Status;
 
             _logger.LogInformation("Task {TaskId} in Project {ProjectId} (Sprint {SprintId}) status updated from {PreviousStatus} to {NewStatus} by {EmployeeId}. Actual hours: {ActualHours}", 
                 task.Id, task.Sprint.ProjectId, task.SprintId, previousStatus.ToString(), task.Status.ToString(), currentUserId, task.ActualHours);
+
+            var result = new TaskStatusUpdateResult
+            {
+                TaskId = task.Id,
+                TitleEn = task.TitleEn,
+                PreviousStatus = previousStatus,
+                NewStatus = task.Status,
+                EstimatedHours = task.EstimatedHours,
+                ActualHours = task.ActualHours
+            };
+
+            return Result.Success(result);
+        }
+
+        public async Task<Result<TaskStatusUpdateResult>> PmRejectReviewAsync(
+            Guid taskId,
+            Guid currentUserId,
+            PmRejectReviewRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            if (taskId == Guid.Empty || currentUserId == Guid.Empty || request == null || (string.IsNullOrWhiteSpace(request.ReasonEn) && string.IsNullOrWhiteSpace(request.ReasonAr)))
+            {
+                return Result.Failure<TaskStatusUpdateResult>(TaskErrors.TaskOverrideReasonRequired);
+            }
+
+            var task = await _taskRepository.GetByIdWithSprintAsync(taskId, cancellationToken);
+            if (task == null)
+            {
+                return Result.Failure<TaskStatusUpdateResult>(TaskErrors.TaskNotFound);
+            }
+
+            if (task.Sprint == null || task.Sprint.Status != SprintStatus.Active)
+            {
+                return Result.Failure<TaskStatusUpdateResult>(TaskErrors.SprintNotActive);
+            }
+
+            var isProjectManager = await _projectEmployeeRepository.IsProjectManagerAsync(task.Sprint.ProjectId, currentUserId, cancellationToken);
+            if (!isProjectManager)
+            {
+                return Result.Failure<TaskStatusUpdateResult>(TaskErrors.ForbiddenTaskUpdate);
+            }
+
+            if (task.Status != TaskItemStatus.Review)
+            {
+                return Result.Failure<TaskStatusUpdateResult>(TaskErrors.InvalidTaskStatusTransition);
+            }
+
+            var previousStatus = task.Status;
+            task.Status = TaskItemStatus.InProgress;
+            task.InProgressAt = DateTime.UtcNow; // Start the timer again for the developer
+
+            var log = new TaskPilot.Models.Entities.TaskStatusOverrideLog
+            {
+                TaskId = task.Id,
+                PerformedByPmId = currentUserId,
+                FromStatus = previousStatus,
+                ToStatus = task.Status,
+                ReasonEn = request.ReasonEn,
+                ReasonAr = request.ReasonAr,
+                OverrideType = "ReviewReject"
+            };
+
+            _taskRepository.AddOverrideLog(log);
+
+            var result = new TaskStatusUpdateResult
+            {
+                TaskId = task.Id,
+                TitleEn = task.TitleEn,
+                PreviousStatus = previousStatus,
+                NewStatus = task.Status,
+                EstimatedHours = task.EstimatedHours,
+                ActualHours = task.ActualHours
+            };
+
+            return Result.Success(result);
+        }
+
+        public async Task<Result<TaskStatusUpdateResult>> PmReopenTaskAsync(
+            Guid taskId,
+            Guid currentUserId,
+            PmReopenTaskRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            if (taskId == Guid.Empty || currentUserId == Guid.Empty || request == null || (string.IsNullOrWhiteSpace(request.ReasonEn) && string.IsNullOrWhiteSpace(request.ReasonAr)))
+            {
+                return Result.Failure<TaskStatusUpdateResult>(TaskErrors.TaskOverrideReasonRequired);
+            }
+
+            var task = await _taskRepository.GetByIdWithSprintAsync(taskId, cancellationToken);
+            if (task == null)
+            {
+                return Result.Failure<TaskStatusUpdateResult>(TaskErrors.TaskNotFound);
+            }
+
+            if (task.Sprint == null || task.Sprint.Status != SprintStatus.Active)
+            {
+                return Result.Failure<TaskStatusUpdateResult>(TaskErrors.SprintNotActive);
+            }
+
+            var isProjectManager = await _projectEmployeeRepository.IsProjectManagerAsync(task.Sprint.ProjectId, currentUserId, cancellationToken);
+            if (!isProjectManager)
+            {
+                return Result.Failure<TaskStatusUpdateResult>(TaskErrors.ForbiddenTaskUpdate);
+            }
+
+            if (task.Status != TaskItemStatus.Done)
+            {
+                return Result.Failure<TaskStatusUpdateResult>(TaskErrors.InvalidTaskStatusTransition);
+            }
+
+            var previousStatus = task.Status;
+            task.Status = TaskItemStatus.InProgress;
+            task.InProgressAt = DateTime.UtcNow;
+
+            var log = new TaskPilot.Models.Entities.TaskStatusOverrideLog
+            {
+                TaskId = task.Id,
+                PerformedByPmId = currentUserId,
+                FromStatus = previousStatus,
+                ToStatus = task.Status,
+                ReasonEn = request.ReasonEn,
+                ReasonAr = request.ReasonAr,
+                OverrideType = "Reopen"
+            };
+
+            _taskRepository.AddOverrideLog(log);
 
             var result = new TaskStatusUpdateResult
             {
@@ -348,9 +469,31 @@ namespace TaskPilot.Services.Implementations
             return Math.Round(totalHours, 2);
         }
 
-        private Result ValidateStatusTransition(TaskItemStatus current, TaskItemStatus requested)
+        private Result ValidateStatusTransition(TaskItemStatus current, TaskItemStatus requested, bool isProjectManager)
         {
-            return Result.Success();
+            if (isProjectManager)
+            {
+                // PM can only move from Review to Done
+                if (current == TaskItemStatus.Review && requested == TaskItemStatus.Done)
+                    return Result.Success();
+
+                if (requested == TaskItemStatus.Done)
+                    return Result.Failure(TaskErrors.PmCannotCompleteTasks);
+
+                return Result.Failure(TaskErrors.PmCannotStartTasks);
+            }
+            else
+            {
+                // Developer can move ToDo <-> InProgress, InProgress -> Review
+                if (current == TaskItemStatus.ToDo && requested == TaskItemStatus.InProgress)
+                    return Result.Success();
+                if (current == TaskItemStatus.InProgress && requested == TaskItemStatus.ToDo)
+                    return Result.Success();
+                if (current == TaskItemStatus.InProgress && requested == TaskItemStatus.Review)
+                    return Result.Success();
+                    
+                return Result.Failure(TaskErrors.InvalidTaskStatusTransition);
+            }
         }
     }
 }

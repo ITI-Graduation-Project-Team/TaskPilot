@@ -29,6 +29,7 @@ namespace TaskPilot.Data.Context
         public DbSet<Sprint> Sprints => Set<Sprint>();
         public DbSet<UserStory> UserStories => Set<UserStory>();
         public DbSet<TaskItem> TaskItems => Set<TaskItem>();
+        public DbSet<TaskStatusOverrideLog> TaskStatusOverrideLogs => Set<TaskStatusOverrideLog>();
         public DbSet<TaskComment> TaskComments => Set<TaskComment>();
         public DbSet<TaskAttachment> TaskAttachments => Set<TaskAttachment>();
         public DbSet<Notification> Notifications => Set<Notification>();
@@ -64,6 +65,7 @@ namespace TaskPilot.Data.Context
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(User).Assembly);//ApplicationDbContext is in TaskPilot.Data, but the entities are in TaskPilot.Models, so we need to specify the assembly of the entities
             
             modelBuilder.ApplyConfiguration(new TaskPilot.Data.Configurations.AgileCoachChatMessageConfiguration());
+            modelBuilder.ApplyConfiguration(new TaskPilot.Data.Configurations.TaskStatusOverrideLogConfiguration());
         }
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {

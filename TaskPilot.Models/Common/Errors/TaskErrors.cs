@@ -43,5 +43,20 @@ namespace TaskPilot.Models.Common.Errors
             "TASK_ALREADY_IN_REQUESTED_STATUS",
             ErrorType.Validation,
             "The task is already in the requested status.");
+
+        public static readonly Error PmCannotCompleteTasks = new(
+            "TASK_PM_CANNOT_COMPLETE",
+            ErrorType.Forbidden,
+            "Task completion must be confirmed by the assigned developer.");
+
+        public static readonly Error PmCannotStartTasks = new(
+            "TASK_PM_CANNOT_START",
+            ErrorType.Forbidden,
+            "Task execution must be started by the assigned developer.");
+
+        public static readonly Error TaskOverrideReasonRequired = new(
+            "TASK_OVERRIDE_REASON_REQUIRED",
+            ErrorType.Validation,
+            "A reason is required to reject or reopen this task.");
     }
 }
