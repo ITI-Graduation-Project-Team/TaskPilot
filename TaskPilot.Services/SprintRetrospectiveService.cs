@@ -122,7 +122,10 @@ namespace TaskPilot.Services
                     UnfinishedTasks = entity.UnfinishedTasks,
                     DeveloperMetrics = data.DeveloperBreakdowns?.Select(d => new DeveloperMetricDto
                     {
+                        EmployeeId = d.EmployeeId,
                         FullName = d.FullName,
+                        AssignedTasks = d.AssignedTasks,
+                        CompletedTasks = d.CompletedTasks,
                         CompletionRate = d.CompletionRate,
                         VelocityRatio = d.VelocityRatio,
                         EstimatedHours = d.EstimatedHours,

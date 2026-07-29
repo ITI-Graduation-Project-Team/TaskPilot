@@ -27,7 +27,10 @@ namespace TaskPilot.DTOs.Sprint
 
     public class DeveloperMetricDto
     {
+        public Guid? EmployeeId { get; set; }
         public string FullName { get; set; } = string.Empty;
+        public int AssignedTasks { get; set; }
+        public int CompletedTasks { get; set; }
         public double CompletionRate { get; set; }
         public double VelocityRatio { get; set; }
         public decimal EstimatedHours { get; set; }

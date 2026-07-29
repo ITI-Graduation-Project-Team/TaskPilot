@@ -130,10 +130,19 @@ namespace TaskPilot.Services.Implementations
                 var devEstimated   = devDone.Sum(t => t.EstimatedHours)
                                    + devUnfinished.Sum(t => t.EstimatedHours);
                 var devActual      = devDone.Sum(t => t.ActualHours);
+                var devDoneEstimated = devDone.Sum(t => t.EstimatedHours);
 
                 // Resolve employee name: prefer from done task, fallback to alert
                 var employee = devDone.FirstOrDefault()?.Employee
                             ?? devAlerts.FirstOrDefault()?.AffectedEmployee;
+
+                double devVelocity = 0;
+                if (devDone.Count > 0)
+                {
+                    devVelocity = devActual > 0
+                        ? Math.Round((double)(devDoneEstimated / devActual), 2)
+                        : 1.0;
+                }
 
                 return new DeveloperRetrospectiveData
                 {
@@ -145,9 +154,7 @@ namespace TaskPilot.Services.Implementations
                     CompletedTasks     = devDone.Count,
                     EstimatedHours     = devEstimated,
                     ActualHours        = devActual,
-                    VelocityRatio      = devEstimated > 0
-                        ? (double)(devActual / devEstimated)
-                        : 0,
+                    VelocityRatio      = devVelocity,
                     CompletionRate     = totalAssigned > 0
                         ? Math.Round((double)devDone.Count / totalAssigned * 100, 2)
                         : 0,
@@ -195,9 +202,9 @@ namespace TaskPilot.Services.Implementations
                     : 0,
                 TotalEstimatedHours       = totalEstimated,
                 TotalActualHours          = totalActual,
-                VelocityRatio             = totalEstimated > 0
-                    ? (double)(totalActual / totalEstimated)
-                    : 0,
+                VelocityRatio             = (doneTasks.Count > 0 && totalActual > 0)
+                    ? Math.Round((double)(doneTasks.Sum(t => t.EstimatedHours) / totalActual), 2)
+                    : (doneTasks.Count > 0 ? 1.0 : 0.0),
                 DeveloperBreakdowns       = developerBreakdowns,
                 UnfinishedTasks           = unfinishedTaskData,
                 PartiallyCompletedStories = partiallyCompletedStories
