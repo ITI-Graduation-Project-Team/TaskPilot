@@ -110,6 +110,11 @@ namespace TaskPilot.Services
                 return Result.Failure<SprintStatusDto>(SprintErrors.SprintDoesNotBelongToProject);
             }
 
+            if (sprint.Tasks.Any(t => t.EmployeeId == null || t.EmployeeId == Guid.Empty))
+            {
+                return Result.Failure<SprintStatusDto>(SprintErrors.UnassignedTasksExist);
+            }
+
             if (sprint.Status == SprintStatus.Active)
             {
                 return Result.Failure<SprintStatusDto>(SprintErrors.SprintAlreadyActive);

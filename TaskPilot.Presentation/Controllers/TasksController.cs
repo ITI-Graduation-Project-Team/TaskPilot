@@ -84,6 +84,40 @@ namespace TaskPilot.Presentation.Controllers
             return HandleResult(result, SuccessCodes.Task.MyTasksRetrieved);
         }
 
+        [HttpPost("tasks/{taskId:guid}/reject-review")]
+        public async Task<IActionResult> RejectReview(
+            Guid taskId,
+            [FromBody] PmRejectReviewRequest request,
+            CancellationToken cancellationToken)
+        {
+            var userId = GetCurrentUserId();
+            var result = await _taskStatusService.PmRejectReviewAsync(taskId, userId, request, cancellationToken);
+
+            if (result.IsSuccess)
+            {
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+            }
+
+            return HandleResult(result, SuccessCodes.Task.TaskRejected);
+        }
+
+        [HttpPost("tasks/{taskId:guid}/reopen")]
+        public async Task<IActionResult> ReopenTask(
+            Guid taskId,
+            [FromBody] PmReopenTaskRequest request,
+            CancellationToken cancellationToken)
+        {
+            var userId = GetCurrentUserId();
+            var result = await _taskStatusService.PmReopenTaskAsync(taskId, userId, request, cancellationToken);
+
+            if (result.IsSuccess)
+            {
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+            }
+
+            return HandleResult(result, SuccessCodes.Task.TaskReopened);
+        }
+
         private Guid GetCurrentUserId()
         {
             var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);

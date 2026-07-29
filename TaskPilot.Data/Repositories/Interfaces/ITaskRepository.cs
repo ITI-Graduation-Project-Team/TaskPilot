@@ -28,5 +28,7 @@ namespace TaskPilot.Data.Repositories.Interfaces
         Task<TaskItem?> GetByIdWithSprintAsync(
             Guid taskId,
             CancellationToken cancellationToken = default);
+
+        void AddOverrideLog(TaskStatusOverrideLog log);
     }
 }
