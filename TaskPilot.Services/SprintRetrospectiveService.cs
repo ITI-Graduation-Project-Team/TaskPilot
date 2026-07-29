@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using TaskPilot.AI.Agents.Planning;
+using TaskPilot.AI.Models.Planning;
 using TaskPilot.Data.Repositories;
 using TaskPilot.DTOs.Sprint;
 using TaskPilot.Models.Common.Errors;
@@ -36,10 +37,12 @@ namespace TaskPilot.Services
                     CommonErrors.InvalidInput("A retrospective report can be generated only for a completed sprint."));
             }
 
-            var existing = await retrospectiveRepository.FindAsync(sr => sr.SprintId == sprintId);
-            if (existing.Any())
+            var existingList = await retrospectiveRepository.FindAsync(sr => sr.SprintId == sprintId);
+            var existing = existingList.FirstOrDefault();
+
+            if (existing != null && !string.IsNullOrWhiteSpace(existing.WhatWentWellEn))
             {
-                return Result.Success(MapToDto(existing.First()));
+                return Result.Success(MapToDto(existing));
             }
 
             // Fetch delayed tasks from SprintRiskAlerts because they are dissociated from the sprint
@@ -134,26 +137,44 @@ namespace TaskPilot.Services
 
             decimal accuracy = actualHours > 0 ? (expectedHours / actualHours) * 100 : 100;
 
-            var retrospective = new SprintRetrospective
+            if (existing == null)
             {
-                SprintId = sprintId,
-                WhatWentWellEn = aiResult.WhatWentWellEn,
-                WhatWentWellAr = aiResult.WhatWentWellAr,
-                ChallengesEn = aiResult.ChallengesEn,
-                ChallengesAr = aiResult.ChallengesAr,
-                ActionItemsEn = aiResult.ActionItemsEn,
-                ActionItemsAr = aiResult.ActionItemsAr,
-                CompletionRate = completionRate,
-                EstimationAccuracy = accuracy,
-                ExpectedHours = expectedHours,
-                ActualHours = actualHours,
-                TeamSentimentSummaryEn = aiResult.TeamSentimentSummaryEn,
-                TeamSentimentSummaryAr = aiResult.TeamSentimentSummaryAr
-            };
+                existing = new SprintRetrospective
+                {
+                    SprintId = sprintId
+                };
+                PopulateEntity(existing, aiResult, completionRate, accuracy, expectedHours, actualHours);
+                await retrospectiveRepository.AddAsync(existing);
+            }
+            else
+            {
+                PopulateEntity(existing, aiResult, completionRate, accuracy, expectedHours, actualHours);
+                retrospectiveRepository.Update(existing);
+            }
 
-            await retrospectiveRepository.AddAsync(retrospective);
+            return Result.Success(MapToDto(existing));
+        }
 
-            return Result.Success(MapToDto(retrospective));
+        private static void PopulateEntity(
+            SprintRetrospective entity,
+            RetrospectiveResultDto aiResult,
+            double completionRate,
+            decimal accuracy,
+            decimal expectedHours,
+            decimal actualHours)
+        {
+            entity.WhatWentWellEn = aiResult.WhatWentWellEn;
+            entity.WhatWentWellAr = aiResult.WhatWentWellAr;
+            entity.ChallengesEn = aiResult.ChallengesEn;
+            entity.ChallengesAr = aiResult.ChallengesAr;
+            entity.ActionItemsEn = aiResult.ActionItemsEn;
+            entity.ActionItemsAr = aiResult.ActionItemsAr;
+            entity.CompletionRate = completionRate;
+            entity.EstimationAccuracy = accuracy;
+            entity.ExpectedHours = expectedHours;
+            entity.ActualHours = actualHours;
+            entity.TeamSentimentSummaryEn = aiResult.TeamSentimentSummaryEn;
+            entity.TeamSentimentSummaryAr = aiResult.TeamSentimentSummaryAr;
         }
 
         public async Task<Result<SprintRetrospectiveResponseDto>> GetRetrospectiveAsync(Guid sprintId, CancellationToken cancellationToken = default)
