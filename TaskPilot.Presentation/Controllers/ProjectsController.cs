@@ -4,6 +4,7 @@ using TaskPilot.Data.Repositories;
 using TaskPilot.Services.Interfaces;
 using TaskPilot.DTOs.Projects;
 using System.Security.Claims;
+using TaskPilot.DTOs.AI.ProjectPolicies;
 
 namespace TaskPilot.Presentation.Controllers
 {
@@ -11,12 +12,14 @@ namespace TaskPilot.Presentation.Controllers
     {
         private readonly IProjectService _projectService;
         private readonly IProjectTeamService _projectTeamService;
+        private readonly IProjectPolicyService _projectPolicyService;
         private readonly IUnitOfWork _unitOfWork;
 
-        public ProjectsController(IProjectService projectService, IProjectTeamService projectTeamService, IUnitOfWork unitOfWork)
+        public ProjectsController(IProjectService projectService, IProjectTeamService projectTeamService, IProjectPolicyService projectPolicyService, IUnitOfWork unitOfWork)
         {
             _projectService = projectService;
             _projectTeamService = projectTeamService;
+            _projectPolicyService = projectPolicyService;
             _unitOfWork = unitOfWork;
         }
 
@@ -47,7 +50,23 @@ namespace TaskPilot.Presentation.Controllers
             var result = await _projectService.CreateAsync(project);
 
             if (result.IsSuccess)
+            {
                 await _unitOfWork.SaveChangesAsync();
+
+                if (project.RequirementSessionId.HasValue)
+                {
+                    var promoteRequest = new PromoteProjectPolicyRequest
+                    {
+                        RequirementSessionId = project.RequirementSessionId.Value,
+                        ProjectId = result.Value.Id
+                    };
+                    var promoteResult = await _projectPolicyService.PromoteAsync(promoteRequest);
+                    if (promoteResult.IsSuccess)
+                    {
+                        await _unitOfWork.SaveChangesAsync();
+                    }
+                }
+            }
 
             return HandleCreated(result, SuccessCodes.Project.Created);
         }

@@ -41,21 +41,29 @@ namespace TaskPilot.AI.Agents.Sprint
 
             var result = await kernel.InvokeAsync(function, arguments, cancellationToken);
             var resultString = result.ToString().Trim();
+            resultString = JsonCleaner.Clean(resultString);
 
             try
             {
                 var parsedResult = JsonSerializer.Deserialize<BurnoutRiskResult>(resultString, new JsonSerializerOptions
                 {
-                    PropertyNameCaseInsensitive = true
+                    PropertyNameCaseInsensitive = true,
+                    NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString
                 });
                 return parsedResult ?? new BurnoutRiskResult();
             }
-            catch
+            catch (Exception ex)
             {
+                Console.WriteLine("=== JSON PARSING FAILED ===");
+                Console.WriteLine("RAW LLM OUTPUT:");
+                Console.WriteLine(result.ToString());
+                Console.WriteLine("EXCEPTION:");
+                Console.WriteLine(ex.Message);
+
                 return new BurnoutRiskResult
                 {
                     BurnoutScore = 0,
-                    RiskLevel = "Healthy",
+                    RiskLevel = "ERR: " + ex.Message.Substring(0, Math.Min(30, ex.Message.Length)),
                     TrendDirection = "stable"
                 };
             }

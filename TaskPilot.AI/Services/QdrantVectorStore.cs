@@ -87,6 +87,7 @@ namespace TaskPilot.AI.Services
                 await EnsurePayloadIndexAsync(collectionName, "CompanyId", PayloadSchemaType.Uuid, cancellationToken);
                 await EnsurePayloadIndexAsync(collectionName, "Category", PayloadSchemaType.Keyword, cancellationToken);
                 await EnsurePayloadIndexAsync(collectionName, "DocumentId", PayloadSchemaType.Uuid, cancellationToken);
+                await EnsurePayloadIndexAsync(collectionName, "IsActive", PayloadSchemaType.Bool, cancellationToken);
             }
         }
 
@@ -195,6 +196,8 @@ namespace TaskPilot.AI.Services
                     { "DocumentType", chunk.DocumentType },
                     { "Content", chunk.Content },
                     { "ChunkIndex", chunk.ChunkIndex },
+                    { "VersionNumber", chunk.VersionNumber },
+                    { "IsActive", chunk.IsActive },
                     { "CreatedAt", chunk.CreatedAt.ToString("o") }
                 };
 
@@ -261,7 +264,20 @@ namespace TaskPilot.AI.Services
 
             var queryEmbedding = await _embeddingService.GenerateEmbeddingAsync(queryText, cancellationToken);
 
-            var conditions = new List<Condition>();
+            var conditions = new List<Condition>
+            {
+                new Condition
+                {
+                    Filter = new Filter
+                    {
+                        Should = 
+                        {
+                            new Condition { Field = new FieldCondition { Key = "IsActive", Match = new Match { Boolean = true } } },
+                            new Condition { IsEmpty = new IsEmptyCondition { Key = "IsActive" } }
+                        }
+                    }
+                }
+            };
 
             if (requirementSessionId.HasValue)
             {
@@ -349,6 +365,8 @@ namespace TaskPilot.AI.Services
                     DocumentType = payload.TryGetValue("DocumentType", out var dt) ? dt.StringValue : string.Empty,
                     Content = payload["Content"].StringValue,
                     ChunkIndex = chunkIndex,
+                    VersionNumber = payload.TryGetValue("VersionNumber", out var vNum) ? (int)vNum.IntegerValue : 1,
+                    IsActive = payload.TryGetValue("IsActive", out var isActive) ? isActive.BoolValue : true,
                     CreatedAt = DateTime.Parse(payload["CreatedAt"].StringValue)
                 };
 
@@ -445,13 +463,36 @@ namespace TaskPilot.AI.Services
         public async Task PromoteKnowledgeAsync(
             KnowledgeCollectionType collectionType,
             Guid projectId,
-            IEnumerable<Guid> chunkIds,
+            Guid documentId,
             CancellationToken cancellationToken = default)
         {
-            var chunkIdList = chunkIds.ToList();
+            var collectionName = GetCollectionName(collectionType);
+
+            // First, find all chunk IDs for this document
+            var filter = new Filter
+            {
+                Must = {
+                    new Condition
+                    {
+                        Field = new FieldCondition
+                        {
+                            Key = "DocumentId",
+                            Match = new Match { Keyword = documentId.ToString() }
+                        }
+                    }
+                }
+            };
+
+            var searchResult = await _client.ScrollAsync(
+                collectionName,
+                filter: filter,
+                limit: 10000,
+                cancellationToken: cancellationToken);
+
+            var chunkIdList = searchResult.Result.Select(r => new Guid(r.Id.Uuid)).ToList();
+
             if (!chunkIdList.Any()) return;
 
-            var collectionName = GetCollectionName(collectionType);
             var payload = new Dictionary<string, Value>
             {
                 { "ProjectId", projectId.ToString() }
@@ -471,7 +512,7 @@ namespace TaskPilot.AI.Services
                 wait: true,
                 cancellationToken: cancellationToken);
 
-            _logger.LogInformation("Promoted {Count} chunks to ProjectId {ProjectId} in {CollectionName}", chunkIdList.Count, projectId, collectionName);
+            _logger.LogInformation("Promoted {Count} chunks for DocumentId {DocumentId} to ProjectId {ProjectId} in {CollectionName}", chunkIdList.Count, documentId, projectId, collectionName);
         }
     }
 }

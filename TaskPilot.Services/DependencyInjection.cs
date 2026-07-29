@@ -30,6 +30,7 @@ namespace TaskPilot.Services
             services.AddScoped<ILocalizationService, LocalizationService>();
             services.AddScoped<IRequirementFinalizationService, RequirementFinalizationService>();
             services.AddScoped<ICompanyPolicyService, CompanyPolicyService>();
+            services.AddScoped<IProjectPolicyService, ProjectPolicyService>();
             services.AddScoped<IWbsSkillEnrichmentService, WbsSkillEnrichmentService>();
             services.AddScoped<ICalenderService, CalenderService>();
             services.AddScoped<IWbsPersistenceService, WbsPersistenceService>();

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TaskPilot.Data.Context;
 
@@ -11,9 +12,11 @@ using TaskPilot.Data.Context;
 namespace TaskPilot.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260728094137_data")]
+    partial class data
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1058,12 +1061,28 @@ namespace TaskPilot.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("AnalysisJson")
+                    b.Property<string>("ActionItemsAr")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
 
-                    b.Property<int>("CompletedTasks")
-                        .HasColumnType("int");
+                    b.Property<string>("ActionItemsEn")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<decimal>("ActualHours")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("ChallengesAr")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<string>("ChallengesEn")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
 
                     b.Property<double>("CompletionRate")
                         .HasColumnType("float");
@@ -1074,12 +1093,11 @@ namespace TaskPilot.Data.Migrations
                     b.Property<Guid?>("CreatedBy")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<DateTime>("GeneratedAt")
-                        .HasColumnType("datetime2");
+                    b.Property<decimal>("EstimationAccuracy")
+                        .HasColumnType("decimal(18,2)");
 
-                    b.Property<string>("ImprovementsJson")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<decimal>("ExpectedHours")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
@@ -1093,20 +1111,25 @@ namespace TaskPilot.Data.Migrations
                     b.Property<Guid>("SprintId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<decimal>("TotalActualHours")
-                        .HasColumnType("decimal(18,2)");
+                    b.Property<string>("TeamSentimentSummaryAr")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
 
-                    b.Property<decimal>("TotalEstimatedHours")
-                        .HasColumnType("decimal(18,2)");
+                    b.Property<string>("TeamSentimentSummaryEn")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
 
-                    b.Property<int>("TotalTasks")
-                        .HasColumnType("int");
+                    b.Property<string>("WhatWentWellAr")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
 
-                    b.Property<int>("UnfinishedTasks")
-                        .HasColumnType("int");
-
-                    b.Property<double>("VelocityRatio")
-                        .HasColumnType("float");
+                    b.Property<string>("WhatWentWellEn")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
 
                     b.HasKey("Id");
 

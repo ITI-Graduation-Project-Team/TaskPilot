@@ -157,10 +157,78 @@ namespace TaskPilot.Data.Identity
             // if  has account but  not signed with google before  link his account to google and return the user
             // if not we  create a new user and link it to google and return the user
             //A- new user
-            if (user==null)
+            if (user == null)
+            {
+                var pendingInvite = await _context.EmployeeInvitations
+                    .FirstOrDefaultAsync(i => i.Email == email && !i.IsAccepted);
+
+                if (pendingInvite != null)
+                {
+                    // Create as Employee directly
+                    var emp = new Employee
+                    {
+                        Email = email,
+                        UserName = email,
+                        FirstNameEn = firstName,
+                        LastNameEn = lastName,
+                        FirstNameAr = firstName,
+                        LastNameAr = lastName,
+                        EmailConfirmed = true,
+                        CompanyId = pendingInvite.CompanyId
+                    };
+                    user = emp;
+                    var creationResult = await _UserManager.CreateAsync(user);
+                    if (!creationResult.Succeeded)
+                    {
+                        var errors = string.Join(" | ", creationResult.Errors.Select(e => e.Description));
+                        return CommonErrors.OperationFailed(errors);
+                    }
+                    var roleResult = await _UserManager.AddToRoleAsync(user, UserRole.Employee.ToString());
+                    if (!roleResult.Succeeded)
+                    {
+                        var errors = string.Join(" | ", roleResult.Errors.Select(e => e.Description));
+                        return CommonErrors.OperationFailed(errors);
+                    }
+                }
+                else
+                {
+                    // Return Role Selection Required!
+                    return AuthErrors.RoleSelectionRequired;
+                }
+            }
+            // B- has account has not signed with google yet or new we'll create a new userlogininfo             
+            if (!user.EmailConfirmed)
+            {
+                user.EmailConfirmed = true;
+                var updateResult = await _UserManager.UpdateAsync(user);
+                if (!updateResult.Succeeded)
+                {
+                    var errors = string.Join(" | ", updateResult.Errors.Select(e => e.Description));
+                    return CommonErrors.OperationFailed(errors);
+                }
+            }
+
+            var linkResult = await _UserManager.AddLoginAsync(user, new UserLoginInfo(provider, providerKey, provider));
+            if (!linkResult.Succeeded)
+            {
+                var errors = string.Join(" | ", linkResult.Errors.Select(e => e.Description));
+                return CommonErrors.OperationFailed(errors);
+            }
+            return Result.Success(user);
+        }
+
+        public async Task<Result<User>> CompleteExternalUserSignup(string firstName, string lastName, string email, string provider, string providerKey, UserRole role)
+        {
+            var existingUser = await _UserManager.FindByEmailAsync(email);
+            if (existingUser != null)
+            {
+                return AuthErrors.EmailAlreadyRegistered;
+            }
+
+            User user;
+            if (role == UserRole.ProjectManager)
             {
                 var freePlan = await _context.SubscriptionPlans.IgnoreQueryFilters().FirstOrDefaultAsync(p => p.Name == "Free");
-                
                 var pm = new ProjectManager
                 {
                     Email = email,
@@ -186,29 +254,33 @@ namespace TaskPilot.Data.Identity
                     });
                 }
                 user = pm;
-                var creationResult = await _UserManager.CreateAsync(user);
-                if (!creationResult.Succeeded)
-                {
-                    var errors = string.Join(" | ", creationResult.Errors.Select(e => e.Description));
-                    return CommonErrors.OperationFailed(errors);
-                }
-                var RoleResult = await _UserManager.AddToRoleAsync(user,UserRole.ProjectManager.ToString());
-                if (!RoleResult.Succeeded)
-                {
-                    var errors = string.Join(" | ", RoleResult.Errors.Select(e => e.Description));
-                    return CommonErrors.OperationFailed(errors);
-                }
             }
-            // B- has account has not signed with google yet or new we'll create a new userlogininfo             
-            if (!user.EmailConfirmed)
+            else
             {
-                user.EmailConfirmed = true;
-                var updateResult = await _UserManager.UpdateAsync(user);
-                if (!updateResult.Succeeded)
+                user = new Employee
                 {
-                    var errors = string.Join(" | ", updateResult.Errors.Select(e => e.Description));
-                    return CommonErrors.OperationFailed(errors);
-                }
+                    Email = email,
+                    UserName = email,
+                    FirstNameEn = firstName,
+                    LastNameEn = lastName,
+                    FirstNameAr = firstName,
+                    LastNameAr = lastName,
+                    EmailConfirmed = true
+                };
+            }
+
+            var creationResult = await _UserManager.CreateAsync(user);
+            if (!creationResult.Succeeded)
+            {
+                var errors = string.Join(" | ", creationResult.Errors.Select(e => e.Description));
+                return CommonErrors.OperationFailed(errors);
+            }
+
+            var roleResult = await _UserManager.AddToRoleAsync(user, role.ToString());
+            if (!roleResult.Succeeded)
+            {
+                var errors = string.Join(" | ", roleResult.Errors.Select(e => e.Description));
+                return CommonErrors.OperationFailed(errors);
             }
 
             var linkResult = await _UserManager.AddLoginAsync(user, new UserLoginInfo(provider, providerKey, provider));
@@ -217,6 +289,7 @@ namespace TaskPilot.Data.Identity
                 var errors = string.Join(" | ", linkResult.Errors.Select(e => e.Description));
                 return CommonErrors.OperationFailed(errors);
             }
+
             return Result.Success(user);
         }
         public async Task<Result<string>> GeneratePasswordResetTokenAsync(User user)

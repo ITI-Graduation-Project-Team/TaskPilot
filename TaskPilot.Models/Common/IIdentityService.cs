@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Entities;
+using TaskPilot.Models.Enums;
 
 namespace TaskPilot.Models.Common
 {
@@ -18,6 +19,7 @@ namespace TaskPilot.Models.Common
         Task<Result> CheckPasswordAsync(User user, string password);
         Task<bool> IsLockedOutAsync(User user);
         Task<Result<User>> GetOrCreateExternalUser(string firstName, string lastName, string email, string provider, string providerKey);
+        Task<Result<User>> CompleteExternalUserSignup(string firstName, string lastName, string email, string provider, string providerKey, UserRole role);
         Task<Result<string>>GeneratePasswordResetTokenAsync(User user);
         Task<Result>ResetPasswordAsync(User user, string token, string newPassword);
     }
