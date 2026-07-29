@@ -3,186 +3,146 @@ using System.Text.Json;
 using TaskPilot.AI.Agents.Planning;
 using TaskPilot.Data.Repositories;
 using TaskPilot.DTOs.Sprint;
-using TaskPilot.Models.Common.Errors;
-using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Entities;
-using TaskPilot.Models.Enums;
+using TaskPilot.Services.Implementations;
 using TaskPilot.Services.Interfaces;
 
 namespace TaskPilot.Services
 {
-    public class SprintRetrospectiveService(
-        IRepository<Sprint> sprintRepository,
-        IRepository<SprintRetrospective> retrospectiveRepository,
-        IRepository<SprintRiskAlert> sprintRiskAlertRepository,
-        SprintRetrospectiveAgent retrospectiveAgent) : ISprintRetrospectiveService
+    public class SprintRetrospectiveService : ISprintRetrospectiveService
     {
-        public async Task<Result<SprintRetrospectiveResponseDto>> GenerateRetrospectiveAsync(Guid sprintId, CancellationToken cancellationToken = default)
+        private readonly IRepository<SprintRetrospective> _retrospectiveRepository;
+        private readonly SprintDataCollectionService _dataCollectionService;
+        private readonly SprintRetrospectiveAgent _retrospectiveAgent;
+
+        public SprintRetrospectiveService(
+            IRepository<SprintRetrospective> retrospectiveRepository,
+            SprintDataCollectionService dataCollectionService,
+            SprintRetrospectiveAgent retrospectiveAgent)
         {
-            var sprint = await sprintRepository.GetQueryable()
-                .Include(s => s.Project)
-                .Include(s => s.Tasks)
-                    .ThenInclude(t => t.Comments)
-                .FirstOrDefaultAsync(s => s.Id == sprintId, cancellationToken);
+            _retrospectiveRepository = retrospectiveRepository;
+            _dataCollectionService = dataCollectionService;
+            _retrospectiveAgent = retrospectiveAgent;
+        }
 
-            if (sprint is null)
+        public async Task<SprintRetrospectiveDto> GenerateAsync(
+            Guid projectId,
+            Guid sprintId,
+            string userLanguage,
+            CancellationToken cancellationToken = default)
+        {
+            var data = await _dataCollectionService.CollectAsync(sprintId, cancellationToken);
+            
+            var (analysis, improvements) = await _retrospectiveAgent.AnalyzeAsync(data, userLanguage, cancellationToken);
+
+            var existing = await _retrospectiveRepository.FindAsync(sr => sr.SprintId == sprintId);
+            var retrospective = existing.FirstOrDefault();
+
+            if (retrospective == null)
             {
-                return Result.Failure<SprintRetrospectiveResponseDto>(CommonErrors.NotFound("Sprint"));
-            }
-
-            if (sprint.Status != SprintStatus.Completed)
-            {
-                return Result.Failure<SprintRetrospectiveResponseDto>(
-                    CommonErrors.InvalidInput("A retrospective report can be generated only for a completed sprint."));
-            }
-
-            var existing = await retrospectiveRepository.FindAsync(sr => sr.SprintId == sprintId);
-            if (existing.Any())
-            {
-                return Result.Success(MapToDto(existing.First()));
-            }
-
-            // Fetch delayed tasks from SprintRiskAlerts because they are dissociated from the sprint
-            var riskAlerts = await sprintRiskAlertRepository.GetQueryable()
-                .Include(a => a.AffectedTask)
-                    .ThenInclude(t => t!.Comments)
-                .Where(a => a.SprintId == sprintId && a.RiskType == SprintRiskType.UnfinishedTask)
-                .ToListAsync(cancellationToken);
-
-            var completedTasks = sprint.Tasks.Where(t => t.Status == TaskItemStatus.Done).ToList();
-
-            var completedTasksData = completedTasks.Select(t => new
-            {
-                t.TitleEn,
-                Estimated = t.EstimatedHours,
-                Actual = t.ActualHours
-            }).ToList();
-
-            var delayedTasksData = riskAlerts.Select(a => new
-            {
-                TitleEn = a.AffectedTask?.TitleEn ?? string.Empty,
-                Status = a.AffectedTask?.Status.ToString() ?? TaskItemStatus.ToDo.ToString(),
-                Estimated = a.AffectedTask?.EstimatedHours ?? 0
-            }).ToList();
-
-            var commentsList = new List<object>();
-
-            // Comments from completed tasks
-            foreach (var task in completedTasks)
-            {
-                foreach (var comment in task.Comments)
+                retrospective = new SprintRetrospective
                 {
-                    string role = "Team Member";
-                    if (comment.UserId == sprint.Project.ManagerId)
-                    {
-                        role = "Project Manager";
-                    }
-                    else if (comment.UserId == task.EmployeeId)
-                    {
-                        role = "Assigned Employee";
-                    }
-
-                    commentsList.Add(new
-                    {
-                        TaskTitle = task.TitleEn,
-                        AuthorRole = role,
-                        Content = comment.Content
-                    });
-                }
+                    SprintId = sprintId,
+                    GeneratedAt = DateTime.UtcNow
+                };
+                
+                PopulateEntity(retrospective, data, analysis, improvements);
+                await _retrospectiveRepository.AddAsync(retrospective);
+            }
+            else
+            {
+                PopulateEntity(retrospective, data, analysis, improvements);
+                retrospective.GeneratedAt = DateTime.UtcNow;
+                _retrospectiveRepository.Update(retrospective);
             }
 
-            // Comments from unfinished tasks
-            foreach (var alert in riskAlerts)
+            return MapToDto(retrospective, data, analysis, improvements);
+        }
+
+        public async Task<SprintRetrospectiveDto?> GetAsync(
+            Guid sprintId,
+            CancellationToken cancellationToken = default)
+        {
+            var items = await _retrospectiveRepository.FindAsync(sr => sr.SprintId == sprintId);
+            var item = items.FirstOrDefault();
+            
+            if (item is null)
+                return null;
+                
+            var analysis = string.IsNullOrEmpty(item.AnalysisJson) 
+                ? new SprintAnalysisDto() 
+                : JsonSerializer.Deserialize<SprintAnalysisDto>(item.AnalysisJson) ?? new SprintAnalysisDto();
+                
+            var improvements = string.IsNullOrEmpty(item.ImprovementsJson) 
+                ? new List<SprintImprovementDto>() 
+                : JsonSerializer.Deserialize<List<SprintImprovementDto>>(item.ImprovementsJson) ?? new List<SprintImprovementDto>();
+
+            var data = new SprintRetrospectiveData
             {
-                if (alert.AffectedTask != null)
-                {
-                    foreach (var comment in alert.AffectedTask.Comments)
-                    {
-                        string role = "Team Member";
-                        if (comment.UserId == sprint.Project.ManagerId)
-                        {
-                            role = "Project Manager";
-                        }
-                        else if (comment.UserId == alert.AffectedEmployeeId)
-                        {
-                            role = "Assigned Employee";
-                        }
-
-                        commentsList.Add(new
-                        {
-                            TaskTitle = alert.AffectedTask.TitleEn,
-                            AuthorRole = role,
-                            Content = comment.Content
-                        });
-                    }
-                }
-            }
-
-            decimal expectedHours = completedTasks.Sum(t => t.EstimatedHours) + riskAlerts.Sum(a => a.AffectedTask?.EstimatedHours ?? 0);
-            decimal actualHours = completedTasks.Sum(t => t.ActualHours);
-
-            var aiResult = await retrospectiveAgent.AnalyzeSprintAsync(
-                sprint.SprintGoalEn ?? string.Empty,
-                JsonSerializer.Serialize(completedTasksData),
-                JsonSerializer.Serialize(delayedTasksData),
-                JsonSerializer.Serialize(commentsList),
-                cancellationToken);
-
-            double completionRate = (completedTasks.Count + riskAlerts.Count) > 0
-                ? (double)completedTasks.Count / (completedTasks.Count + riskAlerts.Count) * 100
-                : 0.0;
-
-            decimal accuracy = actualHours > 0 ? (expectedHours / actualHours) * 100 : 100;
-
-            var retrospective = new SprintRetrospective
-            {
-                SprintId = sprintId,
-                WhatWentWellEn = aiResult.WhatWentWellEn,
-                WhatWentWellAr = aiResult.WhatWentWellAr,
-                ChallengesEn = aiResult.ChallengesEn,
-                ChallengesAr = aiResult.ChallengesAr,
-                ActionItemsEn = aiResult.ActionItemsEn,
-                ActionItemsAr = aiResult.ActionItemsAr,
-                CompletionRate = completionRate,
-                EstimationAccuracy = accuracy,
-                ExpectedHours = expectedHours,
-                ActualHours = actualHours,
-                TeamSentimentSummaryEn = aiResult.TeamSentimentSummaryEn,
-                TeamSentimentSummaryAr = aiResult.TeamSentimentSummaryAr
+                CompletionRate = item.CompletionRate,
+                VelocityRatio = item.VelocityRatio,
+                TotalEstimatedHours = item.TotalEstimatedHours,
+                TotalActualHours = item.TotalActualHours,
+                TotalTasks = item.TotalTasks,
+                CompletedTasks = item.CompletedTasks,
+                UnfinishedTasks = new List<UnfinishedTaskData>(new UnfinishedTaskData[item.UnfinishedTasks]), // Hacky, just to pass count
+                SprintId = item.SprintId
             };
 
-            await retrospectiveRepository.AddAsync(retrospective);
-
-            return Result.Success(MapToDto(retrospective));
+            return MapToDto(item, data, analysis, improvements);
         }
 
-        public async Task<Result<SprintRetrospectiveResponseDto>> GetRetrospectiveAsync(Guid sprintId, CancellationToken cancellationToken = default)
+        private static void PopulateEntity(
+            SprintRetrospective entity, 
+            SprintRetrospectiveData data, 
+            SprintAnalysisDto analysis, 
+            List<SprintImprovementDto> improvements)
         {
-            var items = await retrospectiveRepository.FindAsync(sr => sr.SprintId == sprintId);
-            var item = items.FirstOrDefault();
-            if (item is null)
+            entity.CompletionRate = data.CompletionRate;
+            entity.VelocityRatio = data.VelocityRatio;
+            entity.TotalEstimatedHours = data.TotalEstimatedHours;
+            entity.TotalActualHours = data.TotalActualHours;
+            entity.TotalTasks = data.TotalTasks;
+            entity.CompletedTasks = data.CompletedTasks;
+            entity.UnfinishedTasks = data.UnfinishedTasks.Count;
+            
+            entity.AnalysisJson = JsonSerializer.Serialize(analysis);
+            entity.ImprovementsJson = JsonSerializer.Serialize(improvements);
+        }
+
+        private static SprintRetrospectiveDto MapToDto(
+            SprintRetrospective entity,
+            SprintRetrospectiveData data, 
+            SprintAnalysisDto analysis, 
+            List<SprintImprovementDto> improvements)
+        {
+            var dto = new SprintRetrospectiveDto
             {
-                return Result.Failure<SprintRetrospectiveResponseDto>(CommonErrors.NotFound("SprintRetrospective"));
-            }
-            return Result.Success(MapToDto(item));
+                SprintId = entity.SprintId,
+                SprintTitleEn = data.SprintTitleEn,
+                GeneratedAt = entity.GeneratedAt,
+                Metrics = new SprintMetricsDto
+                {
+                    CompletionRate = entity.CompletionRate,
+                    VelocityRatio = entity.VelocityRatio,
+                    TotalEstimatedHours = entity.TotalEstimatedHours,
+                    TotalActualHours = entity.TotalActualHours,
+                    TotalTasks = entity.TotalTasks,
+                    CompletedTasks = entity.CompletedTasks,
+                    UnfinishedTasks = entity.UnfinishedTasks,
+                    DeveloperMetrics = data.DeveloperBreakdowns?.Select(d => new DeveloperMetricDto
+                    {
+                        FullName = d.FullName,
+                        CompletionRate = d.CompletionRate,
+                        VelocityRatio = d.VelocityRatio,
+                        EstimatedHours = d.EstimatedHours,
+                        ActualHours = d.ActualHours
+                    }).ToList() ?? new List<DeveloperMetricDto>()
+                },
+                Analysis = analysis,
+                Improvements = improvements
+            };
+            return dto;
         }
-
-        private static SprintRetrospectiveResponseDto MapToDto(SprintRetrospective sr) => new()
-        {
-            Id = sr.Id,
-            SprintId = sr.SprintId,
-            WhatWentWellEn = sr.WhatWentWellEn,
-            WhatWentWellAr = sr.WhatWentWellAr,
-            ChallengesEn = sr.ChallengesEn,
-            ChallengesAr = sr.ChallengesAr,
-            ActionItemsEn = sr.ActionItemsEn,
-            ActionItemsAr = sr.ActionItemsAr,
-            CompletionRate = sr.CompletionRate,
-            EstimationAccuracy = sr.EstimationAccuracy,
-            ExpectedHours = sr.ExpectedHours,
-            ActualHours = sr.ActualHours,
-            TeamSentimentSummaryEn = sr.TeamSentimentSummaryEn,
-            TeamSentimentSummaryAr = sr.TeamSentimentSummaryAr
-        };
     }
 }
