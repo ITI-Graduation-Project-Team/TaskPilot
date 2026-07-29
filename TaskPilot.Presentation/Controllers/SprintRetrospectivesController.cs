@@ -11,7 +11,6 @@ namespace TaskPilot.Presentation.Controllers
         IUnitOfWork unitOfWork) : ApiControllerBase
     {
         [HttpPost]
-        [HttpPost("/api/sprints/{sprintId:guid}/retrospective/generate")]
         public async Task<IActionResult> Generate(
             [FromRoute] Guid projectId,
             [FromRoute] Guid sprintId,
@@ -28,7 +27,6 @@ namespace TaskPilot.Presentation.Controllers
         }
 
         [HttpGet]
-        [HttpGet("/api/sprints/{sprintId:guid}/retrospective")]
         public async Task<IActionResult> Get(
             [FromRoute] Guid projectId,
             [FromRoute] Guid sprintId,
