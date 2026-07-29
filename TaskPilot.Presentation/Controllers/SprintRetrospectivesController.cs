@@ -4,15 +4,17 @@ using TaskPilot.Services.Interfaces;
 
 namespace TaskPilot.Presentation.Controllers
 {
+    [ApiController]
     [Route("api/projects/{projectId:guid}/sprints/{sprintId:guid}/retrospective")]
     public class SprintRetrospectivesController(
         ISprintRetrospectiveService retrospectiveService,
         IUnitOfWork unitOfWork) : ApiControllerBase
     {
         [HttpPost]
+        [HttpPost("/api/sprints/{sprintId:guid}/retrospective/generate")]
         public async Task<IActionResult> Generate(
-            Guid projectId,
-            Guid sprintId,
+            [FromRoute] Guid projectId,
+            [FromRoute] Guid sprintId,
             CancellationToken cancellationToken)
         {
             var userLanguage = HttpContext.Items["userLanguage"]?.ToString() ?? "English";
@@ -26,9 +28,10 @@ namespace TaskPilot.Presentation.Controllers
         }
 
         [HttpGet]
+        [HttpGet("/api/sprints/{sprintId:guid}/retrospective")]
         public async Task<IActionResult> Get(
-            Guid projectId,
-            Guid sprintId,
+            [FromRoute] Guid projectId,
+            [FromRoute] Guid sprintId,
             CancellationToken cancellationToken)
         {
             var result = await retrospectiveService.GetAsync(sprintId, cancellationToken);
