@@ -13,7 +13,7 @@ using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Entities;
 using TaskPilot.Models.Enums;
 using TaskPilot.Services.Interfaces;
-
+using TaskPilot.Services.Interfaces.External;
 namespace TaskPilot.Services
 {
     public class SprintLifecycleService : ISprintLifecycleService
@@ -25,6 +25,7 @@ namespace TaskPilot.Services
         private readonly ILogger<SprintLifecycleService> _logger;
         private readonly INotificationService _notificationService;
         private readonly ICalenderService _calenderService;
+        private readonly IGoogleCalendarService _googleCalendarService;
 
         public SprintLifecycleService(
             ISprintRepository sprintRepository,
@@ -33,7 +34,8 @@ namespace TaskPilot.Services
             ILogger<SprintLifecycleService> logger,
             INotificationService notificationService = null!,
             ICalenderService calenderService = null!,
-            IRepository<UserStory> userStoryRepository = null!)
+            IRepository<UserStory> userStoryRepository = null!,
+            IGoogleCalendarService googleCalendarService = null!)
         {
             _sprintRepository = sprintRepository;
             _projectRepository = projectRepository;
@@ -42,6 +44,7 @@ namespace TaskPilot.Services
             _logger = logger;
             _notificationService = notificationService;
             _calenderService = calenderService;
+            _googleCalendarService = googleCalendarService;
         }
 
         public async Task<Result<System.Collections.Generic.IEnumerable<SprintListItemDto>>> GetAllSprintsAsync(Guid projectId)
@@ -121,17 +124,57 @@ namespace TaskPilot.Services
 
             sprint.Status = SprintStatus.Active;
             sprint.StartDate = DateTime.UtcNow;
+
+            // --- add Google calendar to PM as sprint event ---
+            try
+            {
+                if (_googleCalendarService != null && sprint.Project?.ManagerId != null)
+                {
+                    await _googleCalendarService.AddEventToCalendarAsync(
+                        sprint.Project.ManagerId,
+                        $"Sprint beginning: {sprint.TitleEn}",
+                        $"Sprint goals: {sprint.SprintGoalEn}",
+                        sprint.StartDate,
+                        sprint.EndDate
+                    );
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning($"event didn't get added: {ex.Message}");
+            }
+
             //addd to calendar
             foreach (var task in sprint.Tasks)
             {
                 await _calenderService.GenerateEventsForAssignedTaskAsync(task, task.EmployeeId.Value, DateTime.UtcNow);
+                try
+                {
+                    if (_googleCalendarService != null && task.EmployeeId.HasValue)
+                    {
+                        var startTime = DateTime.UtcNow;
+                        var endTime = startTime.AddHours((double)task.EstimatedHours);
+
+                        await _googleCalendarService.AddEventToCalendarAsync(
+                            task.EmployeeId.Value,
+                            $"Task: {task.TitleEn}",
+                            task.DescriptionEn ?? "No description available",
+                            startTime,
+                            endTime
+                        );
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning($"event didn't get added: {ex.Message}");
+                }
                 await _notificationService.SendAsync(
                userId: task.EmployeeId.Value,
                type: NotificationType.TaskAssigned,
                messageEn: $"You have been assigned to task '{task.TitleEn}'.",
                messageAr: $"تم تكليفك بمهمة '{task.TitleAr ?? task.TitleEn}'.",
                url: $"/projects/{projectId}/board"
-           );
+                 );
 
             }
             _logger.LogInformation("Sprint {SprintId} started for Project {ProjectId}", sprintId, projectId);
