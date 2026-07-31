@@ -184,5 +184,26 @@ namespace TaskPilot.Presentation.Controllers
                 .GetCompanyEmployeesAsync(user.CompanyId.Value, page, pageSize, isDeactivated, cancellationToken);
             return HandleResult(result);
         }
+        [Authorize(Roles = "ProjectManager")]
+        [HttpGet("employees/{employeeId}")]
+        public async Task<ActionResult> GetCompanyEmployee(
+            [FromRoute] string employeeId,
+            CancellationToken cancellationToken = default)
+        {
+            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(userIdStr, out Guid userId))
+                return Unauthorized();
+
+            var user = await _userRepository.GetByIdAsync(userId);
+            if (user is null)
+                return Unauthorized();
+
+            if (!user.CompanyId.HasValue)
+                return StatusCode(403, "You do not belong to a company.");
+
+            var result = await _companyService
+                .GetCompanyEmployeeByIdAsync(user.CompanyId.Value, employeeId, cancellationToken);
+            return HandleResult(result);
+        }
     }
 }

@@ -635,5 +635,58 @@ namespace TaskPilot.Services
 
             return Result<bool>.Success(true);
         }
+        public async Task<Result<CompanyEmployeeDto>> GetCompanyEmployeeByIdAsync(
+            Guid companyId,
+            string employeeId,
+            CancellationToken cancellationToken = default)
+        {
+            var companyExists = await _companyRepository.AnyAsync(c => c.Id == companyId);
+            if (!companyExists)
+                return Result<CompanyEmployeeDto>.Failure(new Error("Company.NotFound", ErrorType.NotFound, "Company not found."));
+
+            if (!Guid.TryParse(employeeId, out Guid empGuid))
+                return Result<CompanyEmployeeDto>.Failure(new Error("Employee.InvalidId", ErrorType.Validation, "Invalid employee ID format."));
+
+            var e = await _employeeRepository.GetQueryable()
+                .Where(x => x.CompanyId == companyId && x.Id == empGuid)
+                .Include(x => x.UserSkills)
+                    .ThenInclude(us => us.Skill)
+                .Include(x => x.ProjectEmployees)
+                    .ThenInclude(pe => pe.Project)
+                .Include(x => x.AssignedTasks)
+                    .ThenInclude(t => t.Sprint)
+                .AsSplitQuery()
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (e == null)
+            {
+                return Result<CompanyEmployeeDto>.Failure(new Error("Employee.NotFound", ErrorType.NotFound, "Employee not found."));
+            }
+
+            var activeProjectsCount = e.ProjectEmployees.Count(pe => pe.Project != null && pe.Project.Status != ProjectStatus.Completed);
+            var fullName = $"{e.FirstNameEn} {e.LastNameEn}".Trim();
+            if (string.IsNullOrEmpty(fullName))
+            {
+                fullName = e.Email ?? string.Empty;
+            }
+
+            var dto = new CompanyEmployeeDto
+            {
+                EmployeeId = e.Id,
+                FullName = fullName,
+                Email = e.Email ?? string.Empty,
+                JobTitle = e.JobTitle ?? string.Empty,
+                SeniorityLevel = e.SeniorityLevel?.ToString() ?? string.Empty,
+                ActiveProjectsCount = activeProjectsCount,
+                CurrentAssignedTasksCount = e.AssignedTasks.Count(t => t.SprintId != null && t.Status != TaskItemStatus.Done && (t.Sprint == null || t.Sprint.Status == SprintStatus.Active)),
+                AvailabilityStatus = EmployeeAvailabilityHelper.ComputeAvailabilityStatus(activeProjectsCount),
+                Skills = e.UserSkills.Select(us => us.Skill.Name).ToList(),
+                IsDeactivated = e.IsDeactivated,
+                DeactivationReason = e.DeactivationReason,
+                DeactivatedAt = e.DeactivatedAt
+            };
+
+            return Result<CompanyEmployeeDto>.Success(dto);
+        }
     }
 }
