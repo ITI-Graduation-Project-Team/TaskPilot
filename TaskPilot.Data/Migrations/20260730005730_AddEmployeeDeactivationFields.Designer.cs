@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TaskPilot.Data.Context;
 
@@ -11,9 +12,11 @@ using TaskPilot.Data.Context;
 namespace TaskPilot.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260730005730_AddEmployeeDeactivationFields")]
+    partial class AddEmployeeDeactivationFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -256,7 +259,7 @@ namespace TaskPilot.Data.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("AiTelemetryLogs", (string)null);
+                    b.ToTable("AiTelemetryLogs");
                 });
 
             modelBuilder.Entity("TaskPilot.Models.Entities.CalenderEvent", b =>
@@ -808,7 +811,7 @@ namespace TaskPilot.Data.Migrations
 
                     b.HasIndex("SessionId");
 
-                    b.ToTable("ProjectChatMessages", (string)null);
+                    b.ToTable("ProjectChatMessages");
                 });
 
             modelBuilder.Entity("TaskPilot.Models.Entities.ProjectChatSession", b =>
@@ -843,7 +846,7 @@ namespace TaskPilot.Data.Migrations
                     b.HasIndex("ProjectId")
                         .IsUnique();
 
-                    b.ToTable("ProjectChatSessions", (string)null);
+                    b.ToTable("ProjectChatSessions");
                 });
 
             modelBuilder.Entity("TaskPilot.Models.Entities.ProjectEmployee", b =>
@@ -905,7 +908,7 @@ namespace TaskPilot.Data.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("RefreshTokens", (string)null);
+                    b.ToTable("RefreshTokens");
                 });
 
             modelBuilder.Entity("TaskPilot.Models.Entities.Skill", b =>
@@ -974,7 +977,7 @@ namespace TaskPilot.Data.Migrations
 
                     b.HasIndex("SkillId");
 
-                    b.ToTable("SkillAliases", (string)null);
+                    b.ToTable("SkillAliases");
                 });
 
             modelBuilder.Entity("TaskPilot.Models.Entities.Sprint", b =>
@@ -1097,7 +1100,7 @@ namespace TaskPilot.Data.Migrations
 
                     b.HasIndex("SprintId");
 
-                    b.ToTable("SprintBurnoutSnapshots", (string)null);
+                    b.ToTable("SprintBurnoutSnapshots");
                 });
 
             modelBuilder.Entity("TaskPilot.Models.Entities.SprintRetrospective", b =>
@@ -1210,7 +1213,7 @@ namespace TaskPilot.Data.Migrations
                     b.HasIndex("SprintId")
                         .IsUnique();
 
-                    b.ToTable("SprintRetrospectives", (string)null);
+                    b.ToTable("SprintRetrospectives");
                 });
 
             modelBuilder.Entity("TaskPilot.Models.Entities.SprintRiskAlert", b =>
@@ -1277,7 +1280,7 @@ namespace TaskPilot.Data.Migrations
 
                     b.HasIndex("SprintId");
 
-                    b.ToTable("SprintRiskAlerts", (string)null);
+                    b.ToTable("SprintRiskAlerts");
                 });
 
             modelBuilder.Entity("TaskPilot.Models.Entities.SubscriptionPlan", b =>
@@ -1660,7 +1663,7 @@ namespace TaskPilot.Data.Migrations
 
                     b.HasIndex("TaskId");
 
-                    b.ToTable("TaskStatusOverrideLogs", (string)null);
+                    b.ToTable("TaskStatusOverrideLogs");
                 });
 
             modelBuilder.Entity("TaskPilot.Models.Entities.User", b =>
@@ -2299,7 +2302,7 @@ namespace TaskPilot.Data.Migrations
 
                             b1.HasKey("ProjectId");
 
-                            b1.ToTable("Projects", (string)null);
+                            b1.ToTable("Projects");
 
                             b1
                                 .ToJson("RequirementsSnapshot")

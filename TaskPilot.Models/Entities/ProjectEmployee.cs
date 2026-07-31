@@ -14,5 +14,9 @@ namespace TaskPilot.Models.Entities
         public Employee Employee { get; set; } = null!;
         public ProjectRole Role { get; set; }
 
+        // Set to false when the employee is deactivated.
+        // Preserves the historical record while excluding the employee
+        // from active-member queries (e.g. sprint planning, assignment scoring).
+        public bool IsActive { get; set; } = true;
     }
 }

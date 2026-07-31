@@ -78,6 +78,7 @@ namespace TaskPilot.Services
             services.AddScoped<ICompanyService, CompanyService>();
             services.AddScoped<ITaskStatusService, TaskPilot.Services.Implementations.TaskStatusService>();
             services.AddScoped<ICompanyService, CompanyService>();
+            services.AddScoped<IEmployeeDeactivationService, TaskPilot.Services.Implementations.EmployeeDeactivationService>();
 
             services.AddHostedService<BackgroundJobs.SubscriptionExpiryJob>();
 

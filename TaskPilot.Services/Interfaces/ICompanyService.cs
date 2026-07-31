@@ -32,9 +32,12 @@ namespace TaskPilot.Services.Interfaces
         Task<Result<bool>>
             ResendInvitationAsync(Guid invitationId, Guid ownerId);
 
-        Task<Result<List<CompanyEmployeeDto>>>
+        Task<Result<PagedResult<CompanyEmployeeDto>>>
             GetCompanyEmployeesAsync(
                 Guid companyId,
+                int page = 1,
+                int pageSize = 10,
+                bool? isDeactivated = null,
                 CancellationToken cancellationToken = default);
     }
 }

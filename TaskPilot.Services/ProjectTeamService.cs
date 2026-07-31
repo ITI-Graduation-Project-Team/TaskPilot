@@ -62,6 +62,9 @@ public class ProjectTeamService : IProjectTeamService
         if (employees.Count != employeeIds.Count)
             return Result.Failure(new Error("EmployeeNotFound", ErrorType.Validation, "One or more employees not found."));
 
+        if (employees.Any(e => e.IsDeactivated))
+            return Result.Failure(new Error("EmployeeDeactivated", ErrorType.Validation, "Cannot assign deactivated employees to a project."));
+
         if (employees.Any(e => e.CompanyId != project.CompanyId))
             return Result.Failure(new Error("InvalidCompany", ErrorType.Validation, "Only Employees from the same Company may be assigned."));
 
@@ -143,7 +146,10 @@ public class ProjectTeamService : IProjectTeamService
                     .Where(t => t.Sprint != null && t.Sprint.ProjectId == projectId && t.Sprint.Status == SprintStatus.Active)
                     .Sum(t => t.EstimatedHours),
                 AvailabilityStatus = EmployeeAvailabilityHelper.ComputeAvailabilityStatus(activeProjectsCount),
-                Skills = pe.Employee.UserSkills.Select(us => us.Skill.Name).ToList()
+                Skills = pe.Employee.UserSkills.Select(us => us.Skill.Name).ToList(),
+                IsDeactivated = pe.Employee.IsDeactivated,
+                DeactivationReason = pe.Employee.DeactivationReason,
+                DeactivatedAt = pe.Employee.DeactivatedAt
             };
         }).ToList();
 
