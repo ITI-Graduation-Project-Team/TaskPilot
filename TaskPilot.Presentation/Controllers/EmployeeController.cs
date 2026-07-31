@@ -226,4 +226,27 @@ public class EmployeeController : ApiControllerBase
         var result = await _projectService.GetProjectsByEmployeeIdAsync(employeeId, cancellationToken);
         return HandleResult(result);
     }
+
+    [Authorize(Roles = "Admin,ProjectManager")]
+    [HttpGet("{employeeId:guid}/deactivation/analyze")]
+    public async Task<ActionResult> AnalyzeDeactivation(
+        [FromRoute] Guid employeeId,
+        [FromServices] IEmployeeDeactivationService deactivationService,
+        CancellationToken cancellationToken)
+    {
+        var result = await deactivationService.AnalyzeDeactivationAsync(employeeId, cancellationToken);
+        return HandleResult(result);
+    }
+
+    [Authorize(Roles = "Admin,ProjectManager")]
+    [HttpPost("{employeeId:guid}/deactivate")]
+    public async Task<ActionResult> DeactivateEmployee(
+        [FromRoute] Guid employeeId,
+        [FromBody] TaskPilot.DTOs.Employees.DeactivateEmployeeRequest request,
+        [FromServices] IEmployeeDeactivationService deactivationService,
+        CancellationToken cancellationToken)
+    {
+        var result = await deactivationService.DeactivateEmployeeAsync(employeeId, request, cancellationToken);
+        return HandleResult(result);
+    }
 }

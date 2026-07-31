@@ -321,23 +321,39 @@ namespace TaskPilot.Services
             return result;
         }
 
-        public async Task<Result<List<CompanyEmployeeDto>>> GetCompanyEmployeesAsync(
+        public async Task<Result<PagedResult<CompanyEmployeeDto>>> GetCompanyEmployeesAsync(
             Guid companyId,
+            int page = 1,
+            int pageSize = 10,
+            bool? isDeactivated = null,
             CancellationToken cancellationToken = default)
         {
             var companyExists = await _companyRepository.AnyAsync(c => c.Id == companyId);
             if (!companyExists)
-                return Result<List<CompanyEmployeeDto>>.Failure(new Error("Company.NotFound", ErrorType.NotFound, "Company not found."));
+                return Result<PagedResult<CompanyEmployeeDto>>.Failure(new Error("Company.NotFound", ErrorType.NotFound, "Company not found."));
 
-            var employees = await _employeeRepository.GetQueryable()
+            var query = _employeeRepository.GetQueryable()
+                .Where(e => e.CompanyId == companyId);
+
+            if (isDeactivated.HasValue)
+            {
+                query = query.Where(e => e.IsDeactivated == isDeactivated.Value);
+            }
+
+            var totalItems = await query.CountAsync(cancellationToken);
+            var totalPages = totalItems == 0 ? 0 : (int)Math.Ceiling(totalItems / (double)pageSize);
+
+            var employees = await query
                 .Include(e => e.UserSkills)
                     .ThenInclude(us => us.Skill)
                 .Include(e => e.ProjectEmployees)
                     .ThenInclude(pe => pe.Project)
                 .Include(e => e.AssignedTasks)
                     .ThenInclude(t => t.Sprint)
-                .Where(e => e.CompanyId == companyId)
                 .AsSplitQuery()
+                .OrderBy(e => e.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync(cancellationToken);
 
             var dtos = employees.Select(e => {
@@ -357,11 +373,25 @@ namespace TaskPilot.Services
                     ActiveProjectsCount = activeProjectsCount,
                     CurrentAssignedTasksCount = e.AssignedTasks.Count(t => t.SprintId != null && t.Status != TaskItemStatus.Done && (t.Sprint == null || t.Sprint.Status == SprintStatus.Active)),
                     AvailabilityStatus = EmployeeAvailabilityHelper.ComputeAvailabilityStatus(activeProjectsCount),
-                    Skills = e.UserSkills.Select(us => us.Skill.Name).ToList()
+                    Skills = e.UserSkills.Select(us => us.Skill.Name).ToList(),
+                    IsDeactivated = e.IsDeactivated,
+                    DeactivationReason = e.DeactivationReason,
+                    DeactivatedAt = e.DeactivatedAt
                 };
             }).ToList();
 
-            return Result<List<CompanyEmployeeDto>>.Success(dtos);
+            var pagedResult = new PagedResult<CompanyEmployeeDto>
+            {
+                Items = dtos,
+                Page = page,
+                PageSize = pageSize,
+                TotalItems = totalItems,
+                TotalPages = totalPages,
+                HasPreviousPage = page > 1,
+                HasNextPage = page < totalPages
+            };
+
+            return Result<PagedResult<CompanyEmployeeDto>>.Success(pagedResult);
         }
         public async Task<Result<InviteEmployeesResponse>> InviteEmployeesAsync(
             InviteEmployeesRequest request,

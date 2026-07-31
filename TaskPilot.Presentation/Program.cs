@@ -203,3 +203,4 @@ public class HangfireAllowAllDashboardFilter : Hangfire.Dashboard.IDashboardAuth
         return true;
     }
 }
+public partial class Program { }

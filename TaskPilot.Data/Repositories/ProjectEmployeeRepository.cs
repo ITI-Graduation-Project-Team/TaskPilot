@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using TaskPilot.Data.Context;
 using TaskPilot.Data.Repositories.Interfaces;
+using TaskPilot.Models.Entities;
 
 namespace TaskPilot.Data.Repositories
 {
@@ -41,6 +42,15 @@ namespace TaskPilot.Data.Repositories
                     p => p.Id == projectId &&
                          p.ManagerId == userId,
                     cancellationToken);
+        }
+
+        public async Task<List<ProjectEmployee>> GetActiveByEmployeeIdAsync(
+            Guid employeeId,
+            CancellationToken cancellationToken = default)
+        {
+            return await _context.ProjectEmployees
+                .Where(pe => pe.EmployeeId == employeeId && pe.IsActive)
+                .ToListAsync(cancellationToken);
         }
     }
 }

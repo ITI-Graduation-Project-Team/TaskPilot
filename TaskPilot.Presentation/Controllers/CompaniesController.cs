@@ -151,10 +151,13 @@ namespace TaskPilot.Presentation.Controllers
             return HandleResult(result, "INVITATION_RESENT_SUCCESS");
         }
 
-        [HttpGet("{companyId}/employees")]
+        [Authorize(Roles = "ProjectManager")]
+        [HttpGet("employees")]
         public async Task<ActionResult> GetCompanyEmployees(
-    [FromRoute] Guid companyId,
-    CancellationToken cancellationToken)
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] bool? isDeactivated = null,
+            CancellationToken cancellationToken = default)
         {
             // 1. Get current user id from claims
             var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -166,26 +169,19 @@ namespace TaskPilot.Presentation.Controllers
             if (user is null)
                 return Unauthorized();
 
-            // 3. Admin can access any company
-            if (User.IsInRole("Admin"))
-            {
-                var adminResult = await _companyService
-                    .GetCompanyEmployeesAsync(companyId, cancellationToken);
-                return HandleResult(adminResult);
-            }
+            // 3. Ensure user belongs to a company
+            if (!user.CompanyId.HasValue)
+                return StatusCode(403, "You do not belong to a company.");
 
-            // 4. ProjectManager must belong to the requested company
-            if (!User.IsInRole("ProjectManager"))
-                return StatusCode(403,
-                    "Only Project Managers can view company employees.");
+            if (page < 1)
+                return HandleResult(Result.Failure<PagedResult<CompanyEmployeeDto>>(CompanyErrors.InvalidPageNumber));
 
-            if (user.CompanyId != companyId)
-                return StatusCode(403,
-                    "You do not have access to this company's employees.");
+            if (pageSize < 1 || pageSize > 100)
+                return HandleResult(Result.Failure<PagedResult<CompanyEmployeeDto>>(CompanyErrors.InvalidPageSize));
 
-            // 5. Same company ProjectManager — allow access
+            // 4. Fetch employees
             var result = await _companyService
-                .GetCompanyEmployeesAsync(companyId, cancellationToken);
+                .GetCompanyEmployeesAsync(user.CompanyId.Value, page, pageSize, isDeactivated, cancellationToken);
             return HandleResult(result);
         }
     }

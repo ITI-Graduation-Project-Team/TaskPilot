@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using TaskPilot.Models.Entities;
 
 namespace TaskPilot.Data.Repositories.Interfaces
 {
@@ -14,6 +15,10 @@ namespace TaskPilot.Data.Repositories.Interfaces
         Task<bool> IsProjectManagerAsync(
             Guid projectId,
             Guid userId,
+            CancellationToken cancellationToken = default);
+
+        Task<List<ProjectEmployee>> GetActiveByEmployeeIdAsync(
+            Guid employeeId,
             CancellationToken cancellationToken = default);
     }
 }
