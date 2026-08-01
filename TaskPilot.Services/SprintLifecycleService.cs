@@ -163,6 +163,7 @@ namespace TaskPilot.Services
         public async Task<Result<SprintStatusDto>> CompleteSprintAsync(
     Guid projectId,
     Guid sprintId,
+    ReviewTaskAction? reviewAction = null,
     CancellationToken cancellationToken = default)
         {
             if (projectId == Guid.Empty)
@@ -187,6 +188,20 @@ namespace TaskPilot.Services
 
             if (sprint.Status != SprintStatus.Active)
                 return Result.Failure<SprintStatusDto>(SprintErrors.InvalidSprintStatus);
+
+            var reviewTasks = sprint.Tasks.Where(t => t.Status == TaskItemStatus.Review).ToList();
+            if (reviewTasks.Any() && reviewAction == null)
+            {
+                return Result.Failure<SprintStatusDto>(SprintErrors.HasUnfinishedTasks);
+            }
+
+            if (reviewAction == ReviewTaskAction.AcceptAll)
+            {
+                foreach (var task in reviewTasks)
+                {
+                    task.Status = TaskItemStatus.Done;
+                }
+            }
 
             sprint.Status = SprintStatus.Completed;
             sprint.EndDate = DateTime.UtcNow;

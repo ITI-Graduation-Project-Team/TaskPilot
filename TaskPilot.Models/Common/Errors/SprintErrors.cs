@@ -17,5 +17,6 @@ namespace TaskPilot.Models.Common.Errors
         public static readonly Error InvalidProject = new("INVALID_PROJECT", ErrorType.Validation, "Project.Invalid");
         public static readonly Error NoEmployeesAssigned = new("NO_EMPLOYEES_ASSIGNED", ErrorType.Validation, "Cannot perform sprint planning for a project with no assigned employees.");
         public static readonly Error UnassignedTasksExist = new("SPRINT_UNASSIGNED_TASKS_EXIST", ErrorType.Validation, "Cannot start the sprint. All tasks must be assigned to employees.");
+        public static readonly Error HasUnfinishedTasks = new("SPRINT_HAS_UNFINISHED_TASKS", ErrorType.Conflict, "Sprint has unfinished tasks. Please confirm what to do with them.");
     }
 }
