@@ -10,6 +10,7 @@ using TaskPilot.Data.Repositories;
 using TaskPilot.Data.Repositories.Interfaces;
 using TaskPilot.Models.Common.Errors;
 using TaskPilot.Models.Entities;
+using TaskPilot.Models.Enums;
 using TaskPilot.Services;
 using Xunit;
 
@@ -90,6 +91,30 @@ namespace TaskPilot.Tests.Services
 
             Assert.False(result.IsSuccess);
             Assert.Equal("INVALID_INPUT", result.Error!.Code);
+        }
+
+        [Fact]
+        public async Task GenerateSprintSuggestionAsync_ActiveSprintExists_ReturnsAnotherSprintAlreadyActiveError()
+        {
+            var projectId = Guid.NewGuid();
+            var project = new Project { NameEn = "Test Project" };
+
+            _projectRepoMock.Setup(r => r.GetByIdAsync(projectId))
+                .ReturnsAsync(project);
+
+            var activeSprint = new Sprint
+            {
+                ProjectId = projectId,
+                Status = SprintStatus.Active
+            };
+
+            _sprintRepoMock.Setup(r => r.GetQueryable())
+                .Returns(new List<Sprint> { activeSprint }.AsQueryable());
+
+            var result = await _service.GenerateSprintSuggestionAsync(projectId);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(SprintErrors.AnotherSprintAlreadyActive.Code, result.Error!.Code);
         }
     }
 }
