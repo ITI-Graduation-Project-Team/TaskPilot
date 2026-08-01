@@ -135,9 +135,9 @@ namespace TaskPilot.Presentation.Controllers
         }
 
         [HttpPost("{sprintId:guid}/complete")]
-        public async Task<ActionResult> CompleteSprint(Guid projectId, Guid sprintId, CancellationToken cancellationToken)
+        public async Task<ActionResult> CompleteSprint(Guid projectId, Guid sprintId, [FromBody] CompleteSprintRequest? request, CancellationToken cancellationToken)
         {
-            var result = await _sprintLifecycleService.CompleteSprintAsync(projectId, sprintId, cancellationToken);
+            var result = await _sprintLifecycleService.CompleteSprintAsync(projectId, sprintId, request?.ReviewAction, cancellationToken);
             if (result.IsSuccess)
             {
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
