@@ -1,9 +1,9 @@
-﻿using Google.Apis.Auth.OAuth2;
+using Google.Apis.Auth.OAuth2;
 using Google.Apis.Auth.OAuth2.Flows;
 using Google.Apis.Auth.OAuth2.Responses;
 using Google.Apis.Services;
-using Microsoft.EntityFrameworkCore.Update.Internal;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using TaskPilot.Data.Repositories;
 using TaskPilot.Models.Entities;
 using Google.Apis.Calendar.v3;
@@ -16,12 +16,20 @@ public class GoogleCalendarService : IGoogleCalendarService
 {
     private readonly IConfiguration _config;
     private readonly IRepository<User> _userRepository;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<GoogleCalendarService> _logger;
 
     //give the employee access to project settings (to fetch google keys) and database
-    public GoogleCalendarService(IConfiguration config, IRepository<User> userRepository)
+    public GoogleCalendarService(
+        IConfiguration config,
+        IRepository<User> userRepository,
+        IUnitOfWork unitOfWork,
+        ILogger<GoogleCalendarService> logger)
     {
         _config = config;
         _userRepository = userRepository;
+        _unitOfWork = unitOfWork;
+        _logger = logger;
     }
     //preparing the basic google settings
     private GoogleAuthorizationCodeFlow GetGoogleFlow()
@@ -58,7 +66,6 @@ public class GoogleCalendarService : IGoogleCalendarService
         var flow = GetGoogleFlow();
         var redirectUri = _config["GoogleCalendar:RedirectUri"];
 
-        
         var tokenResponse = await flow.ExchangeCodeForTokenAsync(
             userId.ToString(),
             code,
@@ -66,15 +73,25 @@ public class GoogleCalendarService : IGoogleCalendarService
             CancellationToken.None);
 
         if (tokenResponse == null || string.IsNullOrEmpty(tokenResponse.RefreshToken))
+        {
+            _logger.LogWarning("Google did not return a RefreshToken for user {UserId}. The user may have already authorized before — re-consent was not triggered.", userId);
             return false;
+        }
 
         var user = await _userRepository.GetByIdAsync(userId);
         if (user == null)
+        {
+            _logger.LogWarning("User {UserId} not found when trying to save Google RefreshToken.", userId);
             return false;
+        }
 
         user.GoogleRefreshToken = tokenResponse.RefreshToken;
         _userRepository.Update(user);
 
+        // Persist the token to the database
+        await _unitOfWork.SaveChangesAsync();
+
+        _logger.LogInformation("Google Calendar token saved successfully for user {UserId}.", userId);
         return true;
     }
 

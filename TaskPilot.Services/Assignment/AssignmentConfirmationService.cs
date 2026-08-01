@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using TaskPilot.Data.Repositories;
 using TaskPilot.Data.Repositories.Interfaces;
 using TaskPilot.DTOs.Assignment;
@@ -20,6 +21,7 @@ public class AssignmentConfirmationService : IAssignmentConfirmationService
     private readonly ILocalizationService _localizationService;
     private readonly INotificationService _notificationService;
     private readonly ICalenderService _calenderService;
+    private readonly ILogger<AssignmentConfirmationService> _logger;
 
     // 1. إضافة خدمة جوجل هنا
     private readonly IGoogleCalendarService _googleCalendarService;
@@ -30,7 +32,8 @@ public class AssignmentConfirmationService : IAssignmentConfirmationService
         ILocalizationService localizationService,
         INotificationService notificationService,
         ICalenderService calenderService,
-        IGoogleCalendarService googleCalendarService) // <-- حقن الخدمة هنا
+        IGoogleCalendarService googleCalendarService, // <-- حقن الخدمة هنا
+        ILogger<AssignmentConfirmationService> logger)
     {
         _taskRepository = taskRepository;
         _projectEmployeeRepository = projectEmployeeRepository;
@@ -38,6 +41,7 @@ public class AssignmentConfirmationService : IAssignmentConfirmationService
         _notificationService = notificationService;
         _calenderService = calenderService;
         _googleCalendarService = googleCalendarService; // <-- حفظ الخدمة في المتغير
+        _logger = logger;
     }
 
     public async Task<Result<AssignmentConfirmationResult>> ConfirmAsync(
@@ -128,7 +132,12 @@ public class AssignmentConfirmationService : IAssignmentConfirmationService
             }
             catch (Exception ex)
             {
-                // TODO: Log the exception (e.g., _logger.LogWarning("User {UserId} hasn't linked Google Calendar.", assignment.EmployeeId))
+                // The assignment itself succeeds regardless of Google Calendar status.
+                // This warning will appear in server logs to help diagnose Calendar issues.
+                _logger.LogWarning(ex,
+                    "Google Calendar event creation failed for employee {EmployeeId} on task '{TaskTitle}'. " +
+                    "The employee may not have linked their Google Calendar yet.",
+                    assignment.EmployeeId, task.TitleEn);
             }
         }
 
