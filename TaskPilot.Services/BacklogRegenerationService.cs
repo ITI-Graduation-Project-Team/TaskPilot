@@ -22,6 +22,8 @@ namespace TaskPilot.Services
         private readonly IRepository<TaskItem> _taskRepository;
         private readonly IRepository<UserStory> _userStoryGenericRepository;
         private readonly IRepository<Skill> _skillRepository;
+        private readonly IRepository<CalenderEvent> _calenderEventRepository;
+        private readonly IRepository<SprintRiskAlert> _sprintRiskAlertRepository;
         private readonly IUnitOfWork _unitOfWork;
         private readonly WBSGenerationAgent _wbsGenerationAgent;
         private readonly IWbsPersistenceService _wbsPersistenceService;
@@ -33,6 +35,8 @@ namespace TaskPilot.Services
             IRepository<TaskItem> taskRepository,
             IRepository<UserStory> userStoryGenericRepository,
             IRepository<Skill> skillRepository,
+            IRepository<CalenderEvent> calenderEventRepository,
+            IRepository<SprintRiskAlert> sprintRiskAlertRepository,
             IUnitOfWork unitOfWork,
             WBSGenerationAgent wbsGenerationAgent,
             IWbsPersistenceService wbsPersistenceService,
@@ -43,6 +47,8 @@ namespace TaskPilot.Services
             _taskRepository = taskRepository;
             _userStoryGenericRepository = userStoryGenericRepository;
             _skillRepository = skillRepository;
+            _calenderEventRepository = calenderEventRepository;
+            _sprintRiskAlertRepository = sprintRiskAlertRepository;
             _unitOfWork = unitOfWork;
             _wbsGenerationAgent = wbsGenerationAgent;
             _wbsPersistenceService = wbsPersistenceService;
@@ -79,6 +85,29 @@ namespace TaskPilot.Services
 
                 if (tasks.Any())
                 {
+                    // Null out FK references on child tables that use NO_ACTION delete
+                    // BEFORE deleting tasks, to avoid FK constraint violations.
+                    var taskIds = tasks.Select(t => t.Id).ToHashSet();
+
+                    // 1. CalenderEvents.RelatedTaskId → nullable Guid?
+                    var relatedEvents = await _calenderEventRepository
+                        .FindAsync(e => e.RelatedTaskId.HasValue && taskIds.Contains(e.RelatedTaskId.Value));
+                    var relatedEventsList = relatedEvents.ToList();
+                    foreach (var calEvent in relatedEventsList)
+                        calEvent.RelatedTaskId = null;
+
+                    // 2. SprintRiskAlerts.AffectedTaskId → nullable Guid?
+                    var riskAlerts = await _sprintRiskAlertRepository
+                        .FindAsync(a => a.AffectedTaskId.HasValue && taskIds.Contains(a.AffectedTaskId.Value));
+                    var riskAlertsList = riskAlerts.ToList();
+                    foreach (var alert in riskAlertsList)
+                        alert.AffectedTaskId = null;
+
+                    if (relatedEventsList.Any() || riskAlertsList.Any())
+                    {
+                        await _unitOfWork.SaveChangesAsync(cancellationToken);
+                    }
+
                     _taskRepository.DeleteRange(tasks);
                 }
 
@@ -87,7 +116,7 @@ namespace TaskPilot.Services
                     _userStoryGenericRepository.DeleteRange(userStories);
                 }
 
-                // Explicitly save the deletions before regenerating, 
+                // Explicitly save the deletions before regenerating,
                 // so persistence service doesn't face conflicts or duplicate tracking.
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
 

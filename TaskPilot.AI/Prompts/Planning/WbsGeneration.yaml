@@ -76,6 +76,18 @@ template: |
   - If the document describes sub-types of a feature (e.g. 3 types of patient
     registration), create SEPARATE User Stories for each sub-type.
   - Do NOT invent features not mentioned in the documents or requirements below.
+
+  CONFLICT RESOLUTION RULE:
+  If the BRD and the Requirements Discovery Summary describe the same feature
+  differently (contradictory scope, different terminology, conflicting rules):
+  - The BRD is authoritative. Use the BRD version.
+  - Use the Requirements Discovery only to fill gaps not covered by the BRD.
+  - Never merge conflicting versions into a single User Story.
+    If the difference is significant, generate a separate User Story that
+    captures the BRD's version and flag the conflict in the descriptionEn
+    with a note: "[Note: BRD and Requirements Discovery conflict on this point.
+    BRD version used.]"
+
   --------------------------------------------------------
   VISUAL DOCUMENT INTERPRETATION RULES
   --------------------------------------------------------
@@ -88,7 +100,7 @@ template: |
 
   - Use visual knowledge to enrich the Product Backlog.
 
-  - When diagrams reveal business capabilities not explicitly described in the text, generate User Stories only if the diagram provides sufficient evidence.
+  - When diagrams reveal business capabilities not explicitly described in the text, generate User Stories only if the diagram provides sufficient explicit evidence of that capability. Do not generate User Stories from vague or ambiguous diagram elements.
 
   - Never infer unsupported functionality.
 
@@ -162,37 +174,10 @@ template: |
 
   Examples
 
-  Instead of
-
-  Create API
-
-  write
-
-  Create ASP.NET Core Web API
-
-  Instead of
-
-  Create UI
-
-  write
-
-  Build Angular Component
-
-  Instead of
-
-  Save Data
-
-  write
-
-  Persist Data using SQL Server
-
-  Instead of
-
-  Authentication
-
-  write
-
-  Configure ASP.NET Core Identity
+  Instead of "Create API" write "Create ASP.NET Core Web API"
+  Instead of "Create UI" write "Build Angular Component"
+  Instead of "Save Data" write "Persist Data using SQL Server"
+  Instead of "Authentication" write "Configure ASP.NET Core Identity"
 
   If Redis exists in the Tech Stack,
   generate realistic caching tasks where appropriate.
@@ -213,15 +198,14 @@ template: |
   generate implementation Tasks for both where appropriate.
 
   If Tech Stack is empty or "Not specified",
-
   generate technology-neutral implementation Tasks.
 
   Never invent technologies that conflict with the provided Tech Stack.
   The confirmed technology stack must never influence the definition or scope of User Stories.
 
   User Stories describe business value and user goals.
-
   The technology stack affects only implementation Tasks and technical execution details.
+
   --------------------------------------------------------
   LANGUAGE RULES
   --------------------------------------------------------
@@ -229,36 +213,92 @@ template: |
   Detect the primary language of the requirements.
 
   If the requirements are primarily Arabic:
-
-  • Arabic content first
+  • Arabic content first (write Arabic as the primary draft, then translate to English)
   • English translation
 
   If the requirements are primarily English:
-
-  • English content first
+  • English content first (write English as the primary draft, then translate to Arabic)
   • Arabic translation
 
-  Every bilingual field MUST be populated.
+  If the requirements are mixed Arabic and English, or the primary language is
+  ambiguous, default to English as the primary language.
 
-  Never leave:
+  IMPORTANT — JSON FIELD ORDER:
+  Language priority affects content quality, not JSON field names.
+  JSON field names are fixed (titleEn always appears before titleAr in the schema).
+  Never reorder or rename JSON fields based on language priority.
+  Always populate BOTH language fields regardless of which language is primary.
 
-  • TitleAr
-  • DescriptionAr
-  • AcceptanceCriteriaAr
+  Every bilingual field MUST be populated. Never leave any En or Ar field empty.
+  Never use placeholder values. Always produce natural human-readable translations.
 
-  empty.
+  --------------------------------------------------------
+  USER STORY FORMAT RULES
+  --------------------------------------------------------
 
-  Never leave:
+  Every User Story description must follow the standard Agile format:
 
-  • TitleEn
-  • DescriptionEn
-  • AcceptanceCriteriaEn
+  descriptionEn:
+  "As a [role], I want to [goal], so that [benefit]."
 
-  empty.
+  Optionally followed by one or two sentences of additional business context,
+  constraints, or domain rules relevant to the story — not implementation details.
 
-  Never use placeholder values.
+  descriptionAr must follow the same format in Arabic:
+  "بوصفي [role]، أريد أن [goal]، حتى أتمكن من [benefit]."
 
-  Always produce natural human-readable translations.
+  ROLE EXTRACTION RULE:
+  - Extract the exact actor/role names from the BRD and requirements.
+  - Use those exact names consistently across ALL User Stories.
+  - If no roles are defined, infer appropriate roles from the project context
+    (e.g., User, Admin, Manager, Patient, Doctor, Employee, PM, Company Owner).
+  - Keep acronyms (PM, HR, CRM, ERP, CEO) in their original English form in
+    both English and Arabic text. Never translate acronyms.
+  - Never use the generic role "User" when a more specific role is available.
+
+  Technical User Stories (for infrastructure, DevOps, or platform work) use:
+  "As a Developer, I want to [configure/set up X], so that [the system can Y]."
+
+  NEVER write a description that:
+  - Describes implementation details ("We will use ASP.NET Core to...")
+  - Lists tasks or steps ("Step 1: ..., Step 2: ...")
+  - Repeats the title verbatim without adding value
+  - Omits the role, goal, or benefit
+
+  --------------------------------------------------------
+  TITLE NAMING CONVENTIONS
+  --------------------------------------------------------
+
+  User Story titles must:
+  - Start with an action verb in imperative form
+    (Register, Search, View, Update, Cancel, Generate, Export, Send, Assign, Approve...)
+  - Be 2–6 words long
+  - Describe the user action, not the system module
+
+  Task titles must:
+  - Start with an action verb in imperative form
+    (Create, Build, Implement, Configure, Integrate, Write, Set up, Validate...)
+  - Reference the specific technology where appropriate
+    ("Create ASP.NET Core..." / "Build Angular..." / "Configure Redis...")
+  - Be 3–8 words long
+
+  WRONG User Story titles:
+  ❌ "Patient Management" (no verb, module name)
+  ❌ "Authentication Module" (no verb, module name)
+
+  CORRECT User Story titles:
+  ✅ "Register Patient"
+  ✅ "Search Patient Records"
+  ✅ "View Appointment History"
+
+  WRONG Task titles:
+  ❌ "Patient Registration API" (no verb)
+  ❌ "Angular component" (no verb, vague)
+
+  CORRECT Task titles:
+  ✅ "Create ASP.NET Core Patient Registration API"
+  ✅ "Build Angular Patient Registration Component"
+
   --------------------------------------------------------
   REQUIREMENTS COVERAGE RULES
   --------------------------------------------------------
@@ -267,7 +307,7 @@ template: |
 
   1. Identify every validated business capability from the BRD, Requirements Discovery, and any extracted diagrams.
 
-  2. Group closely related requirements that deliver the same business capability.
+  2. Group closely related sub-requirements that deliver EXACTLY the same user outcome into one User Story. Never group requirements that serve different user purposes — they must become separate User Stories.
 
   3. Generate one or more User Stories for each business capability.
 
@@ -276,7 +316,7 @@ template: |
   5. If any validated requirement is not represented, generate additional User Stories before producing the final Product Backlog.
 
   6. Do not merge unrelated business capabilities into a single User Story.
-  --------------------------------------------------------
+
   --------------------------------------------------------
   REQUIREMENTS CONSISTENCY RULES
   --------------------------------------------------------
@@ -285,12 +325,48 @@ template: |
 
   - Use only validated requirements as the source for Product Backlog generation.
 
-  - If additional business capabilities are discovered in the BRD, UML diagrams, ERD, Use Case diagrams, wireframes, or other project documents, generate User Stories only when those capabilities have been validated and included in the project requirements.
+  - For visual artifacts (diagrams, wireframes, ERDs) embedded in the BRD or project
+    documents, generate User Stories only when the diagram provides sufficient explicit
+    evidence of a business capability. Do not generate stories from vague or ambiguous
+    diagram elements.
 
   - Never invent functionality that is not supported by the validated requirements.
 
   - Every generated User Story must trace back to one or more validated business requirements.
-    --------------------------------------------------------
+
+  --------------------------------------------------------
+  NON-FUNCTIONAL REQUIREMENTS RULES
+  --------------------------------------------------------
+
+  Non-functional requirements from scaleRequirements and constraints MUST be
+  represented in the backlog. Never silently ignore them.
+
+  Apply the following strategy for each NFR:
+
+  1. FEATURE-SPECIFIC PERFORMANCE NFRs
+     (e.g., "search results must return within 2 seconds")
+     → Append as an AC condition to the relevant User Story.
+     Example: "...3. Search results return within 2 seconds for up to 100,000 records."
+
+  2. INFRASTRUCTURE SCALE NFRs
+     (e.g., "support 10,000 concurrent users", "99.9% uptime", "auto-scale under load")
+     → Generate dedicated Technical User Stories:
+     "Configure Azure App Service Auto-Scaling for Production Load"
+     "Implement Redis Caching for High-Traffic Endpoints"
+
+  3. SECURITY NFRs
+     (e.g., "all data encrypted at rest", "rate limiting on public endpoints")
+     → Add as implementation tasks within the relevant User Story, or as dedicated
+     Technical User Stories if they are infrastructure-wide concerns.
+
+  4. AVAILABILITY AND RELIABILITY NFRs
+     (e.g., "zero-downtime deployments", "health check endpoints")
+     → Generate dedicated Technical User Stories.
+
+  Every NFR in scaleRequirements must map to at least one User Story AC condition
+  or a dedicated Technical User Story. No exceptions.
+
+  --------------------------------------------------------
   USER STORY DESIGN RULES
   --------------------------------------------------------
 
@@ -311,14 +387,11 @@ template: |
   A User Story represents ONE user goal that delivers ONE business value.
 
   Every User Story must answer the question:
-
   "What can the user accomplish after this story is completed?"
 
-  Never generate User Stories that represent complete systems,
-  modules, or departments.
+  Never generate User Stories that represent complete systems, modules, or departments.
 
   BAD examples:
-
   • Patient Management
   • Inventory Management
   • Authentication Module
@@ -326,7 +399,6 @@ template: |
   • HR Module
 
   GOOD examples:
-
   • Register Patient
   • Search Patients
   • View Patient Details
@@ -336,8 +408,6 @@ template: |
   • View Appointment Calendar
   • Generate Invoice
   • Record Payment
-  • Add Medicine
-  • Update Medicine Stock
 
   If one business capability contains multiple independent user goals,
   split it into multiple User Stories.
@@ -349,21 +419,14 @@ template: |
   --------------------------------------------------------
 
   Every generated User Story must be:
-
   • independently understandable
-
   • independently testable
-
   • independently deployable
-
   • valuable to the business
-
   • small enough to fit into one Sprint
 
   User Stories represent BUSINESS VALUE.
-
   Tasks represent IMPLEMENTATION WORK.
-
   Never confuse the two.
 
   --------------------------------------------------------
@@ -372,29 +435,12 @@ template: |
 
   Every generated User Story should satisfy the INVEST principles.
 
-  Independent
-
-  - The User Story should not unnecessarily depend on other stories.
-
-  Negotiable
-
-  - The implementation details should remain flexible.
-
-  Valuable
-
-  - The User Story must deliver clear business value to an end user or stakeholder.
-
-  Estimable
-
-  - The User Story should be small enough to estimate accurately.
-
-  Small
-
-  - The User Story should fit comfortably within a single Sprint.
-
-  Testable
-
-  - The User Story must have clear acceptance criteria that can be verified.
+  Independent — The User Story should not unnecessarily depend on other stories.
+  Negotiable — The implementation details should remain flexible.
+  Valuable — The User Story must deliver clear business value to an end user or stakeholder.
+  Estimable — The User Story should be small enough to estimate accurately.
+  Small — The User Story should fit comfortably within a single Sprint.
+  Testable — The User Story must have clear acceptance criteria that can be verified.
 
   If any generated User Story violates one or more INVEST principles,
   split, simplify, or rewrite it until all principles are satisfied before producing the final JSON.
@@ -407,13 +453,8 @@ template: |
 
   Think like a Product Owner.
 
-  Ask yourself:
-
-  "What does the user gain after this User Story is finished?"
-
-  Not
-
-  "Which module am I implementing?"
+  Ask yourself: "What does the user gain after this User Story is finished?"
+  Not: "Which module am I implementing?"
 
   --------------------------------------------------------
   STORY RELATIONSHIP RULES
@@ -421,22 +462,11 @@ template: |
 
   Multiple User Stories may belong to the same feature.
 
-  Example
-
-  Feature
-
-  Patient Management
-
-  User Stories
-
+  Example Feature — Patient Management:
   • Register Patient
-
   • Search Patients
-
   • View Patient Details
-
   • Update Patient Information
-
   • Archive Patient Record
 
   Never merge those stories into one.
@@ -446,132 +476,302 @@ template: |
   --------------------------------------------------------
 
   When possible, generate User Stories in logical dependency order.
-
   Earlier User Stories should enable later User Stories.
 
-  Example
-
-  Register Patient
-
-  ↓
-
-  Search Patients
-
-  ↓
-
-  View Patient Details
-
-  ↓
-
-  Book Appointments
-
-  ↓
-
-  Generate Invoice
+  Example:
+  Register Patient → Search Patients → View Patient Details → Book Appointments → Generate Invoice
 
   Avoid placing dependent functionality before its prerequisites.
+
   --------------------------------------------------------
   TASK RULES
   --------------------------------------------------------
 
-  Generate only the implementation Tasks genuinely required to implement the parent User Story.
+  Generate only the tasks necessary and sufficient to deliver the parent User Story —
+  whether they are implementation, integration, infrastructure, or coordination tasks.
 
   The number of Tasks should naturally vary according to implementation complexity.
 
   Avoid artificial task splitting.
 
-  Avoid combining unrelated implementation work into one Task.
-  
-  Only create implementation tasks.
+  ## INTEGRATION COVERAGE RULE
+
+  Every integration listed in {{$integrations}} must be covered by at least
+  one implementation task in the output.
+
+  Integrations are never standalone User Stories — they are always tasks within
+  the User Story that delivers the integration's business value.
+
+  Example:
+  - Integration: "Stripe payment gateway"
+  - Correct: A task "Integrate Stripe Payment Gateway with Webhook Handler"
+    inside the "Process Payment" User Story
+  - Wrong: A standalone User Story titled "Integrate Stripe" (no user value delivered)
+
+  EXCEPTION: When an integration IS the user-facing feature (e.g., "Sign in with Google",
+  "Import contacts from Outlook"), it may be a User Story. The implementation tasks
+  within it still follow the COHESION RULE (SDK + callback = one task).
+
+  Integration tasks always follow the TASK COHESION RULE:
+  SDK setup + callback/webhook handler = ONE task, never two.
+
+  ## TASK COHESION RULE — Inseparable Steps Must Be ONE Task
+
+  If two or more implementation steps meet ALL of the following criteria,
+  they MUST be merged into a single task:
+
+  1. They are performed by the same developer
+  2. They live in the same service class, controller, or module
+  3. They share a runtime dependency, the same configuration, or the same
+     integration point — meaning one cannot function without the other
+
+  MANDATORY MERGES — these patterns must ALWAYS be one task, never two:
+  - Payment gateway SDK integration + webhook listener for that gateway
+    → ONE task: "Integrate [Gateway] Payment with Webhook Listener"
+  - Any external service integration + its callback/notification handler
+    → ONE task
+  - Controller route setup + the endpoint implementations for the same feature
+    → ONE task
+  - Database migration + DbContext registration for the same entity
+    → Sub-steps inside the API task, not standalone tasks
+
+  VIOLATION EXAMPLES (never generate these as separate tasks):
+  ❌ "Integrate Paymob SDK" + "Create Paymob Webhook Listener" → must be ONE task
+  ❌ "Configure PayPal" + "Handle PayPal Payment Callback" → must be ONE task
+  ❌ "Create JWT Middleware" + "Register JWT in DI Container" → must be ONE task
+
+  ## LAYER SEPARATION RULE — One Task Per Technology Layer
+
+  If a User Story requires work across multiple technology layers, you MUST
+  generate SEPARATE tasks — one per layer.
+
+  RULE: Never combine work from different technology layers in a single task.
+
+  Layers that must always be separated:
+  - Backend API layer (ASP.NET Core, Node.js, etc.)
+  - Web frontend layer (Angular, React, Vue, etc.)
+  - Mobile layer (React Native, Flutter, Kotlin, Swift, etc.)
+
+  If platformTargets contains Mobile AND Web, generate three separate tasks
+  where all three layers are involved: one API task, one web UI task, one
+  mobile UI task.
+
+  WHY: Cross-layer tasks must be independently assignable to different developers,
+  able to proceed in parallel, and independently testable and deployable.
+
+  CORRECT PATTERN:
+  ✅ "Build Angular [Feature] UI Component" (Web frontend task)
+  ✅ "Create ASP.NET Core [Feature] API" (Backend task)
+  ✅ "Build [Feature] Mobile Screen" (Mobile task, when Mobile is a platform target)
+
+  VIOLATION EXAMPLES (never generate these as single tasks):
+  ❌ "Build Angular UI and ASP.NET Core API for [Feature]"
+  ❌ "Implement [Feature] frontend and backend"
+  ❌ "Build [Feature] for web and mobile"
+
+  EXCEPTION: Infrastructure or DevOps tasks that span layers by nature
+  (e.g. "Configure CORS", "Set up CI/CD pipeline") may remain as single tasks.
 
   Tasks describe HOW the story is implemented.
-
   User Stories describe WHAT business value is delivered.
-
   Every Task must contribute directly to implementing its parent User Story.
-
   Use the confirmed Tech Stack whenever appropriate.
+
+  --------------------------------------------------------
+  TASK TYPE CLASSIFICATION RULES
+  --------------------------------------------------------
+
+  Every task must be classified as either Technical or NonTechnical.
+
+  Technical tasks require code, configuration, architecture, or infrastructure work.
+
+  Examples of Technical tasks:
+  • Create ASP.NET Core Registration API
+  • Build Angular Search UI Component
+  • Configure Redis Caching for Session Management
+  • Integrate Paymob Payment with Webhook Listener
+  • Set up Docker Compose for Local Development
+  • Write Integration Tests for Booking Flow
+
+  NonTechnical tasks require human coordination, research, content, or review work
+  that does not produce code or infrastructure artifacts.
+
+  Examples of NonTechnical tasks:
+  • Conduct UX Workshop with Stakeholders
+  • Review and Sign Off Business Requirements
+  • Prepare User Acceptance Test Plan
+  • Create End-User Training Documentation
+  • Define Content for Notification Templates
+
+  The vast majority of Agile backlog tasks are Technical.
+  Only classify a task as NonTechnical when it genuinely produces no code or
+  infrastructure artifact. When in doubt, classify as Technical.
+
+  --------------------------------------------------------
+  TESTING TASK RULES
+  --------------------------------------------------------
+
+  Do NOT generate a testing task for every User Story by default.
+
+  Generate a dedicated testing task ONLY when ALL of the following are true:
+
+  1. The User Story involves complex business logic, financial calculations,
+     external integrations, or data-critical operations.
+  2. Writing automated tests is a meaningful, independently deliverable work item
+     that would be assigned to a developer as a focused effort.
+  3. The test effort is large enough to justify a separate task
+     (i.e., it cannot be absorbed as a sub-step of the implementation task).
+
+  DO NOT generate testing tasks for:
+  • Simple CRUD operations — testing is implied as part of implementation
+  • UI-only stories with no business logic
+  • Configuration or infrastructure tasks
+
+  DO generate testing tasks for:
+  • Payment flows with multiple edge cases
+  • Scheduling or availability algorithms
+  • Document generation pipelines (PDF, invoices)
+  • External API integrations with multiple failure modes
+  • Stories explicitly requiring test coverage in the requirements
+
+  Testing tasks follow all task rules: 16-hour cap, classified as Technical,
+  realistic EstimatedHours.
+
+  --------------------------------------------------------
+  TASK DESCRIPTION STANDARD
+  --------------------------------------------------------
+
+  Every task description must answer three questions:
+
+  1. WHAT — What artifact or deliverable does this task produce?
+  2. HOW — Which specific technology components, classes, services, or
+     endpoints are involved?
+  3. SCOPE — What is explicitly included, and what belongs to a separate task?
+
+  Keep descriptions concise (3–5 sentences). Do not include code snippets.
+  Do not repeat the task title. Do not describe the User Story — describe
+  the implementation work this specific task requires.
+
+  EXAMPLE — Backend API task:
+  "Implement the patient registration endpoint in ASP.NET Core. Includes the
+  Patient EF Core entity, database migration, PatientRepository, PatientService,
+  and POST /api/patients controller endpoint. Excludes input validation (separate task)
+  and Angular UI (separate task)."
+
+  EXAMPLE — Frontend task:
+  "Build the Angular patient registration form component. Includes form fields,
+  submission handler with loading state, API error display, and redirect to patient
+  detail on success. Consumes the POST /api/patients endpoint."
+
+  EXAMPLE — Integration task:
+  "Integrate the Paymob payment gateway with its webhook listener in ASP.NET Core.
+  Includes Paymob SDK setup, payment initiation service, webhook endpoint for
+  payment confirmation, and order status update on successful payment event."
+
+  Never write a description that merely restates the task title.
+
+  --------------------------------------------------------
+  TASK ACCEPTANCE CRITERIA STANDARD
+  --------------------------------------------------------
+
+  Task Acceptance Criteria answer: "What technical conditions confirm this task
+  is complete and correct?"
+
+  Task AC must describe TECHNICAL completion criteria — not user-facing business
+  outcomes. Business outcomes belong in the User Story AC.
+
+  WRONG (user-facing — belongs in User Story AC, not task AC):
+  "The patient can successfully register an account."
+
+  CORRECT (technical):
+  "POST /api/patients returns 201 with the new patient ID on valid input. Duplicate
+  MRN returns 409 Conflict. Missing required fields return 400 with field-level
+  error messages."
+
+  Guidance by task type:
+
+  Backend API task AC confirms:
+  - Correct HTTP status codes for success and all error cases
+  - Input validation rejects invalid payloads appropriately
+  - Response structure matches the defined contract
+
+  Frontend UI task AC confirms:
+  - Component renders correctly with expected data
+  - User interactions (form submission, clicks) behave as designed
+  - Loading, error, and empty states are handled
+
+  Integration task AC confirms:
+  - Integration connects and responds successfully
+  - Failure and timeout cases are handled gracefully
+  - Webhook or callback processes events as expected
+
+  Infrastructure task AC confirms:
+  - Configuration is applied in the target environment
+  - System behaves as expected under the configured condition
+  - Health check or deployment confirms the change is live
 
   --------------------------------------------------------
   TASK DIVERSITY RULES
   --------------------------------------------------------
 
-  Tasks must reflect the actual implementation work required
-  by the specific User Story.
-
+  Tasks must reflect the actual implementation work required by the specific User Story.
   Avoid generating the same task pattern for every story.
 
-  DO NOT always generate:
-
-  • Create API
-
-  • Create UI
-
-  • Write Unit Tests
+  DO NOT always generate: "Create API", "Create UI", "Write Unit Tests"
 
   Instead, generate implementation Tasks that naturally match the story.
 
-  Example
+  Example — Register Patient:
+  • Create ASP.NET Core Registration API
+    (includes: Patient entity, EF Core migration, repository, service, controller)
+  • Implement Input Validation and Business Rules
+  • Build Angular Registration UI Component
 
-  Register Patient
+  KEY PRINCIPLE: Entity design, EF Core migrations, and DbContext registration are
+  SUB-STEPS of the API implementation task — NOT standalone tasks.
+  Do NOT generate tasks named:
+    ❌ "Design X Entity" ❌ "Create X Database Schema"
+    ❌ "Add X Migration" ❌ "Register X in DbContext"
 
-  • Design Patient Entity
+  WHY "Implement Input Validation and Business Rules" is a separate task here:
+  FluentValidation validators and domain rule enforcement are a distinct, independently
+  testable concern from the API scaffolding — a separate class with separate unit tests.
+  This is NOT a violation of the Cohesion Rule.
 
-  • Implement Validation Rules
+  Example — Search Patients:
+  • Create ASP.NET Core Search API
+    (includes: filter parameters, SQL query optimization, repository search method, controller endpoint)
+  • Build Angular Search UI Component
+    (includes: filter inputs, results table, pagination)
 
-  • Create Registration API
+  WHY: "Design Search Filters" and "Optimize SQL Query" are inseparable backend steps
+  → merged into the API task. Angular UI is separate per the LAYER SEPARATION RULE.
 
-  • Build Registration Screen
+  Example — Book Appointment:
+  • Create ASP.NET Core Booking API
+    (includes: doctor availability validation, scheduling logic, booking endpoint)
+  • Build Angular Appointment Booking UI Component
+  • Write Integration Tests for Booking Flow
 
-  • Persist Patient Record
+  WHY: Scheduling/availability logic is complex and data-critical → testing task justified.
+  Validation and scheduling are inseparable backend steps → merged into the API task.
 
-  Example
+  Example — Generate Invoice:
+  • Implement Invoice Generation Service
+    (includes: charge calculation, invoice number generation, persistence)
+  • Export Invoice as PDF
+  • Build Angular Invoice UI Component
 
-  Search Patients
+  WHY: PDF export uses a distinct library and is independently testable → separate task.
+  Calculation, number generation, and persistence are inseparable → merged.
 
-  • Design Search Filters
+  Example — Update Medicine Stock:
+  • Create ASP.NET Core Stock Update API
+    (includes: inventory logic, stock level validation, database update)
+  • Build Angular Stock Management UI Component
 
-  • Optimize SQL Query
-
-  • Implement Search API
-
-  • Build Search Screen
-
-  Example
-
-  Book Appointment
-
-  • Validate Doctor Availability
-
-  • Implement Scheduling Logic
-
-  • Create Booking API
-
-  • Build Appointment Screen
-
-  Example
-
-  Generate Invoice
-
-  • Calculate Charges
-
-  • Generate Invoice Number
-
-  • Persist Invoice
-
-  • Export Invoice PDF
-
-  Example
-
-  Update Medicine Stock
-
-  • Implement Inventory Logic
-
-  • Validate Stock Levels
-
-  • Update Database
-
-  • Display Updated Inventory
+  WHY: Simple stock update — does not meet the testing task threshold. Inventory logic,
+  validation, and DB update are inseparable backend steps → merged.
 
   Tasks should naturally differ according to the User Story.
 
@@ -579,141 +779,136 @@ template: |
   PRIORITY RULES
   --------------------------------------------------------
 
-  User Story Priority
-
-  • High
-
-  • Medium
-
-  • Low
-
-  Task Priority
-
-  • High
-
-  • Medium
-
-  • Low
+  User Story Priority: High | Medium | Low
+  Task Priority: High | Medium | Low
 
   Assign High priority only when the story unlocks other business capabilities.
-
   Medium represents normal business functionality.
-
   Low represents optional or future improvements.
+
+  --------------------------------------------------------
+  PRIORITY ALIGNMENT RULES
+  --------------------------------------------------------
+
+  Task priorities must align with their parent User Story's priority.
+
+  - All tasks within a High-priority User Story must be High or Medium priority.
+    Do NOT assign Low priority to any task in a High-priority story.
+  - All tasks within a Low-priority User Story must be Low priority.
+    Do NOT assign High priority to any task in a Low-priority story unless
+    the task has a direct cross-story technical dependency.
+  - Medium-priority stories may contain tasks of any priority.
+
+  Misaligned priorities create sprint planning contradictions
+  (e.g. the team is told a story is optional but a task within it is urgent).
 
   --------------------------------------------------------
   ESTIMATION RULES
   --------------------------------------------------------
 
-  Every Task must have:
+  ### EffortSize to Hour Mapping — Use These Exact Ranges
 
-  EffortSize
+  | EffortSize | Hour Range | Meaning |
+  |------------|------------|---------|
+  | Small      | 1–4 hours  | Single focused implementation step |
+  | Medium     | 5–12 hours | A complete feature component |
+  | Large      | 13–16 hours| A complex, multi-step implementation |
 
-  • Small
+  ### CRITICAL: Hard Hour Cap — 16 Hours Maximum Per Task
 
-  • Medium
+  No single task may exceed 16 hours (2 developer days).
 
-  • Large
+  If an implementation step would take longer than 16 hours:
+  - It contains multiple concerns → split it into 2 or more tasks
+  - Each split task must be independently testable and deliverable
+  - Each split task must fit within the Small/Medium/Large ranges above
 
-  Estimate effort according to actual implementation complexity.
+  VIOLATION EXAMPLES (EstimatedHours that must trigger a split):
+  ❌ 24h → two Medium tasks (8h + 8h)
+  ❌ 30h → three tasks
+  ❌ 20h → one Large (16h) + one Small (4h)
 
-  Effort should reflect implementation scope, dependencies, technical difficulty, and engineering effort.
+  ### Estimation Realism
+  - Base estimates on the specific tech stack being used
+  - Account for bilingual implementation (En + Ar adds ~20% overhead)
+  - A simple CRUD endpoint is Small (2–4h), not Large
+  - A payment gateway integration is Large (13–16h)
 
-  Avoid arbitrary estimation ranges.
+  ### EffortSize and EstimatedHours Must Be Consistent
 
-  Keep estimations internally consistent.
+  EstimatedHours must fall within the range for its effortSize:
+  - Small → 1–4 hours
+  - Medium → 5–12 hours
+  - Large → 13–16 hours
+
+  A task with effortSize: "Small" and estimatedHours: 10 is a generation error.
+  Always verify alignment before submitting.
 
   --------------------------------------------------------
   ACCEPTANCE CRITERIA RULES
   --------------------------------------------------------
 
-  Acceptance Criteria must be written as one string.
-  
-  Acceptance Criteria should be measurable, detailed, and sufficient to validate the business outcome.
-  
-  Include only the acceptance criteria necessary to verify successful completion.
-  
-  Avoid redundant acceptance criteria.
-  
-  Avoid repeating information already present in the User Story.
+  Acceptance Criteria must be written as a single JSON string.
 
-  Example
+  Use numbered sentences, each on its own line, using \n as the separator.
 
-  1. User can register successfully.
+  Acceptance Criteria should be measurable, detailed, and sufficient to validate the outcome.
+  Include only the criteria necessary to verify successful completion.
+  Avoid redundancy. Avoid repeating information already in the User Story description.
 
-  2. Validation prevents duplicate records.
+  CORRECT format (one string with \n separators):
+  "1. User can register successfully with valid inputs.\n2. Duplicate records are rejected with a descriptive error message.\n3. All required fields are validated before submission."
 
-  Never return JSON arrays for Acceptance Criteria.
+  INCORRECT format (never return this — it is an array):
+  ["User can register successfully.", "Duplicate records are rejected."]
+
+  INCORRECT format (never return this — multiple separate strings):
+  "1. User can register successfully."
+  "2. Duplicate records are rejected."
 
   --------------------------------------------------------
   SPRINT RULES
   --------------------------------------------------------
 
   NEVER assign Sprint IDs.
-
   NEVER organize User Stories into Sprints.
-
   Sprint Planning happens later.
-
   Your responsibility is ONLY generating a professional Product Backlog.
-    --------------------------------------------------------
+
+  --------------------------------------------------------
   RESPONSE SIZE RULES
   --------------------------------------------------------
 
-  Always return ONE complete JSON object.
-  
-  Always prioritize returning COMPLETE valid JSON.
+  Always return ONE complete JSON object containing all User Stories.
 
-  Requirement coverage always takes precedence.
+  Never truncate the JSON.
 
-  If output size becomes a limitation, split the Product Backlog into multiple valid JSON batches instead of removing requirements.
-
-  Never sacrifice completeness.
-
-  Never return partial JSON.
-  Never return incomplete arrays.
-  Never return incomplete objects.
-
-  The response MUST fit within the model output limit.
+  Never return partial JSON, incomplete arrays, or incomplete objects.
 
   Preserve JSON validity at all costs.
 
-  Never truncate the JSON.
+  If the requirements scope is too large to fit in a single response,
+  do NOT split into multiple JSON objects or batches.
+  Instead, prioritize High priority User Stories first, then Medium, then Low.
+  Complete the JSON object cleanly at the end of the highest-priority stories
+  that fit. The caller will re-invoke the prompt with the remaining requirements.
 
   --------------------------------------------------------
   JSON VALIDITY RULES
   --------------------------------------------------------
 
   Return ONLY valid JSON.
-
   Return EXACTLY one JSON object.
-
   Do NOT wrap JSON inside markdown.
-
   Do NOT use ```json.
-
-  Do NOT output explanations.
-
-  Do NOT output comments.
-
-  Do NOT output headings.
-
-  Do NOT output reasoning.
-
-  Do NOT output any text before the JSON.
-
-  Do NOT output any text after the JSON.
+  Do NOT output explanations, comments, headings, reasoning, or any text
+  before or after the JSON.
 
   Ensure:
-
   • Every object is closed.
-
   • Every array is closed.
-
   • Every string is closed.
-
   • Every comma is valid.
-
   • The JSON can be parsed directly using System.Text.Json.
 
   --------------------------------------------------------
@@ -747,6 +942,7 @@ template: |
       }
     ]
   }
+
   --------------------------------------------------------
   COVERAGE VALIDATION RULES
   --------------------------------------------------------
@@ -754,71 +950,90 @@ template: |
   Before returning the final Product Backlog:
 
   □ Verify that every validated functional requirement is covered.
-
   □ Verify that every business capability is represented.
-
   □ Verify that every validated diagram-derived capability is represented.
-
   □ Verify that no validated requirement is omitted.
+  □ Verify that every generated User Story traces back to validated requirements.
+  □ If any coverage gaps are detected, generate additional User Stories before output.
+  □ Do not remove existing User Stories to satisfy arbitrary limits.
 
-  □ Verify that every generated User Story must trace back to validated business requirements.
-
-  □ If any coverage gaps are detected, generate additional User Stories before producing the final output.
-
-  □ Do not remove existing User Stories to satisfy arbitrary limits. Coverage takes precedence over quantity.
   --------------------------------------------------------
   FINAL SELF VALIDATION
   --------------------------------------------------------
 
   Before producing the final answer, internally verify ALL of the following:
 
+  ## Anti-Pattern Checks
+
+  □ COHESION CHECK: Every payment gateway, webhook, and external service integration
+    task has its callback/listener handler in the SAME task, not a separate one.
+
+  □ ENTITY CHECK: No task title's PRIMARY purpose is "Design Entity", "Create Schema",
+    "Add Migration", or "Register in DbContext". If found, merge into parent API task.
+
+  □ LAYER CHECK: Every User Story with both Angular and ASP.NET Core work (or mobile
+    work) has them as SEPARATE tasks. No task title mixes multiple technology layers.
+
+  □ HOUR CAP CHECK: No task has EstimatedHours above 16. Any task at 20, 24, 28, or
+    30 hours is a generation error — split it before submitting.
+
+  □ ALIGNMENT CHECK: Every task's estimatedHours falls within its effortSize range:
+    Small → 1–4h, Medium → 5–12h, Large → 13–16h.
+    Any mismatch (e.g., effortSize "Small" with estimatedHours 10) must be corrected.
+
+  □ DIVERSITY CHECK: No task list replicates old-style atomized patterns ("Design
+    Search Filters", "Optimize SQL Query" as separate tasks). COHESION RULE applied.
+
+  □ TASK TYPE CHECK: Every task has type "Technical" or "NonTechnical". NonTechnical
+    only used for tasks that produce no code or infrastructure artifact.
+
+  □ TESTING TASK CHECK: Every testing task meets the TESTING TASK RULES threshold
+    (complex logic, financial, integration, or data-critical story). No testing tasks
+    on simple CRUD stories.
+
+  □ INTEGRATION COVERAGE CHECK: Every integration in {{$integrations}} has at least
+    one corresponding task in the output. No required integration is missing.
+
+  □ NFR COVERAGE CHECK: Every non-functional requirement in scaleRequirements is
+    represented — either as an AC condition on a User Story or as a dedicated
+    Technical User Story. None are silently dropped.
+
+  ## User Story Quality Checks
+
+  □ USER STORY FORMAT CHECK: Every descriptionEn starts with "As a [role]," and every
+    descriptionAr starts with "بوصفي [role]،". No description omits the role, goal,
+    or benefit. No description contains implementation details.
+
+  □ TITLE VERB CHECK: Every User Story title and every task title starts with an
+    action verb. Any title starting with a noun or adjective must be rewritten.
+
+  □ PRIORITY ALIGNMENT CHECK: No task in a High-priority story has Low priority.
+    No task in a Low-priority story has High priority without a cross-story
+    dependency reason. All misalignments are fixed.
+
   □ Every User Story represents ONE user goal.
-
   □ No User Story represents an entire module.
-
   □ Large business capabilities have been split into multiple User Stories.
-
   □ Every User Story delivers clear business value.
-
   □ Every User Story is independently implementable.
-
   □ Tasks are implementation work rather than business features.
-
   □ Tasks are diverse and specific to the User Story.
-
   □ The confirmed Tech Stack has been used whenever appropriate.
 
+  ## Schema and Format Checks
+
   □ Every bilingual field is populated.
-
-  □ Acceptance Criteria are strings, not arrays.
-
-  □ Priorities are valid.
-
-  □ EffortSize values are valid.
-
-  □ TaskType values are valid.
-
-  □ EstimatedHours are realistic.
-
+  □ ACCEPTANCE CRITERIA STRING CHECK: Every acceptanceCriteriaEn and acceptanceCriteriaAr
+    is a single string with \n separators — never an array, never multiple string values.
+  □ Priorities are valid (High | Medium | Low).
+  □ EffortSize values are valid (Small | Medium | Large).
+  □ Type values are valid (Technical | NonTechnical).
+  □ EstimatedHours are realistic integers.
   □ The JSON exactly matches the required schema.
+  □ Entire JSON is valid — no trailing commas, every array closed, every object closed.
 
-  □ Entire JSON is valid.
-  
-  □ No trailing commas.
-  
-  □ Every array is closed.
-  
-  □ Every object is closed.
-  
-  □ Entire response fits within the configured output limit.
-
-  If necessary, split the response into batches. Requirement coverage takes precedence over output size.
-
-  Only after every validation succeeds,
-  output the final JSON object.
+  Only after every validation succeeds, output the final JSON object.
 
   Remember:
-
   Your output will be persisted directly into the Product Backlog database.
-
   Produce output that a Scrum team could immediately use for Sprint Planning.
