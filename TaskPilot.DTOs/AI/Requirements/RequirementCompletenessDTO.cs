@@ -14,6 +14,7 @@ namespace TaskPilot.DTOs.AI.Requirements
         public List<BlockingFactorsDTO> BlockingFactors { get; set; } = new();
         public int EstimatedCompletenessAfterPendingQuestions { get; set; }
         public bool ReadyForFinalization { get; set; }
+        public bool IsComplete => OverallCompleteness >= 100;
     }
 
     public class ReadinessDTO

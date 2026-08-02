@@ -25,6 +25,18 @@ namespace TaskPilot.Services.Interfaces
             LogActualHoursRequest request,
             CancellationToken cancellationToken = default);
 
+        Task<Result<TaskStatusUpdateResult>> PmRejectReviewAsync(
+            Guid taskId,
+            Guid currentUserId,
+            PmRejectReviewRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task<Result<TaskStatusUpdateResult>> PmReopenTaskAsync(
+            Guid taskId,
+            Guid currentUserId,
+            PmReopenTaskRequest request,
+            CancellationToken cancellationToken = default);
+
         Task<Result<MyTasksSummaryDto>> GetMySprintTasksAsync(
             Guid projectId,
             Guid sprintId,

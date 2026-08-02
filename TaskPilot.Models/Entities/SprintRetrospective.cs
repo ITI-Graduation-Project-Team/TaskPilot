@@ -17,6 +17,17 @@ namespace TaskPilot.Models.Entities
         public string ActionItemsAr { get; set; } = string.Empty;
 
         public double CompletionRate { get; set; }
+        public double VelocityRatio { get; set; }
+        public decimal TotalEstimatedHours { get; set; }
+        public decimal TotalActualHours { get; set; }
+        public int TotalTasks { get; set; }
+        public int CompletedTasks { get; set; }
+        public int UnfinishedTasks { get; set; }
+        public DateTime GeneratedAt { get; set; }
+
+        public string AnalysisJson { get; set; } = string.Empty;
+        public string ImprovementsJson { get; set; } = string.Empty;
+
         public decimal EstimationAccuracy { get; set; }
         public decimal ExpectedHours { get; set; }
         public decimal ActualHours { get; set; }

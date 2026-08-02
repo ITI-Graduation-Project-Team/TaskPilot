@@ -10,6 +10,7 @@ namespace TaskPilot.Models.Entities
         public Company? Company { get; set; }
         public Guid? ProjectId { get; set; }
         public Project? Project { get; set; }
+        public Guid? RequirementSessionId { get; set; }
         public string TitleEn { get; set; } = string.Empty;
         public string TitleAr { get; set; } = string.Empty;
         public string? ContentEn { get; set; }

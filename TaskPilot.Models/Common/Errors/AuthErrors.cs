@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -55,5 +55,8 @@ namespace TaskPilot.Models.Common.Errors
 
         public static readonly Error GoogleAuthenticationFailed =
             new("GOOGLE_AUTHENTICATION_FAILED", ErrorType.Failure);
+
+        public static readonly Error RoleSelectionRequired =
+            new("ROLE_SELECTION_REQUIRED", ErrorType.Unauthorized);
     }
 }

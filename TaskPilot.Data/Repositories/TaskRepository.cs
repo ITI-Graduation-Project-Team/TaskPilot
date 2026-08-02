@@ -71,5 +71,10 @@ namespace TaskPilot.Data.Repositories
                     .ThenInclude(rs => rs.Skill)
                 .FirstOrDefaultAsync(t => t.Id == taskId, cancellationToken);
         }
+
+        public void AddOverrideLog(TaskStatusOverrideLog log)
+        {
+            _context.TaskStatusOverrideLogs.Add(log);
+        }
     }
 }

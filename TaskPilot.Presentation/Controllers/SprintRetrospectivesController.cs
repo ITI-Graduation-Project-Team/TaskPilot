@@ -4,29 +4,40 @@ using TaskPilot.Services.Interfaces;
 
 namespace TaskPilot.Presentation.Controllers
 {
-    [Route("api/sprints/{sprintId:guid}/retrospective")]
+    [ApiController]
+    [Route("api/projects/{projectId:guid}/sprints/{sprintId:guid}/retrospective")]
     public class SprintRetrospectivesController(
         ISprintRetrospectiveService retrospectiveService,
         IUnitOfWork unitOfWork) : ApiControllerBase
     {
-        [HttpPost("generate")]
-        public async Task<ActionResult> Generate(Guid sprintId, CancellationToken cancellationToken)
+        [HttpPost]
+        public async Task<IActionResult> Generate(
+            [FromRoute] Guid projectId,
+            [FromRoute] Guid sprintId,
+            CancellationToken cancellationToken)
         {
-            var result = await retrospectiveService.GenerateRetrospectiveAsync(sprintId, cancellationToken);
-            
-            if (result.IsSuccess)
-            {
-                await unitOfWork.SaveChangesAsync();
-            }
+            var userLanguage = HttpContext.Items["userLanguage"]?.ToString() ?? "English";
 
-            return HandleResult(result);
+            var result = await retrospectiveService.GenerateAsync(
+                projectId, sprintId, userLanguage, cancellationToken);
+                
+            await unitOfWork.SaveChangesAsync();
+
+            return Ok(result);
         }
 
         [HttpGet]
-        public async Task<ActionResult> Get(Guid sprintId, CancellationToken cancellationToken)
+        public async Task<IActionResult> Get(
+            [FromRoute] Guid projectId,
+            [FromRoute] Guid sprintId,
+            CancellationToken cancellationToken)
         {
-            var result = await retrospectiveService.GetRetrospectiveAsync(sprintId, cancellationToken);
-            return HandleResult(result);
+            var result = await retrospectiveService.GetAsync(sprintId, cancellationToken);
+
+            if (result is null)
+                return NotFound("No retrospective generated for this sprint yet.");
+
+            return Ok(result);
         }
     }
 }

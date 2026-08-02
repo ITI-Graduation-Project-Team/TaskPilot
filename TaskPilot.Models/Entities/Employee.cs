@@ -14,6 +14,11 @@ namespace TaskPilot.Models.Entities
         public DateTime? LastCvProcessedAt { get; set; }
         public AiProcessingStatus CvProcessingStatus { get; set; }
 
+        public bool IsDeactivated { get; set; }
+        public DateTime? DeactivatedAt { get; set; }
+        public Guid? DeactivatedBy { get; set; }
+        public string? DeactivationReason { get; set; }
+
         public ICollection<TaskItem> AssignedTasks { get; set; } = new List<TaskItem>();
         public ICollection<ProjectEmployee> ProjectEmployees { get; set; } = new List<ProjectEmployee>();
     }

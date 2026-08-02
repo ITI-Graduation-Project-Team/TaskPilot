@@ -262,5 +262,11 @@
   "NOTIFICATION_NOT_FOUND": "لم يتم العثور على الإشعار المطلوب.",
   "NOTIFICATION_RETRIEVED_SUCCESS": "تم استرجاع الإشعارات بنجاح.",
   "NOTIFICATION_MARKED_AS_READ_SUCCESS": "تم تحديد الإشعار كمقروء بنجاح.",
-  "NOTIFICATION_SENT_SUCCESS": "تم إرسال الإشعار بنجاح."
-}
+  "NOTIFICATION_SENT_SUCCESS": "تم إرسال الإشعار بنجاح.",
+  "TASK_PM_CANNOT_COMPLETE": "لا يمكنك إنهاء المهمة مباشرة. استخدم خيار القبول.",
+  "TASK_PM_CANNOT_START": "لا يمكنك بدء تنفيذ المهام. هذا دور المطور المعين.",
+  "SPRINT_UNASSIGNED_TASKS_EXIST": "لا يمكن بدء السبرينت. تأكد من إسناد جميع المهام.",
+  "TASK_OVERRIDE_REASON_REQUIRED": "سبب الرفض أو إعادة الفتح مطلوب.",
+  "TASK_REJECTED": "تم رفض المهمة بنجاح.",
+  "TASK_REOPENED": "تم إعادة فتح المهمة بنجاح."
+}

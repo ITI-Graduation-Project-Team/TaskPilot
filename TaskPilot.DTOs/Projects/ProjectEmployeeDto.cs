@@ -16,4 +16,7 @@ public class ProjectEmployeeDto
     public int CurrentSprintHours { get; set; }
     public string AvailabilityStatus { get; set; } = string.Empty;
     public List<string> Skills { get; set; } = new();
+    public bool IsDeactivated { get; set; }
+    public string? DeactivationReason { get; set; }
+    public DateTime? DeactivatedAt { get; set; }
 }

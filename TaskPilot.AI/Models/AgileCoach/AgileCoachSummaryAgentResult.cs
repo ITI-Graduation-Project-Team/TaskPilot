@@ -6,17 +6,17 @@ namespace TaskPilot.AI.Models.AgileCoach
 {
     public class AgileCoachSummaryAgentResult
     {
-        [JsonPropertyName("codebaseNotes")]
-        public string CodebaseNotes { get; set; } = string.Empty;
+        [JsonPropertyName("summaryEn")]
+        public AgileCoachSummaryContent SummaryEn { get; set; } = null!;
 
-        [JsonPropertyName("relatedPastTasks")]
-        public string RelatedPastTasks { get; set; } = string.Empty;
+        [JsonPropertyName("summaryAr")]
+        public AgileCoachSummaryContent SummaryAr { get; set; } = null!;
+    }
 
-        [JsonPropertyName("techStackContext")]
-        public string TechStackContext { get; set; } = string.Empty;
-
-        [JsonPropertyName("suggestedImplementationGuidance")]
-        public string SuggestedImplementationGuidance { get; set; } = string.Empty;
+    public class AgileCoachSummaryContent
+    {
+        [JsonPropertyName("content")]
+        public string Content { get; set; } = null!;
 
         [JsonPropertyName("citations")]
         public List<CitationDto> Citations { get; set; } = new();

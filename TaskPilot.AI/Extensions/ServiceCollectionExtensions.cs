@@ -131,6 +131,8 @@ namespace TaskPilot.AI.Extensions
                 KnowledgeRetrievalAgent>();
             services.AddScoped<
                 KnowledgeAnswerAgent>();
+            services.AddScoped<
+                TaskPilot.AI.Agents.AgileCoachAgent>();
 
             // Planning agents
             services.AddScoped<

@@ -275,5 +275,11 @@
   "NOTIFICATION_NOT_FOUND": "The requested notification was not found.",
   "NOTIFICATION_RETRIEVED_SUCCESS": "Notifications retrieved successfully.",
   "NOTIFICATION_MARKED_AS_READ_SUCCESS": "Notification marked as read successfully.",
-  "NOTIFICATION_SENT_SUCCESS": "Notification sent successfully."
+  "NOTIFICATION_SENT_SUCCESS": "Notification sent successfully.",
+  "TASK_PM_CANNOT_COMPLETE": "You cannot drag tasks to Done directly. Use the Accept flow.",
+  "TASK_PM_CANNOT_START": "You cannot start tasks. Only assigned developers can do this.",
+  "SPRINT_UNASSIGNED_TASKS_EXIST": "Cannot start the sprint. Ensure all tasks are assigned.",
+  "TASK_OVERRIDE_REASON_REQUIRED": "A reason is required to reject or reopen this task.",
+  "TASK_REJECTED": "Task rejected successfully.",
+  "TASK_REOPENED": "Task reopened successfully."
 }

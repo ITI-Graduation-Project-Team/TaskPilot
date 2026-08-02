@@ -15,4 +15,7 @@ public class CompanyEmployeeDto
     public int ActiveProjectsCount { get; set; }
     public int CurrentAssignedTasksCount { get; set; }
     public string AvailabilityStatus { get; set; } = string.Empty;
+    public bool IsDeactivated { get; set; }
+    public string? DeactivationReason { get; set; }
+    public DateTime? DeactivatedAt { get; set; }
 }

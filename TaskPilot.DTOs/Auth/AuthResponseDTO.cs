@@ -13,7 +13,6 @@ namespace TaskPilot.DTOs.Auth
         //addRoles
         public List<string>? Roles { get; set; } = new List<string>();
         public bool IsProfileCompleted { get; set; }
-        //public bool IsProfileCompleted
-        //{ get; set; }
+        public bool RequireRoleSelection { get; set; }
     }
 }

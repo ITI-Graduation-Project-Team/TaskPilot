@@ -1,4 +1,6 @@
 using System;
+using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -70,6 +72,15 @@ namespace TaskPilot.Presentation.Controllers
                 SuccessCodes.AgileCoach.SummaryGenerated);
         }
 
+        [HttpGet("chat/{taskId:guid}/history")]
+        [Authorize]
+        public async Task<IActionResult> GetChatHistory(Guid taskId)
+        {
+            var lang = Request.Headers["lang"].FirstOrDefault() ?? "en";
+            var result = await _agileCoachService.GetChatHistoryAsync(taskId, lang);
+            return HandleResult(result);
+        }
+
         [HttpPost("chat/stream")]
         [DisableRequestSizeLimit]
         public async Task StreamChat([FromBody] AgileCoachChatRequest request)
@@ -85,12 +96,17 @@ namespace TaskPilot.Presentation.Controllers
 
             await Response.Body.FlushAsync();
 
+            await _agileCoachService.SaveChatMessageAsync(
+                request.TaskItemId, "user", request.Message, lang);
+            await _unitOfWork.SaveChangesAsync();
+
             var stream = _agileCoachService.StreamChatAsync(
                 request.TaskItemId,
                 request.Message,
                 request.History,
                 lang);
 
+            var fullResponse = new StringBuilder();
             await foreach (var chunk in stream)
             {
                 if (chunk.StartsWith("__ERROR__:"))
@@ -104,14 +120,20 @@ namespace TaskPilot.Presentation.Controllers
                     break;
                 }
 
+                fullResponse.Append(chunk);
                 var sseData = $"data: {chunk}\n\n";
                 await Response.WriteAsync(sseData);
                 await Response.Body.FlushAsync();
             }
 
+            await _agileCoachService.SaveChatMessageAsync(
+                request.TaskItemId, "assistant", fullResponse.ToString(), lang);
+            await _unitOfWork.SaveChangesAsync();
+
             // Send terminal done event so the client knows the stream ended
             await Response.WriteAsync("event: done\ndata: [DONE]\n\n");
             await Response.Body.FlushAsync();
         }
+
     }
 }

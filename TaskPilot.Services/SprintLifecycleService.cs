@@ -22,6 +22,7 @@ namespace TaskPilot.Services
         private readonly IRepository<Project> _projectRepository;
         private readonly IRepository<SprintRiskAlert> _sprintRiskAlertRepository;
         private readonly IRepository<UserStory> _userStoryRepository;
+        private readonly IProjectEmployeeRepository _projectEmployeeRepository;
         private readonly ILogger<SprintLifecycleService> _logger;
         private readonly INotificationService _notificationService;
         private readonly ICalenderService _calenderService;
@@ -35,12 +36,14 @@ namespace TaskPilot.Services
             INotificationService notificationService = null!,
             ICalenderService calenderService = null!,
             IRepository<UserStory> userStoryRepository = null!,
-            IGoogleCalendarService googleCalendarService = null!)
+            IGoogleCalendarService googleCalendarService = null!,
+            IProjectEmployeeRepository projectEmployeeRepository = null!)
         {
             _sprintRepository = sprintRepository;
             _projectRepository = projectRepository;
             _sprintRiskAlertRepository = sprintRiskAlertRepository;
             _userStoryRepository = userStoryRepository;
+            _projectEmployeeRepository = projectEmployeeRepository;
             _logger = logger;
             _notificationService = notificationService;
             _calenderService = calenderService;
@@ -89,6 +92,15 @@ namespace TaskPilot.Services
                 return Result.Failure<SprintStatusDto>(SprintErrors.ProjectNotFound);
             }
 
+            if (_projectEmployeeRepository != null)
+            {
+                var assignedEmployees = await _projectEmployeeRepository.GetEmployeeIdsByProjectAsync(projectId, cancellationToken);
+                if (!assignedEmployees.Any())
+                {
+                    return Result.Failure<SprintStatusDto>(SprintErrors.NoEmployeesAssigned);
+                }
+            }
+
             var sprint = await _sprintRepository.GetSprintWithTasksAsync(sprintId);
             //var sprint = await _sprintRepository.GetByIdAsync(sprintId);
             if (sprint == null)
@@ -99,6 +111,11 @@ namespace TaskPilot.Services
             if (sprint.ProjectId != projectId)
             {
                 return Result.Failure<SprintStatusDto>(SprintErrors.SprintDoesNotBelongToProject);
+            }
+
+            if (sprint.Tasks.Any(t => t.EmployeeId == null || t.EmployeeId == Guid.Empty))
+            {
+                return Result.Failure<SprintStatusDto>(SprintErrors.UnassignedTasksExist);
             }
 
             if (sprint.Status == SprintStatus.Active)
@@ -189,6 +206,7 @@ namespace TaskPilot.Services
         public async Task<Result<SprintStatusDto>> CompleteSprintAsync(
     Guid projectId,
     Guid sprintId,
+    ReviewTaskAction? reviewAction = null,
     CancellationToken cancellationToken = default)
         {
             if (projectId == Guid.Empty)
@@ -213,6 +231,20 @@ namespace TaskPilot.Services
 
             if (sprint.Status != SprintStatus.Active)
                 return Result.Failure<SprintStatusDto>(SprintErrors.InvalidSprintStatus);
+
+            var reviewTasks = sprint.Tasks.Where(t => t.Status == TaskItemStatus.Review).ToList();
+            if (reviewTasks.Any() && reviewAction == null)
+            {
+                return Result.Failure<SprintStatusDto>(SprintErrors.HasUnfinishedTasks);
+            }
+
+            if (reviewAction == ReviewTaskAction.AcceptAll)
+            {
+                foreach (var task in reviewTasks)
+                {
+                    task.Status = TaskItemStatus.Done;
+                }
+            }
 
             sprint.Status = SprintStatus.Completed;
             sprint.EndDate = DateTime.UtcNow;
