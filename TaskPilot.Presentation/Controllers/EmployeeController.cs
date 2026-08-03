@@ -174,10 +174,12 @@ public class EmployeeController : ApiControllerBase
             if (user == null)
                 return HandleResult(Result.Failure(CommonErrors.Unauthorized()));
 
+            string? companyLogoUrl = null;
             if (user.CompanyId.HasValue)
             {
                 var company = await _companyRepository.GetByIdAsync(user.CompanyId.Value);
                 companyName = company?.Name ?? string.Empty;
+                companyLogoUrl = company?.LogoUrl;
             }
 
             return Ok(new
@@ -192,14 +194,17 @@ public class EmployeeController : ApiControllerBase
                 IsEmployee = false,
                 CompanyId = user.CompanyId,
                 CompanyName = companyName,
+                CompanyLogoUrl = companyLogoUrl,
                 Skills = new List<string>()
             });
         }
 
+        string? empCompanyLogoUrl = null;
         if (employee.CompanyId.HasValue)
         {
             var company = await _companyRepository.GetByIdAsync(employee.CompanyId.Value);
             companyName = company?.Name ?? string.Empty;
+            empCompanyLogoUrl = company?.LogoUrl;
         }
 
         return Ok(new
@@ -214,6 +219,7 @@ public class EmployeeController : ApiControllerBase
             IsEmployee = true,
             CompanyId = employee.CompanyId,
             CompanyName = companyName,
+            CompanyLogoUrl = empCompanyLogoUrl,
             Skills = employee.UserSkills.Select(us => us.Skill.Name).ToList()
         });
     }

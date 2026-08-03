@@ -8,7 +8,8 @@
 
   <ItemGroup>
     <PackageReference Include="CloudinaryDotNet" Version="1.29.1" />
-    <PackageReference Include="Google.Apis.Auth" Version="1.74.0" />
+    <PackageReference Include="Google.Apis.Auth" Version="1.75.0" />
+    <PackageReference Include="Google.Apis.Calendar.v3" Version="1.75.0.4206" />
     <PackageReference Include="MailKit" Version="4.16.0" />
     <PackageReference Include="PayPalCheckoutSdk" Version="1.0.4" />
   </ItemGroup>

@@ -21,5 +21,6 @@ namespace TaskPilot.Models.Entities
         public ICollection<Notification> Notifications { get; set; } = new List<Notification>();
         public ICollection<TaskComment> Comments { get; set; } = new List<TaskComment>();
         public ICollection<UserSkill> UserSkills { get; set; } = new List<UserSkill>();// in employee
+        public string? GoogleRefreshToken { get; set; }
     }
 }

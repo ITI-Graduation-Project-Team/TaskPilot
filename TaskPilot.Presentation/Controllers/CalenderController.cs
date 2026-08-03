@@ -9,13 +9,13 @@ namespace TaskPilot.Presentation.Controllers
 {
     [Authorize]
     [Route("api/calendar")]
-    public class CalendarController : ApiControllerBase
+    public class CalenderController : ApiControllerBase
     {
         private readonly ICalenderService _calendarService;
         private readonly IUnitOfWork _unitOfWork;
         private readonly ICurrentUserService _currentUser;
 
-        public CalendarController(
+        public CalenderController(
             ICalenderService calendarService,
             IUnitOfWork unitOfWork,
             ICurrentUserService currentUser)
