@@ -37,8 +37,8 @@ namespace TaskPilot.Tests.Services
         public ProjectPolicyServiceTests()
         {
             _extractorsMock = new Mock<IEnumerable<IDocumentTextExtractor>>();
-            _categorizationAgentMock = new Mock<DocumentCategorizationAgent>(null, null, null);
-            _chunkingAgentMock = new Mock<ChunkingAgent>(null, null);
+            _categorizationAgentMock = new Mock<DocumentCategorizationAgent>(null, null);
+            _chunkingAgentMock = new Mock<ChunkingAgent>();
             _vectorStoreMock = new Mock<IVectorStore>();
             _knowledgeOrchestratorMock = new Mock<KnowledgeOrchestrator>(null, null, null, null);
             _policyRepoMock = new Mock<IRepository<Policy>>();
@@ -128,13 +128,13 @@ namespace TaskPilot.Tests.Services
             var policy = new Policy { ProjectId = projectId, DocumentId = docId, Scope = PolicyScope.Project, CloudinaryPublicId = "test" };
 
             _projectRepoMock.Setup(x => x.GetByIdAsync(projectId)).ReturnsAsync(new Project());
-            _policyRepoMock.Setup(x => x.FindSingleAsync(It.IsAny<Expression<Func<Policy, bool>>>(), It.IsAny<string[]>())).ReturnsAsync(policy);
+            _policyRepoMock.Setup(x => x.FindSingleAsync(It.IsAny<Expression<Func<Policy, bool>>>())).ReturnsAsync(policy);
 
             _fileStorageMock.Setup(x => x.DeleteFileAsync(It.IsAny<string>())).ReturnsAsync(TaskPilot.Models.Common.Results.Result.Success());
             
             // Simulate Qdrant failure
             _vectorStoreMock.Setup(x => x.DeleteAsync(It.IsAny<KnowledgeCollectionType>(), docId, null, projectId, null, It.IsAny<CancellationToken>()))
-                .ReturnsAsync(TaskPilot.Models.Common.Results.Result.Failure(CommonErrors.ServerError("Qdrant failed")));
+                .ThrowsAsync(new Exception("Qdrant failed"));
 
             // Act
             var result = await service.DeleteAsync(docId, projectId);
@@ -154,14 +154,14 @@ namespace TaskPilot.Tests.Services
             var policy = new Policy { ProjectId = projectId, DocumentId = docId, Scope = PolicyScope.Project, CloudinaryPublicId = "test" };
 
             _projectRepoMock.Setup(x => x.GetByIdAsync(projectId)).ReturnsAsync(new Project());
-            _policyRepoMock.Setup(x => x.FindSingleAsync(It.IsAny<Expression<Func<Policy, bool>>>(), It.IsAny<string[]>())).ReturnsAsync(policy);
+            _policyRepoMock.Setup(x => x.FindSingleAsync(It.IsAny<Expression<Func<Policy, bool>>>())).ReturnsAsync(policy);
 
             // Simulate Cloudinary failure
             _fileStorageMock.Setup(x => x.DeleteFileAsync(It.IsAny<string>())).ReturnsAsync(TaskPilot.Models.Common.Results.Result.Failure(CommonErrors.ServerError("Cloudinary failed")));
             
             // Simulate Qdrant success
             _vectorStoreMock.Setup(x => x.DeleteAsync(It.IsAny<KnowledgeCollectionType>(), docId, null, projectId, null, It.IsAny<CancellationToken>()))
-                .ReturnsAsync(TaskPilot.Models.Common.Results.Result.Success());
+                .Returns(Task.CompletedTask);
 
             // Act
             var result = await service.DeleteAsync(docId, projectId);

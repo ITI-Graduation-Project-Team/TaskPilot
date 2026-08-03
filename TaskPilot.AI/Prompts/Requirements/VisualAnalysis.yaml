@@ -23,6 +23,13 @@ template: |
     "DiagramType": "UML Sequence | ERD | Wireframe | Use Case | Class | General",
     "SummaryDescription": "A detailed explanation of what this diagram depicts, including systems, actors, and workflows.",
     "ExtractedText": "A structured textual representation (e.g. entities list, database fields, or Mermaid code for UML diagrams)",
+    "Entities": [
+      {
+        "Name": "Invoice",
+        "Attributes": ["InvoiceId", "IssueDate", "TotalAmount"],
+        "Relationships": ["1-to-Many with InvoiceLine", "Inherits from AccountingDocument"]
+      }
+    ],
     "ExtractedRequirements": [
       {
         "Text": "The system shall allow Doctor to query patient records as shown in authentication sequence.",

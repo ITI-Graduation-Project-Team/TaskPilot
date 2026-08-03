@@ -6,7 +6,8 @@ description: |
 template_format: semantic-kernel
 execution_settings:
   default:
-    temperature: 0.05
+    temperature: 0.0
+    seed: 42
     max_tokens: 3500
 input_variables:
   - name: documentContent

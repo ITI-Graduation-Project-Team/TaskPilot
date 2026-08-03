@@ -59,6 +59,7 @@ namespace TaskPilot.Services
             // الآن التكوين (configuration) متاح للاستخدام
             services.Configure<AssignmentOptions>(configuration.GetSection(AssignmentOptions.SectionName));
             services.Configure<TaskPilot.Services.Assignment.ScoringWeights>(configuration.GetSection("Assignment:Scoring"));
+            services.Configure<TaskPilot.Models.Configurations.RequirementValidationOptions>(configuration.GetSection("RequirementValidation"));
 
             // ── External ──
 

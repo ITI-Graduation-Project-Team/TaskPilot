@@ -22,17 +22,23 @@ namespace TaskPilot.AI.Agents.Requirements
         private readonly IPromptLoaderService _promptLoader;
         private readonly IVectorStore _vectorStore;
         private readonly IDocumentStore _documentStore;
+        private readonly Microsoft.Extensions.Logging.ILogger<RequirementAnalysisAgent> _logger;
+        private readonly ITelemetryAccumulator _telemetry;
 
         public RequirementAnalysisAgent(
             IAiKernelService kernelService,
             IPromptLoaderService promptLoader,
             IVectorStore vectorStore,
-            IDocumentStore documentStore)
+            IDocumentStore documentStore,
+            Microsoft.Extensions.Logging.ILogger<RequirementAnalysisAgent> logger,
+            ITelemetryAccumulator telemetry)
         {
             _kernelService = kernelService;
             _promptLoader = promptLoader;
             _vectorStore = vectorStore;
             _documentStore = documentStore;
+            _logger = logger;
+            _telemetry = telemetry;
         }
 
         public async Task<RequirementAnalysisResult> AnalyzeAsync(
@@ -47,10 +53,38 @@ namespace TaskPilot.AI.Agents.Requirements
                 chunks.AddRange(docChunks);
             }
 
+            const int MaxContextTokens = 100000;
+            int totalTokens = TokenHelper.EstimateTokens(string.Join(" ", chunks.Select(c => c.Content)));
+            if (totalTokens > MaxContextTokens)
+            {
+                var dynamicQuery = string.Join(" ", session.Knowledge.Documents.Select(d => $"{d.Category} {d.FileName}"));
+                var queryText = $"Core business objectives, requirements, constraints, entities, data models, relationships, and diagrams for {dynamicQuery}";
+
+                var relevantChunks = await _vectorStore.SearchAsync(
+                    KnowledgeCollectionType.ProjectPolicies,
+                    requirementSessionId: session.SessionId,
+                    projectId: session.ProjectId,
+                    companyId: null, // Scoped to session/project only
+                    queryText: queryText,
+                    topK: 25,
+                    cancellationToken: cancellationToken);
+
+                // Stabilize ties from Qdrant by ordering by SourceFile and ChunkIndex before truncation
+                chunks = relevantChunks.OrderBy(c => c.SourceFile).ThenBy(c => c.ChunkIndex).ToList();
+
+                while (chunks.Count > 0 && TokenHelper.EstimateTokens(string.Join(" ", chunks.Select(c => c.Content))) > MaxContextTokens)
+                {
+                    chunks.RemoveAt(chunks.Count - 1);
+                }
+            }
+
             // Removed early fallback for 1-line history so the LLM can dynamically generate questions
 
+            // Ensure fully deterministic ordering for identical documents
+            chunks = chunks.OrderBy(c => c.DocumentId).ThenBy(c => c.ChunkIndex).ToList();
+
             var documentContent = string.Join("\n\n---\n\n",
-                chunks.OrderBy(c => c.ChunkIndex).Select((c, i) => $"[Section {i + 1}]\n{c.Content}"));
+                chunks.Select((c, i) => $"[Section {i + 1}]\n{c.Content}"));
 
             var kernel = _kernelService.CreateKernel(ModelConstants.PowerfulModel);
             var prompt = await _promptLoader.LoadAsync("Requirements/RequirementAnalysis.yaml");
@@ -98,10 +132,16 @@ namespace TaskPilot.AI.Agents.Requirements
             var settings = new Microsoft.SemanticKernel.Connectors.OpenAI.OpenAIPromptExecutionSettings
             {
                 ResponseFormat = "json_object",
-                Temperature = 0.1
+                Temperature = 0.0,
+                Seed = 42
             };
 
+            var sw = System.Diagnostics.Stopwatch.StartNew();
             var response = await chatCompletionService.GetChatMessageContentAsync(chat, settings, kernel, cancellationToken);
+            sw.Stop();
+
+            _telemetry.RecordCall(response.Metadata, sw.ElapsedMilliseconds, "RequirementAnalysisAgent", ModelConstants.PowerfulModel, _logger);
+
             var raw = response.Content?.Trim() ?? string.Empty;
             if (raw.StartsWith("```"))
                 raw = raw.Replace("```json", "").Replace("```", "").Trim();
@@ -167,7 +207,12 @@ namespace TaskPilot.AI.Agents.Requirements
                 ResponseFormat = "json_object"
             };
 
+            var sw = System.Diagnostics.Stopwatch.StartNew();
             var response = await chatCompletionService.GetChatMessageContentAsync(chat, settings, kernel, cancellationToken);
+            sw.Stop();
+
+            _telemetry.RecordCall(response.Metadata, sw.ElapsedMilliseconds, "RequirementAnalysisAgent", ModelConstants.PowerfulModel, _logger);
+
             var raw = response.Content?.Trim() ?? string.Empty;
             if (raw.StartsWith("```"))
                 raw = raw.Replace("```json", "").Replace("```", "").Trim();

@@ -1,6 +1,10 @@
 name: RequirementsBuilder
 description: Builds structured requirements from all available sources
 template_format: semantic-kernel
+execution_settings:
+  default:
+    temperature: 0.0
+    seed: 42
 input_variables:
   - name: conversationHistory
     description: Full PM conversation with timestamps

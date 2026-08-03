@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using TaskPilot.Infrastructure.Services.Email;
 using TaskPilot.Infrastructure.Services.Google;
@@ -21,6 +21,9 @@ namespace TaskPilot.Infrastructure.Extensions
             services.AddScoped<
                 IFileStorageService,
                 CloudinaryService>();
+            services.AddScoped<
+                TaskPilot.AI.Services.Interfaces.IAiAssetStorageService,
+                CloudinaryAiAssetStorageService>();
             services.AddScoped<IEmailService, EmailService>();
             services.AddScoped<IEmailBodyService, EmailBodyService>();
             services.AddScoped<ITokenService, JWTService>();

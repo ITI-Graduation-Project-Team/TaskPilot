@@ -6,6 +6,7 @@ using TaskPilot.AI.Services.Interfaces;
 using TaskPilot.AI.Models.Planning;
 using TaskPilot.Models.Entities;
 using Microsoft.Extensions.Logging;
+using TaskPilot.AI.Persistence.Interfaces;
 
 namespace TaskPilot.AI.Agents.Planning
 {
@@ -14,16 +15,27 @@ namespace TaskPilot.AI.Agents.Planning
         private readonly IAiKernelService _kernelService;
         private readonly IPromptLoaderService _promptLoader;
         private readonly IVectorStore _vectorStore;
-        private readonly Microsoft.Extensions.Logging.ILogger _logger = Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
+        private readonly IDocumentStore _documentStore;
+        private readonly IRequirementSessionStore _sessionStore;
+        private readonly Microsoft.Extensions.Logging.ILogger<WBSGenerationAgent> _logger;
+        private readonly ITelemetryAccumulator _telemetry;
 
         public WBSGenerationAgent(
             IAiKernelService kernelService,
             IPromptLoaderService promptLoader,
-            IVectorStore vectorStore)
+            IVectorStore vectorStore,
+            IDocumentStore documentStore,
+            IRequirementSessionStore sessionStore,
+            Microsoft.Extensions.Logging.ILogger<WBSGenerationAgent> logger,
+            ITelemetryAccumulator telemetry)
         {
             _kernelService = kernelService;
             _promptLoader = promptLoader;
             _vectorStore = vectorStore;
+            _documentStore = documentStore;
+            _sessionStore = sessionStore;
+            _logger = logger;
+            _telemetry = telemetry;
         }
 
         public async Task<GeneratedWbs> GenerateAsync(
@@ -41,36 +53,70 @@ namespace TaskPilot.AI.Agents.Planning
             {
                 try
                 {
-                    var relevantChunks = await _vectorStore.SearchAsync(
-                        collectionType: TaskPilot.Models.Enums.KnowledgeCollectionType.ProjectPolicies,
-                        requirementSessionId: sessionId,
-                        projectId: null,
-                        companyId: null,
-                        queryText:
-                            "business requirements features user stories " +
-                            "functional requirements processes workflows " +
-                            "modules system capabilities",
-                        topK: 10,
-                        categoryFilter: null,
-                        cancellationToken: cancellationToken
-                    );
-
-                    if (relevantChunks.Any())
+                    var session = await _sessionStore.GetAsync(sessionId, cancellationToken);
+                    if (session != null && session.Knowledge?.Documents != null && session.Knowledge.Documents.Any())
                     {
-                        brdContext = string.Join("\n\n---\n\n",
-                            relevantChunks.Select((chunk, i) =>
-                                $"[Document Excerpt {i + 1}]\n{chunk.Content}"));
+                        var chunks = new System.Collections.Generic.List<TaskPilot.AI.Models.Ingestion.KnowledgeChunk>();
+                        foreach (var doc in session.Knowledge.Documents)
+                        {
+                            var docChunks = await _documentStore.GetChunksAsync(doc.Id, cancellationToken);
+                            chunks.AddRange(docChunks);
+                        }
+
+                        const int MaxContextTokens = 100000;
+                        int totalTokens = TaskPilot.AI.Helpers.TokenHelper.EstimateTokens(string.Join(" ", chunks.Select(c => c.Content)));
+                        
+                        _logger.LogInformation("WBSGenerationAgent: Total tokens estimated for session {SessionId} is {TotalTokens}. MaxContextTokens={MaxContextTokens}", sessionId, totalTokens, MaxContextTokens);
+
+                        if (totalTokens > MaxContextTokens)
+                        {
+                            _logger.LogInformation("WBSGenerationAgent: Token limit exceeded. Falling back to RAG.");
+                            var dynamicQuery = string.Join(" ", session.Knowledge.Documents.Select(d => $"{d.Category} {d.FileName}"));
+                            var queryText = $"business requirements features user stories functional requirements processes workflows modules system capabilities for {dynamicQuery}";
+
+                            var relevantChunks = await _vectorStore.SearchAsync(
+                                collectionType: TaskPilot.Models.Enums.KnowledgeCollectionType.ProjectPolicies,
+                                requirementSessionId: sessionId,
+                                projectId: null,
+                                companyId: null,
+                                queryText: queryText,
+                                topK: 25,
+                                categoryFilter: null,
+                                cancellationToken: cancellationToken
+                            );
+
+                            chunks = relevantChunks.ToList();
+
+                            while (chunks.Count > 0 && TaskPilot.AI.Helpers.TokenHelper.EstimateTokens(string.Join(" ", chunks.Select(c => c.Content))) > MaxContextTokens)
+                            {
+                                chunks.RemoveAt(chunks.Count - 1);
+                            }
+                        }
+                        else
+                        {
+                            _logger.LogInformation("WBSGenerationAgent: Full context path taken (No RAG fallback).");
+                        }
+
+                        if (chunks.Any())
+                        {
+                            _logger.LogInformation("WBSGenerationAgent: Feeding {ChunkCount} chunks into final WBS prompt.", chunks.Count);
+                            var chunksList = chunks.OrderBy(c => c.SourceFile).ThenBy(c => c.ChunkIndex).ToList();
+                            brdContext = string.Join("\n\n---\n\n",
+                                chunksList.Select((chunk, i) =>
+                                    $"[Document Excerpt {i + 1}]\n{chunk.Content}"));
+                        }
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "RAG retrieval failed for session {SessionId}. Proceeding without BRD context.", sessionId);
+                    _logger.LogWarning(ex, "Document retrieval failed for session {SessionId}. Proceeding without BRD context.", sessionId);
                     brdContext = string.Empty;
                 }
             }
 
             var kernel = _kernelService.CreateKernel(
-                ModelConstants.MorePowerfulModel);
+                ModelConstants.MorePowerfulModel,
+                "LongRunningAiClient");
 
             var prompt = await _promptLoader.LoadAsync(
                 "Planning/WbsGeneration.yaml");
@@ -81,7 +127,11 @@ namespace TaskPilot.AI.Agents.Planning
 
             var executionSettings = new PromptExecutionSettings
             {
-                ExtensionData = new Dictionary<string, object> { { "max_tokens", 16384 } }
+                ExtensionData = new Dictionary<string, object> { 
+                    { "max_tokens", 16384 },
+                    { "temperature", 0.0 },
+                    { "seed", 42 }
+                }
             };
 
             var arguments = new KernelArguments(executionSettings)
@@ -137,10 +187,14 @@ namespace TaskPilot.AI.Agents.Planning
 
                     var function = KernelFunctionYaml.FromPromptYaml(currentPrompt);
 
+                    var sw = System.Diagnostics.Stopwatch.StartNew();
                     var invokeResult = await kernel.InvokeAsync(
                         function,
                         arguments,
                         cancellationToken: cancellationToken);
+                    sw.Stop();
+
+                    _telemetry.RecordCall(invokeResult.Metadata, sw.ElapsedMilliseconds, "WBSGenerationAgent", ModelConstants.MorePowerfulModel, _logger);
 
                     rawJson = invokeResult.ToString();
                     

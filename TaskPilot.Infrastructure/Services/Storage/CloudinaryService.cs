@@ -1,4 +1,4 @@
-﻿using CloudinaryDotNet;
+using CloudinaryDotNet;
 using CloudinaryDotNet.Actions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
@@ -78,6 +78,33 @@ namespace TaskPilot.Infrastructure.Services.Storage
 
                 PublicId =
                     result.PublicId
+            };
+        }
+
+        public async Task<Result<FileUploadResultDto>> UploadFileStreamAsync(Stream fileStream, string fileName, string folder)
+        {
+            if (fileStream == null || fileStream.Length == 0)
+            {
+                return Result.Failure<FileUploadResultDto>(CommonErrors.InvalidInput("Invalid file stream."));
+            }
+
+            var uploadParams = new RawUploadParams
+            {
+                File = new FileDescription(fileName, fileStream),
+                Folder = folder
+            };
+
+            var result = await _cloudinary.UploadAsync(uploadParams);
+
+            if (result.Error != null)
+            {
+                return Result.Failure<FileUploadResultDto>(CommonErrors.ServerError(result.Error.Message));
+            }
+
+            return new FileUploadResultDto
+            {
+                Url = result.SecureUrl.ToString(),
+                PublicId = result.PublicId
             };
         }
 

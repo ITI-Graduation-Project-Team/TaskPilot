@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using TaskPilot.AI.Constants;
@@ -15,11 +16,15 @@ namespace TaskPilot.AI.Agents.Requirements
     {
         private readonly IAiKernelService _kernelService;
         private readonly IPromptLoaderService _promptLoader;
+        private readonly ILogger<VisualAnalysisAgent> _logger;
+        private readonly ITelemetryAccumulator _telemetry;
 
-        public VisualAnalysisAgent(IAiKernelService kernelService, IPromptLoaderService promptLoader)
+        public VisualAnalysisAgent(IAiKernelService kernelService, IPromptLoaderService promptLoader, ILogger<VisualAnalysisAgent> logger, ITelemetryAccumulator telemetry)
         {
             _kernelService = kernelService;
             _promptLoader = promptLoader;
+            _logger = logger;
+            _telemetry = telemetry;
         }
 
         public async Task<VisualAnalysisResponse> AnalyzeImageAsync(
@@ -41,7 +46,12 @@ namespace TaskPilot.AI.Agents.Requirements
             chatMessage.Items.Add(userMessageContent);
             chatHistory.Add(chatMessage);
 
+            var sw = System.Diagnostics.Stopwatch.StartNew();
             var reply = await chatCompletion.GetChatMessageContentAsync(chatHistory, cancellationToken: cancellationToken);
+            sw.Stop();
+
+            _telemetry.RecordCall(reply?.Metadata, sw.ElapsedMilliseconds, "VisualAnalysisAgent", ModelConstants.PowerfulModel, _logger);
+            
             var json = reply?.Content ?? "{}";
 
             json = CleanJsonString(json);

@@ -29,6 +29,12 @@ namespace TaskPilot.AI.Extensions
                 IAiKernelService,
                 KernelService>();
 
+            // Register a named HttpClient for long-running AI calls
+            services.AddHttpClient("LongRunningAiClient", client =>
+            {
+                client.Timeout = TimeSpan.FromSeconds(300); // 5 minutes
+            });
+
             services.AddScoped<
                 ICvAiService,
                 CvAiService>();
@@ -39,6 +45,10 @@ namespace TaskPilot.AI.Extensions
             services.AddScoped<
                 IEmbeddingService,
                 EmbeddingService>();
+
+            services.AddScoped<
+                ITelemetryAccumulator,
+                TelemetryAccumulator>();
 
             services.AddScoped<
                 IVectorStore,

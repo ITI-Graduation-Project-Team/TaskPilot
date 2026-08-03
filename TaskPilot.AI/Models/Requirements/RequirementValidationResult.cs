@@ -8,5 +8,6 @@ namespace TaskPilot.AI.Models.Requirements
         public List<string> Issues { get; set; } = new();
         public List<string> Warnings { get; set; } = new();
         public string BusinessReadiness { get; set; } = string.Empty;
+        public int ValidationThresholdUsed { get; set; }
     }
 }

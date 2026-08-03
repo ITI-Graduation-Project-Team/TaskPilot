@@ -18,18 +18,21 @@ namespace TaskPilot.AI.Agents.Planning
         private readonly IAiKernelService _kernelService;
         private readonly IPromptLoaderService _promptLoader;
         private readonly ILogger<RequiredSkillsEnrichmentAgent> _logger;
+        private readonly ITelemetryAccumulator _telemetry;
 
         public RequiredSkillsEnrichmentAgent(
             IAiKernelService kernelService,
             IPromptLoaderService promptLoader,
-            ILogger<RequiredSkillsEnrichmentAgent> logger)
+            ILogger<RequiredSkillsEnrichmentAgent> logger,
+            ITelemetryAccumulator telemetry)
         {
             _kernelService = kernelService;
             _promptLoader = promptLoader;
             _logger = logger;
+            _telemetry = telemetry;
         }
 
-        public async Task<Result<List<GeneratedRequiredSkill>>> EnrichAsync(
+        public virtual async Task<Result<List<GeneratedRequiredSkill>>> EnrichAsync(
             string titleEn,
             string descriptionEn,
             string taskType,
@@ -52,41 +55,104 @@ namespace TaskPilot.AI.Agents.Planning
                 ["availableSkills"] = JsonSerializer.Serialize(availableSkills)
             };
 
-            try
+            const int maxAttempts = 3;
+            List<GeneratedRequiredSkill>? skills = null;
+            Exception? lastException = null;
+            string rawJson = string.Empty;
+
+            for (int attempt = 1; attempt <= maxAttempts; attempt++)
             {
-                var response = await kernel.InvokeAsync(function, arguments, cancellationToken);
-                var resultText = response.GetValue<string>();
-
-                if (string.IsNullOrWhiteSpace(resultText))
-                    return Result.Failure<List<GeneratedRequiredSkill>>(WbsErrors.InvalidGeneratedSkillJson);
-
-                // Simple JSON extraction assuming it returns an array
-                int startIndex = resultText.IndexOf('[');
-                int endIndex = resultText.LastIndexOf(']');
-
-                if (startIndex >= 0 && endIndex > startIndex)
+                try
                 {
-                    var json = resultText.Substring(startIndex, endIndex - startIndex + 1);
-                    var skills = JsonSerializer.Deserialize<List<GeneratedRequiredSkill>>(
-                        json,
+                    var sw = System.Diagnostics.Stopwatch.StartNew();
+                    var response = await kernel.InvokeAsync(function, arguments, cancellationToken);
+                    sw.Stop();
+
+                    _telemetry.RecordCall(response.Metadata, sw.ElapsedMilliseconds, "RequiredSkillsEnrichmentAgent", ModelConstants.CheapModel, _logger);
+
+                    rawJson = response.GetValue<string>() ?? string.Empty;
+
+                    if (string.IsNullOrWhiteSpace(rawJson))
+                    {
+                        continue;
+                    }
+
+                    string jsonToParse = attempt == 1 ? rawJson : TryRepairJsonArray(rawJson);
+                    
+                    skills = TaskPilot.AI.Extensions.AiResponseParser.Parse<List<GeneratedRequiredSkill>>(jsonToParse, 
                         new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
                     
-                    if (skills != null)
-                        return Result.Success(skills);
+                    if (skills != null) break;
                 }
-                
-                return Result.Failure<List<GeneratedRequiredSkill>>(WbsErrors.InvalidGeneratedSkillJson);
+                catch (JsonException ex)
+                {
+                    lastException = ex;
+                    _logger.LogWarning("Required skills JSON parse failed on attempt {Attempt}/3. Raw output: {RawJson}", attempt, rawJson);
+                }
+                catch (OperationCanceledException ex)
+                {
+                    _logger.LogWarning(ex, "AI skill enrichment invocation was canceled or timed out.");
+                    return Result.Failure<List<GeneratedRequiredSkill>>(new Error("EnrichmentCanceled", ErrorType.Failure, "AI invocation was canceled."));
+                }
+                catch (Exception ex)
+                {
+                    lastException = ex;
+                    _logger.LogError(ex, "Failed to enrich required skills or parse JSON from AI.");
+                }
             }
-            catch (OperationCanceledException ex)
+
+            if (skills != null)
             {
-                _logger.LogWarning(ex, "AI skill enrichment invocation was canceled or timed out.");
-                return Result.Failure<List<GeneratedRequiredSkill>>(new Error("EnrichmentCanceled", ErrorType.Failure, "AI invocation was canceled."));
+                return Result.Success(skills);
             }
-            catch (Exception ex)
+
+            _logger.LogWarning("Failed to generate skills for task '{Title}' after {Attempts} attempts. Returning empty list to prevent blocking.", titleEn, maxAttempts);
+            // Handle partial failure gracefully: return empty list so the user can manually enter skills instead of failing the whole project generation.
+            return Result.Success(new List<GeneratedRequiredSkill>());
+        }
+
+        private string TryRepairJsonArray(string raw)
+        {
+            raw = raw.Trim();
+            
+            // Remove markdown fences if present
+            if (raw.StartsWith("```"))
             {
-                _logger.LogError(ex, "Failed to enrich required skills or parse JSON from AI.");
-                return Result.Failure<List<GeneratedRequiredSkill>>(new Error("EnrichmentFailed", ErrorType.Failure, "Failed to invoke or process AI enrichment."));
+                var lines = raw.Split('\n').ToList();
+                if (lines.Count > 0 && lines[0].StartsWith("```")) lines.RemoveAt(0);
+                if (lines.Count > 0 && lines[lines.Count - 1].StartsWith("```")) lines.RemoveAt(lines.Count - 1);
+                raw = string.Join('\n', lines).Trim();
             }
+
+            if (!raw.StartsWith("[")) return raw; 
+            if (raw.EndsWith("]")) return raw;
+
+            int lastClosingBrace = -1;
+            int depth = 0;
+            bool inString = false;
+            bool escape = false;
+
+            for (int i = 0; i < raw.Length; i++)
+            {
+                char c = raw[i];
+                if (escape) { escape = false; continue; }
+                if (c == '\\' && inString) { escape = true; continue; }
+                if (c == '"') { inString = !inString; continue; }
+                if (inString) continue;
+
+                if (c == '{') depth++;
+                else if (c == '}')
+                {
+                    depth--;
+                    if (depth == 0) // root level object in the array
+                        lastClosingBrace = i;
+                }
+            }
+
+            if (lastClosingBrace == -1) return "[]"; // could not even parse one object, return empty array
+
+            string repaired = raw.Substring(0, lastClosingBrace + 1) + "\n]";
+            return repaired;
         }
     }
 }
