@@ -157,6 +157,7 @@ namespace TaskPilot.AI.Models.Session
 
         public bool IsInterviewMode { get; set; } = false;
         public int InterviewProgress { get; set; } = 0;
+        public int? RevalidationAttempts { get; set; }
 
         [JsonIgnore]
         public List<ClarificationQuestion>

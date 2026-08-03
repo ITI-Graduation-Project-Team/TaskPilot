@@ -14,13 +14,19 @@ namespace TaskPilot.AI.Agents.Requirements
     {
         private readonly IAiKernelService _kernelService;
         private readonly IPromptLoaderService _promptLoader;
+        private readonly Microsoft.Extensions.Logging.ILogger<RequirementValidationAgent> _logger;
+        private readonly ITelemetryAccumulator _telemetry;
 
         public RequirementValidationAgent(
             IAiKernelService kernelService,
-            IPromptLoaderService promptLoader)
+            IPromptLoaderService promptLoader,
+            Microsoft.Extensions.Logging.ILogger<RequirementValidationAgent> logger,
+            ITelemetryAccumulator telemetry)
         {
             _kernelService = kernelService;
             _promptLoader = promptLoader;
+            _logger = logger;
+            _telemetry = telemetry;
         }
 
         public async Task<RequirementValidationResult> ValidateAsync(
@@ -34,7 +40,12 @@ namespace TaskPilot.AI.Agents.Requirements
             var arguments = KernelArgumentsFactory.CreateDeterministicArguments();
             arguments["requirements"] = session.Requirements.ToPromptText();
 
+            var sw = System.Diagnostics.Stopwatch.StartNew();
             var result = await kernel.InvokeAsync(function, arguments, cancellationToken);
+            sw.Stop();
+
+            _telemetry.RecordCall(result.Metadata, sw.ElapsedMilliseconds, "RequirementValidationAgent", ModelConstants.CheapModel, _logger);
+            
             var json = result.ToString().Trim();
 
             try

@@ -23,19 +23,22 @@ namespace TaskPilot.Services
         private readonly IRepository<Skill> _skillRepository;
         private readonly IRepository<TaskRequiredSkill> _taskRequiredSkillRepository;
         private readonly RequiredSkillsEnrichmentAgent _agent;
+        private readonly IUnitOfWork _unitOfWork;
 
         public WbsSkillEnrichmentService(
             IRepository<Project> projectRepository,
             IRepository<TaskItem> taskRepository,
             IRepository<Skill> skillRepository,
             IRepository<TaskRequiredSkill> taskRequiredSkillRepository,
-            RequiredSkillsEnrichmentAgent agent)
+            RequiredSkillsEnrichmentAgent agent,
+            IUnitOfWork unitOfWork)
         {
             _projectRepository = projectRepository;
             _taskRepository = taskRepository;
             _skillRepository = skillRepository;
             _taskRequiredSkillRepository = taskRequiredSkillRepository;
             _agent = agent;
+            _unitOfWork = unitOfWork;
         }
 
         public async Task<Result<SkillEnrichmentResult>> EnrichProjectTasksAsync(
@@ -65,12 +68,10 @@ namespace TaskPilot.Services
             }
 
             // 3. Load Available Skills
+            // We only need names for the prompt. To avoid loading all skills, we'll project just the names.
+            // But since IRepository doesn't expose projection directly, we'll fetch all or just use a basic list if it gets too large.
+            // For now, let's keep available skills for the prompt if they are reasonably sized.
             var allSkills = await _skillRepository.GetAllAsync();
-            var skillDict = allSkills
-                .Where(s => !string.IsNullOrWhiteSpace(s.NormalizedName))
-                .GroupBy(s => s.NormalizedName)
-                .ToDictionary(g => g.Key, g => g.First());
-
             var availableSkillNames = allSkills.Select(s => s.Name).Distinct().ToList();
 
             var resultStats = new SkillEnrichmentResult
@@ -78,10 +79,10 @@ namespace TaskPilot.Services
                 TasksProcessed = tasksToEnrich.Count
             };
 
-            var newSkillsToSave = new List<Skill>();
             var newRequiredSkillsToSave = new List<TaskRequiredSkill>();
 
             // Duplicate prevention across tasks in current run
+            var skillDict = new Dictionary<string, Skill>(StringComparer.OrdinalIgnoreCase);
             var processedTaskSkillPairs = new HashSet<string>();
 
             // 4. Iterate over tasks
@@ -141,14 +142,31 @@ namespace TaskPilot.Services
                     // 5. Missing Skill Resolution
                     if (!skillDict.TryGetValue(normalizedName, out var skillEntity))
                     {
-                        skillEntity = new Skill
+                        skillEntity = await _skillRepository.FindSingleAsync(s => s.NormalizedName == normalizedName);
+                        
+                        if (skillEntity == null)
                         {
-                            Name = generatedSkill.SkillName,
-                            NormalizedName = normalizedName
-                        };
+                            skillEntity = new Skill
+                            {
+                                Name = generatedSkill.SkillName,
+                                NormalizedName = normalizedName
+                            };
+                            
+                            try
+                            {
+                                await _skillRepository.AddAsync(skillEntity);
+                                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                                resultStats.SkillsCreated++;
+                            }
+                            catch (Microsoft.EntityFrameworkCore.DbUpdateException ex) when (ex.InnerException is Microsoft.Data.SqlClient.SqlException sqlEx && (sqlEx.Number == 2601 || sqlEx.Number == 2627))
+                            {
+                                _skillRepository.Delete(skillEntity); // Detach failed entity
+                                skillEntity = await _skillRepository.FindSingleAsync(s => s.NormalizedName == normalizedName);
+                                if (skillEntity == null) throw; // Should exist if we hit duplicate key
+                            }
+                        }
+                        
                         skillDict[normalizedName] = skillEntity;
-                        newSkillsToSave.Add(skillEntity);
-                        resultStats.SkillsCreated++;
                     }
 
                     // 6. Duplicate Prevention
@@ -179,11 +197,6 @@ namespace TaskPilot.Services
             // 7. Add entities (Service does not call SaveChangesAsync)
             try
             {
-                if (newSkillsToSave.Any())
-                {
-                    await _skillRepository.AddRangeAsync(newSkillsToSave);
-                }
-
                 if (newRequiredSkillsToSave.Any())
                 {
                     await _taskRequiredSkillRepository.AddRangeAsync(newRequiredSkillsToSave);

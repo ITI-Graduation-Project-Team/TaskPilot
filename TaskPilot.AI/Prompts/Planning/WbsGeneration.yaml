@@ -6,7 +6,8 @@ template_format: semantic-kernel
 
 execution_settings:
   default:
-    temperature: 0.3
+    temperature: 0.0
+    seed: 42
 
 input_variables:
   - name: businessRequirements

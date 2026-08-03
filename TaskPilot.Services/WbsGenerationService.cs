@@ -22,6 +22,7 @@ namespace TaskPilot.Services
         private readonly IProjectChatService _projectChatService;
         private readonly IRequirementSessionStore _sessionStore;
         private readonly ILogger<WbsGenerationService> _logger;
+        private readonly TaskPilot.AI.Services.Interfaces.ITelemetryAccumulator _telemetry;
 
         public WbsGenerationService(
             IRepository<Project> projectRepository,
@@ -31,7 +32,8 @@ namespace TaskPilot.Services
             IWbsPersistenceService wbsPersistenceService,
             IProjectChatService projectChatService,
             IRequirementSessionStore sessionStore,
-            ILogger<WbsGenerationService> logger)
+            ILogger<WbsGenerationService> logger,
+            TaskPilot.AI.Services.Interfaces.ITelemetryAccumulator telemetry)
         {
             _projectRepository = projectRepository;
             _userStoryRepository = userStoryRepository;
@@ -41,6 +43,7 @@ namespace TaskPilot.Services
             _projectChatService = projectChatService;
             _sessionStore = sessionStore;
             _logger = logger;
+            _telemetry = telemetry;
         }
 
         public async Task<Result<WbsPersistenceResult>> GenerateAsync(Guid projectId, CancellationToken cancellationToken = default)
@@ -109,6 +112,9 @@ namespace TaskPilot.Services
                     _logger.LogError(ex, "Failed to persist chat history for project {ProjectId}. The backlog was still generated successfully.", projectId);
                 }
             }
+
+            _logger.LogInformation("Pipeline run completed: ProjectId={ProjectId} TotalInputTokens={InputTokens} TotalOutputTokens={OutputTokens} TotalElapsedMs={ElapsedMs}", projectId, _telemetry.TotalInputTokens, _telemetry.TotalOutputTokens, _telemetry.TotalElapsedMs);
+            _telemetry.Reset();
 
             return result;
         }

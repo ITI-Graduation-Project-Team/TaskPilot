@@ -21,7 +21,8 @@ namespace TaskPilot.AI.Services
         }
 
         public Kernel CreateKernel(
-            string modelId)
+            string modelId,
+            string? httpClientName = null)
         {
             var apiKey =
                 _config["OpenAI:ApiKey"];
@@ -29,9 +30,30 @@ namespace TaskPilot.AI.Services
             var builder =
                 Kernel.CreateBuilder();
 
-            builder.AddOpenAIChatCompletion(
-                modelId: modelId,
-                apiKey: apiKey!);
+            if (!string.IsNullOrEmpty(httpClientName))
+            {
+                var httpClientFactory = _serviceProvider.GetService<System.Net.Http.IHttpClientFactory>();
+                if (httpClientFactory != null)
+                {
+                    var httpClient = httpClientFactory.CreateClient(httpClientName);
+                    builder.AddOpenAIChatCompletion(
+                        modelId: modelId,
+                        apiKey: apiKey!,
+                        httpClient: httpClient);
+                }
+                else
+                {
+                    builder.AddOpenAIChatCompletion(
+                        modelId: modelId,
+                        apiKey: apiKey!);
+                }
+            }
+            else
+            {
+                builder.AddOpenAIChatCompletion(
+                    modelId: modelId,
+                    apiKey: apiKey!);
+            }
 
             var filter = _serviceProvider.GetService<IFunctionInvocationFilter>();
             if (filter != null)

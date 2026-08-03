@@ -19,6 +19,7 @@ using TaskPilot.AI.Models.Requirements;
 using TaskPilot.AI.Helpers;
 using TaskPilot.AI.Models;
 using TaskPilot.Models.Enums;
+using Microsoft.Extensions.Options;
 
 namespace TaskPilot.AI.Orchestrators
 {
@@ -41,6 +42,9 @@ namespace TaskPilot.AI.Orchestrators
         private readonly TaskPilot.AI.Services.Requirements.RequirementConsolidationEngine _consolidationEngine;
         private readonly IEnumerable<IDocumentVisualExtractor> _visualExtractors;
         private readonly VisualAnalysisAgent _visualAnalysisAgent;
+        private readonly IOptions<TaskPilot.Models.Configurations.RequirementValidationOptions> _validationOptions;
+        private readonly TaskPilot.AI.Services.Interfaces.IAiAssetStorageService _fileStorageService;
+        private readonly ITelemetryAccumulator _telemetry;
 
         public RequirementDiscoveryOrchestrator(
             IRequirementSessionStore sessionStore,
@@ -59,7 +63,10 @@ namespace TaskPilot.AI.Orchestrators
             RequirementValidationAgent validationAgent,
             KnowledgeEvolutionAgent evolutionAgent,
             VisualAnalysisAgent visualAnalysisAgent,
-            TaskPilot.AI.Services.Requirements.RequirementConsolidationEngine consolidationEngine)
+            TaskPilot.AI.Services.Requirements.RequirementConsolidationEngine consolidationEngine,
+            IOptions<TaskPilot.Models.Configurations.RequirementValidationOptions> validationOptions,
+            TaskPilot.AI.Services.Interfaces.IAiAssetStorageService fileStorageService,
+            ITelemetryAccumulator telemetry)
         {
             _sessionStore = sessionStore;
             _logger = logger;
@@ -78,6 +85,9 @@ namespace TaskPilot.AI.Orchestrators
             _evolutionAgent = evolutionAgent;
             _visualAnalysisAgent = visualAnalysisAgent;
             _consolidationEngine = consolidationEngine;
+            _validationOptions = validationOptions;
+            _fileStorageService = fileStorageService;
+            _telemetry = telemetry;
         }
 
         public async Task<RequirementDiscoveryResponse> ExecuteAsync(RequirementDiscoveryRequest request, CancellationToken cancellationToken)
@@ -125,13 +135,26 @@ namespace TaskPilot.AI.Orchestrators
                     }
 
                     using var stream = file.OpenReadStream();
+                    
+                    // Generate deterministic DocumentId based on file content
+                    byte[] fileBytes;
+                    using (var ms = new System.IO.MemoryStream())
+                    {
+                        await stream.CopyToAsync(ms, cancellationToken);
+                        fileBytes = ms.ToArray();
+                    }
+                    var sha = System.Security.Cryptography.SHA256.Create();
+                    var hashBytes = sha.ComputeHash(fileBytes);
+                    var documentId = new Guid(hashBytes.Take(16).ToArray());
+
+                    stream.Position = 0;
                     var extractedText = await extractor.ExtractTextAsync(stream, cancellationToken);
 
                     var category = await _categorizationAgent.CategorizeAsync(file.FileName, extractedText, cancellationToken: cancellationToken);
 
                     var document = new IngestedDocument
                     {
-                        Id = Guid.NewGuid(),
+                        Id = documentId,
                         FileName = file.FileName,
                         Category = category,
                         ContentType = file.ContentType,
@@ -157,7 +180,24 @@ namespace TaskPilot.AI.Orchestrators
                     var visualRequirements = new List<RequirementIdentity>();
                     foreach (var img in extractedImages)
                     {
-                        var analysisResult = await _visualAnalysisAgent.AnalyzeImageAsync(string.Empty, img.RawBytes, img.ContentType, cancellationToken);
+                        // Run LLM visual analysis in parallel with Cloudinary upload
+                        var analysisTask = _visualAnalysisAgent.AnalyzeImageAsync(string.Empty, img.RawBytes, img.ContentType, cancellationToken);
+                        
+                        var cloudinaryUrl = string.Empty;
+                        using (var imgStream = new System.IO.MemoryStream(img.RawBytes))
+                        {
+                            var uploadResult = await _fileStorageService.UploadAssetAsync(imgStream, img.FileName, "taskpilot-visuals");
+                            if (uploadResult.IsSuccess)
+                            {
+                                cloudinaryUrl = uploadResult.Value.Url;
+                            }
+                            else
+                            {
+                                _logger.LogWarning("Failed to upload extracted image to Cloudinary: {Error}", uploadResult.Error?.Description);
+                            }
+                        }
+
+                        var analysisResult = await analysisTask;
 
                         var asset = new VisualAsset
                         {
@@ -168,7 +208,8 @@ namespace TaskPilot.AI.Orchestrators
                             PageNumber = img.PageNumber,
                             DiagramType = analysisResult.DiagramType,
                             Description = analysisResult.SummaryDescription,
-                            ExtractedText = analysisResult.ExtractedText
+                            ExtractedText = analysisResult.ExtractedText,
+                            CloudinaryUrl = cloudinaryUrl
                         };
                         document.VisualAssets.Add(asset);
 
@@ -182,6 +223,13 @@ namespace TaskPilot.AI.Orchestrators
                             });
                         }
 
+                        var entitiesText = "";
+                        if (analysisResult.Entities != null && analysisResult.Entities.Any())
+                        {
+                            entitiesText = "\nEntities:\n" + string.Join("\n", analysisResult.Entities.Select(e =>
+                                $"- Entity: {e.Name} | Attributes: {string.Join(", ", e.Attributes ?? new List<string>())} | Relationships: {string.Join("; ", e.Relationships ?? new List<string>())}"));
+                        }
+
                         var diagramChunk = new KnowledgeChunk
                         {
                             Id = Guid.NewGuid(),
@@ -190,7 +238,7 @@ namespace TaskPilot.AI.Orchestrators
                             Category = DocumentCategory.Diagram,
                             SourceFile = file.FileName,
                             DocumentType = file.ContentType,
-                            Content = $"Diagram Type: {analysisResult.DiagramType}\nDescription: {analysisResult.SummaryDescription}\nStructured Metadata: {analysisResult.ExtractedText}",
+                            Content = $"Diagram Type: {analysisResult.DiagramType}\nDescription: {analysisResult.SummaryDescription}\nStructured Metadata: {analysisResult.ExtractedText}{entitiesText}",
                             ChunkIndex = 10000 + img.PageNumber
                         };
                         chunks.Add(diagramChunk);
@@ -567,14 +615,59 @@ namespace TaskPilot.AI.Orchestrators
 
             if (isReadyForPlanning)
             {
+                // Track re-validation attempts to prevent infinite loops
+                session.RevalidationAttempts = (session.RevalidationAttempts ?? 0) + 1;
+                const int MaxAttempts = 3;
+
+                if (session.RevalidationAttempts > MaxAttempts)
+                {
+                    session.Status = RequirementSessionStatus.Failed;
+                    session.LastError = "Maximum re-validation attempts reached. Manual review required.";
+                    session.UpdatedAt = DateTime.UtcNow;
+                    await _sessionStore.SaveAsync(session, cancellationToken);
+                    return MapToResponse(session, documentsProcessed, conversationUpdated);
+                }
+
                 // Run Validation Agent
                 session.ValidationResult = await _validationAgent.ValidateAsync(session, cancellationToken);
                 
-                // Finalization is permitted
-                session.Status = RequirementSessionStatus.Planning;
-                if (session.FinalRequirements == null)
+                int tenantThreshold = _validationOptions.Value.DefaultThreshold;
+                if (session.ProjectId.HasValue && _validationOptions.Value.TenantOverrides.TryGetValue(session.ProjectId.Value, out var overrideThreshold))
                 {
-                    session.FinalRequirements = await _builderAgent.BuildAsync(session, cancellationToken);
+                    tenantThreshold = overrideThreshold;
+                }
+                session.ValidationResult.ValidationThresholdUsed = tenantThreshold;
+
+                if (session.ValidationResult.ValidationScore >= tenantThreshold)
+                {
+                    // Finalization is permitted
+                    session.Status = RequirementSessionStatus.Planning;
+                    if (session.FinalRequirements == null)
+                    {
+                        session.FinalRequirements = await _builderAgent.BuildAsync(session, cancellationToken);
+                    }
+                }
+                else
+                {
+                    session.Status = RequirementSessionStatus.RequirementValidation; 
+                    
+                    // Explicitly null FinalRequirements so a stale snapshot cannot leak into WBS generation later
+                    session.FinalRequirements = null;
+
+                    // Loop-back logic: Clear previously resolved validation questions, keep unanswered ones
+                    session.QuestionPool.RemoveAll(q => q.IsAnswered && q.Question.StartsWith("Validation Issue:"));
+
+                    // Push new issues as Critical pending questions
+                    foreach (var issue in session.ValidationResult.Issues)
+                    {
+                        session.QuestionPool.Add(new ClarificationQuestion {
+                            Id = Guid.NewGuid(),
+                            Question = $"Validation Issue: {issue}. Please clarify or update the requirements to address this.",
+                            Category = QuestionCategory.General,
+                            Priority = QuestionPriority.Critical,
+                            IsAnswered = false
+                        });
+                    }
                 }
             }
             else
@@ -713,6 +806,10 @@ namespace TaskPilot.AI.Orchestrators
                     ReadyForFinalization = session.RequirementCompletenessReport.ReadyForFinalization
                 };
             }
+
+            _logger.LogInformation("Pipeline run completed: ProjectId={ProjectId} TotalInputTokens={InputTokens} TotalOutputTokens={OutputTokens} TotalElapsedMs={ElapsedMs}", session.ProjectId, _telemetry.TotalInputTokens, _telemetry.TotalOutputTokens, _telemetry.TotalElapsedMs);
+            // Reset for next potential run in the same scope, though it's likely a new scope each request.
+            _telemetry.Reset();
 
             return response;
         }
