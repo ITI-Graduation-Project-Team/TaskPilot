@@ -38,6 +38,8 @@ namespace TaskPilot.Services
             {
                 var userStories = new List<UserStory>();
                 var tasks = new List<TaskItem>();
+                
+                var storyDict = new Dictionary<string, UserStory>();
 
                 foreach (var generatedStory in wbs.UserStories)
                 {
@@ -54,6 +56,11 @@ namespace TaskPilot.Services
                         Priority = MapPriority(generatedStory.Priority),
                         Status = StoryStatus.ToDo
                     };
+
+                    if (!string.IsNullOrWhiteSpace(generatedStory.Id))
+                    {
+                        storyDict[generatedStory.Id] = story;
+                    }
 
                     userStories.Add(story);
 
@@ -77,6 +84,18 @@ namespace TaskPilot.Services
                             ActualHours = 0
                         };
                         tasks.Add(taskItem);
+                    }
+                }
+
+                // Second pass to resolve dependencies
+                foreach (var generatedStory in wbs.UserStories)
+                {
+                    if (!string.IsNullOrWhiteSpace(generatedStory.Id) &&
+                        !string.IsNullOrWhiteSpace(generatedStory.DependsOnStoryId) &&
+                        storyDict.TryGetValue(generatedStory.Id, out var story) &&
+                        storyDict.TryGetValue(generatedStory.DependsOnStoryId, out var dependsOnStory))
+                    {
+                        story.DependsOnStory = dependsOnStory;
                     }
                 }
 

@@ -8,6 +8,9 @@ namespace TaskPilot.Models.Entities
         public Guid ProjectId { get; set; }
         public Project Project { get; set; } = null!;
 
+        public Guid? DependsOnStoryId { get; set; }
+        public UserStory? DependsOnStory { get; set; }
+
         /// <summary>
         /// Null when the UserStory has been generated but not yet assigned
         /// to a Sprint. This is by design — not a data integrity error.
