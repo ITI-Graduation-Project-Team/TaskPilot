@@ -44,5 +44,11 @@ namespace TaskPilot.Services.Interfaces
                 Guid companyId,
                 string employeeId,
                 CancellationToken cancellationToken = default);
+
+        Task<Result<CompanyResponse>>
+            UpdateCompanyAsync(
+                Guid companyId,
+                Guid ownerId,
+                UpdateCompanyDto request);
     }
 }

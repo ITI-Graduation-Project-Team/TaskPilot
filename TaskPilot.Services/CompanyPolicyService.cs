@@ -235,11 +235,23 @@ namespace TaskPilot.Services
 
             var policies = await _policyRepository.FindAsync(p => p.CompanyId == companyId && p.Scope == PolicyScope.Company);
 
-            var dtos = policies.Select(p => new CompanyPolicyDocumentDto
-            {
-                DocumentId = !string.IsNullOrEmpty(p.DocumentPublicId) ? Guid.Parse(p.DocumentPublicId) : p.Id,
-                FileName = p.TitleEn,
-                UploadedAt = p.CreatedAt
+            var dtos = policies.Select(p => {
+                Guid docId = p.Id;
+                if (!string.IsNullOrEmpty(p.DocumentPublicId) && Guid.TryParse(p.DocumentPublicId, out var parsed))
+                {
+                    docId = parsed;
+                }
+                else if (p.DocumentId.HasValue && p.DocumentId.Value != Guid.Empty)
+                {
+                    docId = p.DocumentId.Value;
+                }
+                
+                return new CompanyPolicyDocumentDto
+                {
+                    DocumentId = docId,
+                    FileName = p.TitleEn,
+                    UploadedAt = p.CreatedAt
+                };
             }).ToList();
 
             return Result.Success(dtos);

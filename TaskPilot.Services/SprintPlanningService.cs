@@ -59,6 +59,16 @@ namespace TaskPilot.Services
                 return Result.Failure<SprintSuggestionDto>(CommonErrors.NotFound("Project"));
             }
 
+            if (_sprintRepository != null)
+            {
+                var hasActiveSprint = await _sprintRepository.GetQueryable()
+                    .AnyAsync(s => s.ProjectId == projectId && s.Status == SprintStatus.Active, cancellationToken);
+                if (hasActiveSprint)
+                {
+                    return Result.Failure<SprintSuggestionDto>(SprintErrors.AnotherSprintAlreadyActive);
+                }
+            }
+
             var assignedEmployees = await _projectEmployeeRepository.GetEmployeeIdsByProjectAsync(projectId, cancellationToken);
             if (!assignedEmployees.Any())
             {
