@@ -2,6 +2,8 @@ namespace TaskPilot.AI.Models.Planning
 {
     public class GeneratedUserStory
     {
+        public string Id { get; set; } = string.Empty;
+        public string? DependsOnStoryId { get; set; }
         public string TitleEn { get; set; } = string.Empty;
         public string TitleAr { get; set; } = string.Empty;
         public string? DescriptionEn { get; set; }
