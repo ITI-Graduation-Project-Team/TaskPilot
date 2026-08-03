@@ -635,6 +635,7 @@ namespace TaskPilot.Services
 
             return Result<bool>.Success(true);
         }
+
         public async Task<Result<CompanyEmployeeDto>> GetCompanyEmployeeByIdAsync(
             Guid companyId,
             string employeeId,
@@ -688,5 +689,66 @@ namespace TaskPilot.Services
 
             return Result<CompanyEmployeeDto>.Success(dto);
         }
+
+        public async Task<Result<CompanyResponse>> UpdateCompanyAsync(
+            Guid companyId,
+            Guid ownerId,
+            UpdateCompanyDto request)
+        {
+            // 1. Fetch the company by ID
+            var company = await _companyRepository.GetByIdAsync(companyId);
+            if (company == null)
+            {
+                return Result<CompanyResponse>.Failure(CompanyErrors.NotFound);
+            }
+
+            // 2. Authorization check — only the owner can update the company
+            if (company.OwnerId != ownerId)
+            {
+                return Result<CompanyResponse>.Failure(CompanyErrors.InvalidOwner);
+            }
+
+            // 3. Update the company name
+            company.Name = request.Name.Trim();
+
+            // 4. Handle logo upload
+            if (request.Logo != null && request.Logo.Length > 0)
+            {
+                // Upload the new logo to Cloudinary
+                var uploadResult = await _fileStorage.UploadFileAsync(
+                    request.Logo,
+                    $"taskpilot/companies/{company.Id}/logos");
+
+                if (!uploadResult.IsSuccess)
+                {
+                    return Result<CompanyResponse>.Failure(uploadResult.Error!);
+                }
+
+                company.LogoUrl = uploadResult.Value.Url;
+                company.CloudinaryPublicId = uploadResult.Value.PublicId;
+            }
+            // 5. No logo uploaded and company has no existing logo — generate an avatar using the first letter
+            else if (string.IsNullOrEmpty(company.LogoUrl))
+            {
+                // Use a free avatar service that generates an image from the company name initials
+                company.LogoUrl = $"https://ui-avatars.com/api/?name={Uri.EscapeDataString(company.Name)}&background=random&color=fff&size=256";
+            }
+
+            // 6. Persist changes
+            company.ModifiedAt = DateTime.UtcNow;
+            _companyRepository.Update(company);
+            await _unitOfWork.SaveChangesAsync();
+
+            // 7. Return the updated company details
+            var response = new CompanyResponse
+            {
+                Id = company.Id,
+                Name = company.Name,
+                OwnerId = company.OwnerId,
+                LogoUrl = company.LogoUrl
+            };
+
+            return Result<CompanyResponse>.Success(response);
+        }
     }
-}
+}
