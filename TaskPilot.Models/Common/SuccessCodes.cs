@@ -23,6 +23,7 @@ namespace TaskPilot.Models.Common
         public static class Company
         {
             public const string Setup = "COMPANY_SETUP_SUCCESS";
+            public const string Updated = "COMPANY_UPDATED_SUCCESS";
             public const string EmployeesSearched = "COMPANY_EMPLOYEES_SEARCHED";
             public const string EmployeeInvitationsSent = "EMPLOYEE_INVITATIONS_SENT_SUCCESS";
         }

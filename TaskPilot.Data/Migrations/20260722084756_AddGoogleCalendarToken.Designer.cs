@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TaskPilot.Data.Context;
 
@@ -11,9 +12,11 @@ using TaskPilot.Data.Context;
 namespace TaskPilot.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260722084756_AddGoogleCalendarToken")]
+    partial class AddGoogleCalendarToken
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -153,51 +156,6 @@ namespace TaskPilot.Data.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("TaskPilot.Models.AgileCoach.AgileCoachChatMessage", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Content")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Lang")
-                        .IsRequired()
-                        .HasMaxLength(5)
-                        .HasColumnType("nvarchar(5)");
-
-                    b.Property<DateTime?>("ModifiedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("ModifiedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Role")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.Property<Guid>("TaskId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TaskId");
-
-                    b.ToTable("AgileCoachChatMessages", (string)null);
-                });
-
             modelBuilder.Entity("TaskPilot.Models.Entities.AiTelemetryLog", b =>
                 {
                     b.Property<Guid>("Id")
@@ -325,9 +283,6 @@ namespace TaskPilot.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("CloudinaryPublicId")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2")
@@ -340,9 +295,6 @@ namespace TaskPilot.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
-
-                    b.Property<string>("LogoUrl")
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("datetime2");
@@ -638,9 +590,6 @@ namespace TaskPilot.Data.Migrations
                     b.Property<Guid?>("ProjectId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid?>("RequirementSessionId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<int>("Scope")
                         .HasColumnType("int");
 
@@ -859,9 +808,6 @@ namespace TaskPilot.Data.Migrations
 
                     b.Property<Guid>("EmployeeId")
                         .HasColumnType("uniqueidentifier");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
 
                     b.Property<int>("Role")
                         .HasColumnType("int");
@@ -1125,10 +1071,6 @@ namespace TaskPilot.Data.Migrations
                     b.Property<decimal>("ActualHours")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<string>("AnalysisJson")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("ChallengesAr")
                         .IsRequired()
                         .HasMaxLength(4000)
@@ -1138,9 +1080,6 @@ namespace TaskPilot.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(4000)
                         .HasColumnType("nvarchar(4000)");
-
-                    b.Property<int>("CompletedTasks")
-                        .HasColumnType("int");
 
                     b.Property<double>("CompletionRate")
                         .HasColumnType("float");
@@ -1156,13 +1095,6 @@ namespace TaskPilot.Data.Migrations
 
                     b.Property<decimal>("ExpectedHours")
                         .HasColumnType("decimal(18,2)");
-
-                    b.Property<DateTime>("GeneratedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ImprovementsJson")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
@@ -1185,21 +1117,6 @@ namespace TaskPilot.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
-
-                    b.Property<decimal>("TotalActualHours")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("TotalEstimatedHours")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<int>("TotalTasks")
-                        .HasColumnType("int");
-
-                    b.Property<int>("UnfinishedTasks")
-                        .HasColumnType("int");
-
-                    b.Property<double>("VelocityRatio")
-                        .HasColumnType("float");
 
                     b.Property<string>("WhatWentWellAr")
                         .IsRequired()
@@ -1363,6 +1280,53 @@ namespace TaskPilot.Data.Migrations
                     b.ToTable("SubscriptionPlans", (string)null);
                 });
 
+            modelBuilder.Entity("TaskPilot.Models.Entities.TaskAiSummary", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CitationsJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ContentAr")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ContentEn")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("GeneratedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ModifiedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("TaskItemId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TaskItemId")
+                        .IsUnique();
+
+                    b.ToTable("TaskAiSummaries", (string)null);
+                });
+
             modelBuilder.Entity("TaskPilot.Models.Entities.TaskAttachment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1481,10 +1445,12 @@ namespace TaskPilot.Data.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("AcceptanceCriteriaAr")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
 
                     b.Property<string>("AcceptanceCriteriaEn")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
 
                     b.Property<decimal>("ActualHours")
                         .ValueGeneratedOnAdd()
@@ -1500,10 +1466,12 @@ namespace TaskPilot.Data.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("DescriptionAr")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
 
                     b.Property<string>("DescriptionEn")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
 
                     b.Property<int>("EffortSize")
                         .HasColumnType("int");
@@ -1538,18 +1506,22 @@ namespace TaskPilot.Data.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("TechnicalSummaryAr")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
 
                     b.Property<string>("TechnicalSummaryEn")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
 
                     b.Property<string>("TitleAr")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<string>("TitleEn")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<int>("Type")
                         .HasColumnType("int");
@@ -1613,60 +1585,6 @@ namespace TaskPilot.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("TaskRequiredSkills", (string)null);
-                });
-
-            modelBuilder.Entity("TaskPilot.Models.Entities.TaskStatusOverrideLog", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("FromStatus")
-                        .HasColumnType("int");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<DateTime?>("ModifiedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("ModifiedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("OverrideType")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<Guid>("PerformedByPmId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("ReasonAr")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<string>("ReasonEn")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<Guid>("TaskId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("ToStatus")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TaskId");
-
-                    b.ToTable("TaskStatusOverrideLogs");
                 });
 
             modelBuilder.Entity("TaskPilot.Models.Entities.User", b =>
@@ -1863,10 +1781,12 @@ namespace TaskPilot.Data.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("AcceptanceCriteriaAr")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
 
                     b.Property<string>("AcceptanceCriteriaEn")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
@@ -1876,14 +1796,13 @@ namespace TaskPilot.Data.Migrations
                     b.Property<Guid?>("CreatedBy")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid?>("DependsOnStoryId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<string>("DescriptionAr")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
 
                     b.Property<string>("DescriptionEn")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
 
                     b.Property<bool>("IsDeleted")
                         .ValueGeneratedOnAdd()
@@ -1912,15 +1831,15 @@ namespace TaskPilot.Data.Migrations
 
                     b.Property<string>("TitleAr")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<string>("TitleEn")
                         .IsRequired()
-                        .HasColumnType("nvarchar(450)");
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("DependsOnStoryId");
 
                     b.HasIndex("IsDeleted");
 
@@ -2049,21 +1968,9 @@ namespace TaskPilot.Data.Migrations
                     b.Property<int>("CvProcessingStatus")
                         .HasColumnType("int");
 
-                    b.Property<DateTime?>("DeactivatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("DeactivatedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("DeactivationReason")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<decimal?>("HistoricalVelocity")
                         .HasPrecision(10, 2)
                         .HasColumnType("decimal(10,2)");
-
-                    b.Property<bool>("IsDeactivated")
-                        .HasColumnType("bit");
 
                     b.Property<bool>("IsProfileCompleted")
                         .HasColumnType("bit");
@@ -2152,17 +2059,6 @@ namespace TaskPilot.Data.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("TaskPilot.Models.AgileCoach.AgileCoachChatMessage", b =>
-                {
-                    b.HasOne("TaskPilot.Models.Entities.TaskItem", "Task")
-                        .WithMany()
-                        .HasForeignKey("TaskId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Task");
                 });
 
             modelBuilder.Entity("TaskPilot.Models.Entities.AiTelemetryLog", b =>
@@ -2457,6 +2353,17 @@ namespace TaskPilot.Data.Migrations
                     b.Navigation("Sprint");
                 });
 
+            modelBuilder.Entity("TaskPilot.Models.Entities.TaskAiSummary", b =>
+                {
+                    b.HasOne("TaskPilot.Models.Entities.TaskItem", "TaskItem")
+                        .WithOne("AiSummary")
+                        .HasForeignKey("TaskPilot.Models.Entities.TaskAiSummary", "TaskItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("TaskItem");
+                });
+
             modelBuilder.Entity("TaskPilot.Models.Entities.TaskAttachment", b =>
                 {
                     b.HasOne("TaskPilot.Models.Entities.TaskItem", "Task")
@@ -2528,17 +2435,6 @@ namespace TaskPilot.Data.Migrations
                     b.Navigation("Task");
                 });
 
-            modelBuilder.Entity("TaskPilot.Models.Entities.TaskStatusOverrideLog", b =>
-                {
-                    b.HasOne("TaskPilot.Models.Entities.TaskItem", "Task")
-                        .WithMany()
-                        .HasForeignKey("TaskId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Task");
-                });
-
             modelBuilder.Entity("TaskPilot.Models.Entities.User", b =>
                 {
                     b.HasOne("TaskPilot.Models.Entities.Company", "Company")
@@ -2570,10 +2466,6 @@ namespace TaskPilot.Data.Migrations
 
             modelBuilder.Entity("TaskPilot.Models.Entities.UserStory", b =>
                 {
-                    b.HasOne("TaskPilot.Models.Entities.UserStory", "DependsOnStory")
-                        .WithMany()
-                        .HasForeignKey("DependsOnStoryId");
-
                     b.HasOne("TaskPilot.Models.Entities.Project", "Project")
                         .WithMany("UserStories")
                         .HasForeignKey("ProjectId")
@@ -2584,8 +2476,6 @@ namespace TaskPilot.Data.Migrations
                         .WithMany("UserStories")
                         .HasForeignKey("SprintId")
                         .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("DependsOnStory");
 
                     b.Navigation("Project");
 
@@ -2661,6 +2551,8 @@ namespace TaskPilot.Data.Migrations
 
             modelBuilder.Entity("TaskPilot.Models.Entities.TaskItem", b =>
                 {
+                    b.Navigation("AiSummary");
+
                     b.Navigation("Attachments");
 
                     b.Navigation("Comments");

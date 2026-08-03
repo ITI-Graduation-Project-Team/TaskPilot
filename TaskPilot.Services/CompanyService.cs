@@ -128,7 +128,8 @@ namespace TaskPilot.Services
             var company = new Company
             {
                 Name = request.CompanyName.Trim(),
-                OwnerId = ownerId
+                OwnerId = ownerId,
+                LogoUrl = $"https://api.dicebear.com/9.x/initials/svg?seed={Uri.EscapeDataString(request.CompanyName.Trim())}"
             };
 
             await _companyRepository
@@ -635,6 +636,7 @@ namespace TaskPilot.Services
 
             return Result<bool>.Success(true);
         }
+
         public async Task<Result<CompanyEmployeeDto>> GetCompanyEmployeeByIdAsync(
             Guid companyId,
             string employeeId,
@@ -688,5 +690,72 @@ namespace TaskPilot.Services
 
             return Result<CompanyEmployeeDto>.Success(dto);
         }
+
+        public async Task<Result<CompanyResponse>> UpdateCompanyAsync(
+            Guid companyId,
+            Guid ownerId,
+            UpdateCompanyDto request)
+        {
+            // 1. Fetch the company by ID
+            var company = await _companyRepository.GetByIdAsync(companyId);
+            if (company == null)
+            {
+                return Result<CompanyResponse>.Failure(CompanyErrors.NotFound);
+            }
+
+            // 2. Authorization check — only the owner can update the company
+            if (company.OwnerId != ownerId)
+            {
+                return Result<CompanyResponse>.Failure(CompanyErrors.InvalidOwner);
+            }
+
+            // 3. Update the company name
+            company.Name = request.Name.Trim();
+
+            // 4. Handle logo upload or removal
+            if (request.RemoveLogo)
+            {
+                company.LogoUrl = null;
+                company.CloudinaryPublicId = null;
+            }
+            else if (request.Logo != null && request.Logo.Length > 0)
+            {
+                // Upload the new logo to Cloudinary
+                var uploadResult = await _fileStorage.UploadFileAsync(
+                    request.Logo,
+                    $"taskpilot/companies/{company.Id}/logos");
+
+                if (!uploadResult.IsSuccess)
+                {
+                    return Result<CompanyResponse>.Failure(uploadResult.Error!);
+                }
+
+                company.LogoUrl = uploadResult.Value.Url;
+                company.CloudinaryPublicId = uploadResult.Value.PublicId;
+            }
+
+            // 5. No logo uploaded — generate or update avatar if there's no custom logo
+            if (string.IsNullOrEmpty(company.LogoUrl) || company.LogoUrl.StartsWith("https://ui-avatars.com") || company.LogoUrl.StartsWith("https://api.dicebear.com"))
+            {
+                // Use DiceBear initials which has better support for Arabic and Unicode characters than ui-avatars
+                company.LogoUrl = $"https://api.dicebear.com/9.x/initials/svg?seed={Uri.EscapeDataString(company.Name)}";
+            }
+
+            // 6. Persist changes
+            company.ModifiedAt = DateTime.UtcNow;
+            _companyRepository.Update(company);
+            await _unitOfWork.SaveChangesAsync();
+
+            // 7. Return the updated company details
+            var response = new CompanyResponse
+            {
+                Id = company.Id,
+                Name = company.Name,
+                OwnerId = company.OwnerId,
+                LogoUrl = company.LogoUrl
+            };
+
+            return Result<CompanyResponse>.Success(response);
+        }
     }
-}
+}

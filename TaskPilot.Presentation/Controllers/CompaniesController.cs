@@ -205,5 +205,26 @@ namespace TaskPilot.Presentation.Controllers
                 .GetCompanyEmployeeByIdAsync(user.CompanyId.Value, employeeId, cancellationToken);
             return HandleResult(result);
         }
+
+        [Authorize(Roles = "ProjectManager")]
+        [HttpPut("{companyId}")]
+        public async Task<IActionResult> UpdateCompany(
+            [FromRoute] Guid companyId,
+            [FromForm] UpdateCompanyDto request)
+        {
+            // Extract the owner ID from the authenticated user's token claims
+            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(userIdStr, out Guid ownerId))
+            {
+                return Unauthorized(CommonErrors.Unauthorized("User is not authenticated."));
+            }
+
+            // Pass the data to the service layer for business logic and validation
+            var result = await _companyService.UpdateCompanyAsync(companyId, ownerId, request);
+
+            // Use HandleResult to wrap response in the standard ApiResponse envelope
+            // { succeeded, message, data } — consistent with all other endpoints
+            return HandleResult(result, SuccessCodes.Company.Updated);
+        }
     }
-}
+}

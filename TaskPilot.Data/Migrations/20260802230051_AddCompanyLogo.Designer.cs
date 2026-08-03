@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TaskPilot.Data.Context;
 
@@ -11,9 +12,11 @@ using TaskPilot.Data.Context;
 namespace TaskPilot.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260802230051_AddCompanyLogo")]
+    partial class AddCompanyLogo
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1876,9 +1879,6 @@ namespace TaskPilot.Data.Migrations
                     b.Property<Guid?>("CreatedBy")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid?>("DependsOnStoryId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<string>("DescriptionAr")
                         .HasColumnType("nvarchar(max)");
 
@@ -1919,8 +1919,6 @@ namespace TaskPilot.Data.Migrations
                         .HasColumnType("nvarchar(450)");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("DependsOnStoryId");
 
                     b.HasIndex("IsDeleted");
 
@@ -2570,10 +2568,6 @@ namespace TaskPilot.Data.Migrations
 
             modelBuilder.Entity("TaskPilot.Models.Entities.UserStory", b =>
                 {
-                    b.HasOne("TaskPilot.Models.Entities.UserStory", "DependsOnStory")
-                        .WithMany()
-                        .HasForeignKey("DependsOnStoryId");
-
                     b.HasOne("TaskPilot.Models.Entities.Project", "Project")
                         .WithMany("UserStories")
                         .HasForeignKey("ProjectId")
@@ -2584,8 +2578,6 @@ namespace TaskPilot.Data.Migrations
                         .WithMany("UserStories")
                         .HasForeignKey("SprintId")
                         .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("DependsOnStory");
 
                     b.Navigation("Project");
 

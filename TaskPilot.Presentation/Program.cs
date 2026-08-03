@@ -1,13 +1,16 @@
+using Hangfire;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
+using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Security.Claims;
 using TaskPilot.AI.Extensions;
 using TaskPilot.Data;
 using TaskPilot.Infrastructure.Extensions;
+using TaskPilot.Infrastructure.Services.Google;
+using TaskPilot.Models.Common;
 using TaskPilot.Models.Common.Errors;
 using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Enums;
@@ -15,8 +18,6 @@ using TaskPilot.Presentation.Middlewares;
 using TaskPilot.Presentation.Models;
 using TaskPilot.Services;
 using TaskPilot.Services.Interfaces;
-using Hangfire;
-using TaskPilot.Models.Common;
 
 namespace TaskPilot.Presentation
 {
@@ -60,7 +61,8 @@ namespace TaskPilot.Presentation
             });
             builder.Services.AddSignalR();
             builder.Services.AddScoped<TaskPilot.Services.Interfaces.INotificationNotifier, TaskPilot.Presentation.Services.NotificationNotifier>();
-            
+
+            builder.Services.AddScoped<TaskPilot.Services.Interfaces.External.IGoogleCalendarService, TaskPilot.Infrastructure.Services.Google.GoogleCalendarService>();
             builder.Services.AddControllers(options =>
             {
                 options.Filters.Add<TaskPilot.Presentation.Filters.ProjectIdTelemetryActionFilter>();
