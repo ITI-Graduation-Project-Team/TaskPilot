@@ -14,5 +14,10 @@ namespace TaskPilot.DTOs.Company
         /// If not provided, an auto-generated avatar will be used when no logo exists.
         /// </summary>
         public IFormFile? Logo { get; set; }
+
+        /// <summary>
+        /// If true, the existing logo will be deleted and replaced with an auto-generated avatar.
+        /// </summary>
+        public bool RemoveLogo { get; set; }
     }
 }

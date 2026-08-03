@@ -128,7 +128,8 @@ namespace TaskPilot.Services
             var company = new Company
             {
                 Name = request.CompanyName.Trim(),
-                OwnerId = ownerId
+                OwnerId = ownerId,
+                LogoUrl = $"https://api.dicebear.com/9.x/initials/svg?seed={Uri.EscapeDataString(request.CompanyName.Trim())}"
             };
 
             await _companyRepository
@@ -711,8 +712,13 @@ namespace TaskPilot.Services
             // 3. Update the company name
             company.Name = request.Name.Trim();
 
-            // 4. Handle logo upload
-            if (request.Logo != null && request.Logo.Length > 0)
+            // 4. Handle logo upload or removal
+            if (request.RemoveLogo)
+            {
+                company.LogoUrl = null;
+                company.CloudinaryPublicId = null;
+            }
+            else if (request.Logo != null && request.Logo.Length > 0)
             {
                 // Upload the new logo to Cloudinary
                 var uploadResult = await _fileStorage.UploadFileAsync(
@@ -727,11 +733,12 @@ namespace TaskPilot.Services
                 company.LogoUrl = uploadResult.Value.Url;
                 company.CloudinaryPublicId = uploadResult.Value.PublicId;
             }
-            // 5. No logo uploaded and company has no existing logo — generate an avatar using the first letter
-            else if (string.IsNullOrEmpty(company.LogoUrl))
+
+            // 5. No logo uploaded — generate or update avatar if there's no custom logo
+            if (string.IsNullOrEmpty(company.LogoUrl) || company.LogoUrl.StartsWith("https://ui-avatars.com") || company.LogoUrl.StartsWith("https://api.dicebear.com"))
             {
-                // Use a free avatar service that generates an image from the company name initials
-                company.LogoUrl = $"https://ui-avatars.com/api/?name={Uri.EscapeDataString(company.Name)}&background=random&color=fff&size=256";
+                // Use DiceBear initials which has better support for Arabic and Unicode characters than ui-avatars
+                company.LogoUrl = $"https://api.dicebear.com/9.x/initials/svg?seed={Uri.EscapeDataString(company.Name)}";
             }
 
             // 6. Persist changes
