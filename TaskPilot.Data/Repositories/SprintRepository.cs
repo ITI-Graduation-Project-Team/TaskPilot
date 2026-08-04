@@ -35,6 +35,7 @@ namespace TaskPilot.Data.Repositories
         {
             return await _dbSet
                 .Include(s => s.Tasks)
+                    .ThenInclude(t => t.Employee)
                 .FirstOrDefaultAsync(s => s.Id == sprintId && !s.IsDeleted, cancellationToken);
         }
     }

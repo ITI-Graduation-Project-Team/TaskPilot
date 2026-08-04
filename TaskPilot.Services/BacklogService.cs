@@ -255,7 +255,7 @@ namespace TaskPilot.Services
                             type: NotificationType.TaskCompleted,
                             messageEn: $"Task '{task.TitleEn}' has been marked as Done.",
                             messageAr: $"تم إنجاز المهمة '{task.TitleAr ?? task.TitleEn}'.",
-                            url: $"/projects/{project.Id}/board"
+                            url: $"/projects/{project.Id}/board/tasks/{task.Id}"
                         );
                     }
                 }
