@@ -14,6 +14,7 @@ using TaskPilot.Models.Entities;
 using TaskPilot.Models.Enums;
 using TaskPilot.Services.Interfaces;
 using TaskPilot.Services.Interfaces.External;
+using TaskPilot.Models.Common;
 namespace TaskPilot.Services
 {
     public class SprintLifecycleService : ISprintLifecycleService
@@ -27,6 +28,7 @@ namespace TaskPilot.Services
         private readonly INotificationService _notificationService;
         private readonly ICalenderService _calenderService;
         private readonly IGoogleCalendarService _googleCalendarService;
+        private readonly ILocalizationService _localizationService;
 
         public SprintLifecycleService(
             ISprintRepository sprintRepository,
@@ -37,7 +39,8 @@ namespace TaskPilot.Services
             ICalenderService calenderService = null!,
             IRepository<UserStory> userStoryRepository = null!,
             IGoogleCalendarService googleCalendarService = null!,
-            IProjectEmployeeRepository projectEmployeeRepository = null!)
+            IProjectEmployeeRepository projectEmployeeRepository = null!,
+            ILocalizationService localizationService = null!)
         {
             _sprintRepository = sprintRepository;
             _projectRepository = projectRepository;
@@ -48,6 +51,7 @@ namespace TaskPilot.Services
             _notificationService = notificationService;
             _calenderService = calenderService;
             _googleCalendarService = googleCalendarService;
+            _localizationService = localizationService;
         }
 
         public async Task<Result<System.Collections.Generic.IEnumerable<SprintListItemDto>>> GetAllSprintsAsync(Guid projectId)
@@ -190,8 +194,8 @@ namespace TaskPilot.Services
                type: NotificationType.TaskAssigned,
                messageEn: $"You have been assigned to task '{task.TitleEn}'.",
                messageAr: $"تم تكليفك بمهمة '{task.TitleAr ?? task.TitleEn}'.",
-               url: $"/projects/{projectId}/board"
-                 );
+               url: $"/projects/{projectId}/board/tasks/{task.Id}"
+           );
 
             }
             _logger.LogInformation("Sprint {SprintId} started for Project {ProjectId}", sprintId, projectId);
@@ -539,7 +543,7 @@ namespace TaskPilot.Services
             {
                 return Result.Failure<IEnumerable<TaskItemDto>>(SprintErrors.SprintDoesNotBelongToProject);
             }
-
+            bool isArabic = _localizationService?.CurrentLanguage == "ar";
             var tasks = sprint.Tasks.Select(t => new TaskItemDto
             {
                 Id = t.Id,
@@ -556,7 +560,9 @@ namespace TaskPilot.Services
                 EffortSize = t.EffortSize.ToString(),
                 Type = t.Type.ToString(),
                 Priority = t.Priority.ToString(),
-                Status = t.Status.ToString()
+                Status = t.Status.ToString(),
+                AssigneeId = t.EmployeeId,
+                AssigneeName = t.Employee != null ? (isArabic ? $"{t.Employee.FirstNameAr} {t.Employee.LastNameAr}" : $"{t.Employee.FirstNameEn} {t.Employee.LastNameEn}") : null
             }).ToList();
 
             return Result.Success<IEnumerable<TaskItemDto>>(tasks);

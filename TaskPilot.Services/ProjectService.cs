@@ -69,6 +69,7 @@ namespace TaskPilot.Services
 
             var projects = await _projectRepo.GetQueryable()
                 .Where(p => !p.IsDeleted)
+                .OrderByDescending(p => p.CreatedAt)
                 .Select(p => new ProjectDto
                 {
                     Id = p.Id,
@@ -94,6 +95,7 @@ namespace TaskPilot.Services
 
             var projects = await _projectRepo.GetQueryable()
                 .Where(p => p.CompanyId == companyId && !p.IsDeleted)
+                .OrderByDescending(p => p.CreatedAt)
                 .Select(p => new ProjectDto
                 {
                     Id = p.Id,
@@ -102,7 +104,6 @@ namespace TaskPilot.Services
                     CompanyId = p.CompanyId,
                     ManagerId = p.ManagerId,
                     status = p.Status
-
                 })
                 .ToListAsync();
 
@@ -263,6 +264,7 @@ namespace TaskPilot.Services
 
             var projects = await _projectRepo.GetQueryable()
                 .Where(p => !p.IsDeleted && p.ProjectEmployees.Any(pe => pe.EmployeeId == employeeId))
+                .OrderByDescending(p => p.CreatedAt)
                 .Select(p => new ProjectDto
                 {
                     Id = p.Id,
