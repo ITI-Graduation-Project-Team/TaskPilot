@@ -152,6 +152,20 @@ public class EmployeeController : ApiControllerBase
         return HandleResult(result, SuccessCodes.Employee.CvUploaded);
     }
 
+    [Authorize(Roles = "Employee,ProjectManager")]
+    [HttpPut("profile")]
+    public async Task<ActionResult> UpdateProfile(
+        [FromForm] TaskPilot.DTOs.Employees.UpdateEmployeeProfileDto request,
+        [FromServices] IEmployeeProfileService profileService,
+        CancellationToken cancellationToken)
+    {
+        if (_currentUser.UserId == null)
+            return HandleResult(Result.Failure(CommonErrors.Unauthorized()));
+
+        var result = await profileService.UpdateProfileAsync(_currentUser.UserId.Value, request);
+        return HandleResult(result, SuccessCodes.Employee.Updated);
+    }
+
     [HttpGet("profile")]
     public async Task<ActionResult> GetProfile(CancellationToken cancellationToken)
     {
@@ -187,6 +201,10 @@ public class EmployeeController : ApiControllerBase
                 Id = user.Id,
                 FirstName = user.FirstNameEn,
                 LastName = user.LastNameEn,
+                FirstNameAr = user.FirstNameAr,
+                LastNameAr = user.LastNameAr,
+                PhoneNumber = user.PhoneNumber,
+                AvatarUrl = user.AvatarUrl,
                 Email = user.Email,
                 JobTitle = "Project Manager",
                 SeniorityLevel = "Manager",
@@ -195,7 +213,7 @@ public class EmployeeController : ApiControllerBase
                 CompanyId = user.CompanyId,
                 CompanyName = companyName,
                 CompanyLogoUrl = companyLogoUrl,
-                Skills = new List<string>()
+                Skills = new List<object>()
             });
         }
 
@@ -212,6 +230,11 @@ public class EmployeeController : ApiControllerBase
             Id = employee.Id,
             FirstName = employee.FirstNameEn,
             LastName = employee.LastNameEn,
+            FirstNameAr = employee.FirstNameAr,
+            LastNameAr = employee.LastNameAr,
+            PhoneNumber = employee.PhoneNumber,
+            AvatarUrl = employee.AvatarUrl,
+            LatestCvUrl = employee.LatestCvUrl,
             Email = employee.Email,
             JobTitle = employee.JobTitle ?? string.Empty,
             SeniorityLevel = employee.SeniorityLevel?.ToString() ?? "MidLevel",
@@ -220,7 +243,13 @@ public class EmployeeController : ApiControllerBase
             CompanyId = employee.CompanyId,
             CompanyName = companyName,
             CompanyLogoUrl = empCompanyLogoUrl,
-            Skills = employee.UserSkills.Select(us => us.Skill.Name).ToList()
+            Skills = employee.UserSkills.Select(us => new 
+            { 
+                Name = us.Skill.Name, 
+                Level = us.Level.ToString(), 
+                YearsOfExperience = us.YearsOfExperience, 
+                IsPrimary = us.IsPrimary 
+            }).ToList()
         });
     }
 

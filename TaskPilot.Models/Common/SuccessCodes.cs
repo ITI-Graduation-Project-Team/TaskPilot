@@ -78,6 +78,7 @@ namespace TaskPilot.Models.Common
         public static class Employee
         {
             public const string CvUploaded = "EMPLOYEE_CV_UPLOADED";
+            public const string Updated = "EMPLOYEE_UPDATED_SUCCESS";
         }
 
         public static class Requirement
