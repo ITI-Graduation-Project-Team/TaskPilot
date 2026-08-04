@@ -19,17 +19,23 @@ namespace TaskPilot.Services.Implementations
         private readonly ITaskRepository _taskRepository;
         private readonly ISprintRepository _sprintRepository;
         private readonly IProjectEmployeeRepository _projectEmployeeRepository;
+        private readonly IProjectRepository _projectRepository;
+        private readonly INotificationService _notificationService;
         private readonly ILogger<TaskStatusService> _logger;
 
         public TaskStatusService(
             ITaskRepository taskRepository,
             ISprintRepository sprintRepository,
             IProjectEmployeeRepository projectEmployeeRepository,
+            IProjectRepository projectRepository,
+            INotificationService notificationService,
             ILogger<TaskStatusService> logger)
         {
             _taskRepository = taskRepository;
             _sprintRepository = sprintRepository;
             _projectEmployeeRepository = projectEmployeeRepository;
+            _projectRepository = projectRepository;
+            _notificationService = notificationService;
             _logger = logger;
         }
 
@@ -159,6 +165,21 @@ namespace TaskPilot.Services.Implementations
 
             _logger.LogInformation("Task {TaskId} in Project {ProjectId} (Sprint {SprintId}) status updated from {PreviousStatus} to {NewStatus} by {EmployeeId}. Actual hours: {ActualHours}", 
                 task.Id, task.Sprint.ProjectId, task.SprintId, previousStatus.ToString(), task.Status.ToString(), currentUserId, task.ActualHours);
+
+            if (previousStatus != TaskItemStatus.Review && task.Status == TaskItemStatus.Review)
+            {
+                var project = await _projectRepository.GetByIdAsync(task.Sprint.ProjectId);
+                if (project != null && project.ManagerId != Guid.Empty)
+                {
+                    await _notificationService.SendAsync(
+                        userId: project.ManagerId,
+                        type: NotificationType.TaskUpdated,
+                        messageEn: $"Task '{task.TitleEn}' is ready for review.",
+                        messageAr: $"المهمة '{task.TitleAr ?? task.TitleEn}' جاهزة للمراجعة.",
+                        url: $"/projects/{project.Id}/board/tasks/{task.Id}"
+                    );
+                }
+            }
 
             var result = new TaskStatusUpdateResult
             {

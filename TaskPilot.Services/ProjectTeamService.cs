@@ -165,6 +165,9 @@ public class ProjectTeamService : IProjectTeamService
             .Include(pe => pe.Employee)
                 .ThenInclude(e => e.AssignedTasks)
                     .ThenInclude(t => t.Sprint)
+            .Include(pe => pe.Employee)
+                .ThenInclude(e => e.AssignedTasks)
+                    .ThenInclude(t => t.UserStory)
             .FirstOrDefaultAsync(pe => pe.ProjectId == projectId && pe.EmployeeId == employeeId, cancellationToken);
 
         if (assignment == null)
@@ -176,7 +179,19 @@ public class ProjectTeamService : IProjectTeamService
             t.Sprint.Status == SprintStatus.Active);
 
         if (hasActiveTasks)
-            return Result.Failure(new Error("EmployeeHasActiveTasks", ErrorType.Validation, "Employee still owns active tasks."));
+            return Result.Failure(new Error("EmployeeHasActiveTasks", ErrorType.Validation, "Employee still owns active tasks in an ongoing sprint."));
+
+        // Unassign the employee from any tasks in this project that are NOT in an active sprint
+        // (e.g. Backlog tasks or tasks in Pending/Future sprints)
+        var pendingTasks = assignment.Employee.AssignedTasks.Where(t =>
+            (t.Sprint?.ProjectId == projectId || t.UserStory?.ProjectId == projectId) &&
+            (t.Sprint == null || t.Sprint.Status != SprintStatus.Active) &&
+            t.Status != TaskItemStatus.Done).ToList();
+
+        foreach (var task in pendingTasks)
+        {
+            task.EmployeeId = null;
+        }
 
         _projectEmployeeRepository.Delete(assignment);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
