@@ -53,6 +53,7 @@ namespace TaskPilot.Presentation.Controllers
             _unitOfWork = unitOfWork;
         }
 
+        [Authorize(Roles = "ProjectManager")]
         [HttpPost("confirm")]
         public async Task<ActionResult> Confirm(
             Guid projectId,
@@ -65,7 +66,7 @@ namespace TaskPilot.Presentation.Controllers
             return HandleResult(result);
         }
 
-        [Authorize(Roles = "Admin,ProjectManager")]
+        [Authorize(Roles = "ProjectManager")]
         [HttpGet("{sprintId:guid}/assignment/snapshot")]
         public async Task<ActionResult> GetSnapshot(
             Guid projectId,
@@ -94,7 +95,7 @@ namespace TaskPilot.Presentation.Controllers
             return HandleResult(result);
         }
 
-        [Authorize(Roles = "Admin,ProjectManager")]
+        [Authorize(Roles = "ProjectManager")]
         [HttpGet("{sprintId:guid}/assignment/validate")]
         public async Task<ActionResult> ValidateAssignment(
             Guid projectId,
@@ -123,6 +124,7 @@ namespace TaskPilot.Presentation.Controllers
             return HandleResult(result);
         }
 
+        [Authorize(Roles = "ProjectManager")]
         [HttpPost("{sprintId:guid}/start")]
         public async Task<ActionResult> StartSprint(Guid projectId, Guid sprintId, CancellationToken cancellationToken)
         {
@@ -134,6 +136,7 @@ namespace TaskPilot.Presentation.Controllers
             return HandleResult(result, SuccessCodes.Sprint.Started);
         }
 
+        [Authorize(Roles = "ProjectManager")]
         [HttpPost("{sprintId:guid}/complete")]
         public async Task<ActionResult> CompleteSprint(Guid projectId, Guid sprintId, [FromBody] CompleteSprintRequest? request, CancellationToken cancellationToken)
         {
@@ -145,6 +148,7 @@ namespace TaskPilot.Presentation.Controllers
             return HandleResult(result, SuccessCodes.Sprint.Completed);
         }
 
+        [Authorize(Roles = "ProjectManager,Employee")]
         [HttpGet("active")]
         public async Task<ActionResult> GetActiveSprint(Guid projectId, CancellationToken cancellationToken)
         {
@@ -152,6 +156,7 @@ namespace TaskPilot.Presentation.Controllers
             return HandleResult(result, SuccessCodes.Sprint.ActiveRetrieved);
         }
 
+        [Authorize(Roles = "ProjectManager,Employee")]
         [HttpGet("planned")]
         public async Task<ActionResult> GetPlannedSprint(Guid projectId, CancellationToken cancellationToken)
         {
@@ -175,6 +180,7 @@ namespace TaskPilot.Presentation.Controllers
             return HandleResult(result);
         }
 
+        [Authorize(Roles = "ProjectManager,Employee")]
         [HttpGet("{sprintId:guid}/tasks")]
         public async Task<ActionResult> GetSprintTasks(
             Guid projectId,

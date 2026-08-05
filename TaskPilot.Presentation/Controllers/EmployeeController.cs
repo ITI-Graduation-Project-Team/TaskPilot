@@ -25,6 +25,7 @@ public class EmployeeController : ApiControllerBase
     private readonly IRepository<User> _userRepository;
     private readonly IRepository<Company> _companyRepository;
     private readonly IProjectService _projectService;
+    private readonly IFileValidatorService _fileValidator;
 
     public EmployeeController(
         ICvService cvService,
@@ -34,8 +35,8 @@ public class EmployeeController : ApiControllerBase
         IRepository<Employee> employeeRepository,
         IRepository<User> userRepository,
         IRepository<Company> companyRepository,
-        IProjectService projectService
-         )
+        IProjectService projectService,
+        IFileValidatorService fileValidator)
     {
         _cvService = cvService;
         _cvConfirmationService = cvConfirmationService;
@@ -45,6 +46,7 @@ public class EmployeeController : ApiControllerBase
         _userRepository = userRepository;
         _companyRepository = companyRepository;
         _projectService = projectService;
+        _fileValidator = fileValidator;
     }
 
     /// <summary>
@@ -63,21 +65,15 @@ public class EmployeeController : ApiControllerBase
         {
             return HandleResult(Result.Failure<ParsedCvDto>(CvErrors.InvalidFile));
         }
-        const long maxFileSize = 5 * 1024 * 1024;
 
-        if (request.File.Length > maxFileSize)
+        var validationResult = await _fileValidator.ValidateAsync(
+            request.File,
+            new[] { FileType.Pdf, FileType.Docx },
+            5 * 1024 * 1024); // 5MB limit
+
+        if (!validationResult.IsSuccess)
         {
-            return HandleResult(Result.Failure<ParsedCvDto>(CvErrors.FileTooLarge));
-        }
-        var allowedExtensions = new[] { ".pdf", ".docx" };
-
-        var extension = Path
-            .GetExtension(request.File.FileName)
-            .ToLowerInvariant();
-
-        if (!allowedExtensions.Contains(extension))
-        {
-            return HandleResult(Result.Failure<ParsedCvDto>(CvErrors.UnsupportedFormat));
+            return HandleResult(Result.Failure<ParsedCvDto>(validationResult.Error!));
         }
 
         Guid finalUserId;

@@ -5,6 +5,7 @@ using TaskPilot.Models.Common;
 using TaskPilot.Services.Filters;
 using TaskPilot.Services.Interfaces;
 using TaskPilot.Services.Interfaces.CVExtractorInterfaces;
+using TaskPilot.Services.Implementations;
 using TaskPilot.Services.Repositories;
 
 namespace TaskPilot.Services
@@ -44,6 +45,7 @@ namespace TaskPilot.Services
             services.AddScoped<IAiProjectsService, TaskPilot.Services.Implementations.AiProjectsService>();
             services.AddScoped<IAiTelemetryService, AiTelemetryService>();
             services.AddScoped<IFunctionInvocationFilter, AiTelemetryFilter>();
+            services.AddScoped<IFileValidatorService, FileValidatorService>();
             services.AddScoped<TaskPilot.AI.Services.Interfaces.IAiProjectChatService, TaskPilot.Services.Implementations.ProjectChatService>();
             services.AddScoped<IAgileCoachService, TaskPilot.Services.Implementations.AgileCoachService>();
             services.AddScoped<TaskPilot.AI.Services.Interfaces.IAiBacklogService, TaskPilot.Services.BacklogService>();
@@ -74,11 +76,11 @@ namespace TaskPilot.Services
             services.AddScoped<ISprintRetrospectiveService, SprintRetrospectiveService>();
             services.AddScoped<TaskPilot.Services.Implementations.SprintDataCollectionService>();
 
-            services.AddScoped<ISprintLifecycleService, SprintLifecycleService>();
+
             services.AddScoped<IProjectTeamService, ProjectTeamService>();
             services.AddScoped<ICompanyService, CompanyService>();
             services.AddScoped<ITaskStatusService, TaskPilot.Services.Implementations.TaskStatusService>();
-            services.AddScoped<ICompanyService, CompanyService>();
+
             services.AddScoped<IEmployeeDeactivationService, TaskPilot.Services.Implementations.EmployeeDeactivationService>();
 
             services.AddHostedService<BackgroundJobs.SubscriptionExpiryJob>();

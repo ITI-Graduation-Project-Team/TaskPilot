@@ -30,6 +30,7 @@ namespace TaskPilot.Presentation.Controllers
             _userRepository = userRepository;
         }
 
+        [Authorize(Roles = "ProjectManager")]
         [HttpPost("setup")]
         public async Task<ActionResult>
             SetupCompany(

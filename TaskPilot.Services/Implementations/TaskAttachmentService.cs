@@ -21,6 +21,7 @@ namespace TaskPilot.Services.Implementations
     public class TaskAttachmentService : ITaskAttachmentService
     {
         private const long MaxFileSizeBytes = 10 * 1024 * 1024; // 10 MB
+        private readonly IFileValidatorService _fileValidator;
         private readonly IRepository<TaskAttachment> _attachmentRepository;
         private readonly IRepository<TaskItem> _taskRepository;
         private readonly IRepository<User> _userRepository;
@@ -34,8 +35,10 @@ namespace TaskPilot.Services.Implementations
             IRepository<User> userRepository,
             IProjectEmployeeRepository projectEmployeeRepository,
             IFileStorageService fileStorageService,
-            ILogger<TaskAttachmentService> logger)
+            ILogger<TaskAttachmentService> logger,
+            IFileValidatorService fileValidator)
         {
+            _fileValidator = fileValidator;
             _attachmentRepository = attachmentRepository;
             _taskRepository = taskRepository;
             _userRepository = userRepository;
@@ -55,9 +58,15 @@ namespace TaskPilot.Services.Implementations
                 return Result.Failure<TaskAttachmentDto>(TaskAttachmentErrors.InvalidFile);
             }
 
-            if (file.Length > MaxFileSizeBytes)
+            var validationResult = await _fileValidator.ValidateAsync(
+                file,
+                new[] { FileType.Pdf, FileType.Docx, FileType.Txt, FileType.Jpeg, FileType.Png },
+                MaxFileSizeBytes,
+                ct);
+
+            if (!validationResult.IsSuccess)
             {
-                return Result.Failure<TaskAttachmentDto>(TaskAttachmentErrors.FileTooLarge);
+                return Result.Failure<TaskAttachmentDto>(validationResult.Error!);
             }
 
             var task = await _taskRepository.GetByIdAsync(taskId, t => t.Sprint!, t => t.UserStory!);

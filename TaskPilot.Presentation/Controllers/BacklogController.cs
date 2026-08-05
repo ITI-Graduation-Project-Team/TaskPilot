@@ -4,10 +4,11 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TaskPilot.DTOs.Backlog;
 using TaskPilot.Services.Interfaces;
+using TaskPilot.Models.Common;
 
 namespace TaskPilot.Presentation.Controllers
 {
-    //[Authorize]
+    [Authorize(Roles = "ProjectManager")]
     [Route("api/[controller]")]
     [ApiController]
 
@@ -30,55 +31,48 @@ namespace TaskPilot.Presentation.Controllers
             return HandleResult(result);
         }
 
-        //[Authorize(Roles = "Admin,ProjectManager")]
         [HttpPost("~/api/projects/{projectId:guid}/userstories")]
         public async Task<ActionResult> CreateUserStory(Guid projectId, [FromBody] CreateUserStoryDto request)
         {
             var result = await _backlogService.CreateUserStoryAsync(projectId, request);
-            return HandleCreated(result, "User story created successfully.");
+            return HandleCreated(result, SuccessCodes.UserStory.Created);
         }
 
-        //[Authorize(Roles = "Admin,ProjectManager")]
         [HttpPut("~/api/userstories/{storyId:guid}")]
         public async Task<ActionResult> UpdateUserStory(Guid storyId, [FromBody] UpdateUserStoryDto request)
         {
             var result = await _backlogService.UpdateUserStoryAsync(storyId, request);
-            return HandleResult(result, "User story updated successfully.");
+            return HandleResult(result, SuccessCodes.UserStory.Updated);
         }
 
-        //[Authorize(Roles = "Admin,ProjectManager")]
         [HttpDelete("~/api/userstories/{storyId:guid}")]
         public async Task<ActionResult> DeleteUserStory(Guid storyId)
         {
             var result = await _backlogService.DeleteUserStoryAsync(storyId);
-            return HandleResult(result, "User story deleted successfully.");
+            return HandleResult(result, SuccessCodes.UserStory.Deleted);
         }
 
-        //[Authorize(Roles = "Admin,ProjectManager")]
         [HttpPost("~/api/userstories/{storyId:guid}/tasks")]
         public async Task<ActionResult> CreateTask(Guid storyId, [FromBody] CreateTaskDto request)
         {
             var result = await _backlogService.CreateTaskAsync(storyId, request);
-            return HandleCreated(result, "Task created successfully.");
+            return HandleCreated(result, SuccessCodes.Task.Created);
         }
 
-        //[Authorize(Roles = "Admin,ProjectManager")]
         [HttpPut("~/api/tasks/{taskId:guid}")]
         public async Task<ActionResult> UpdateTask(Guid taskId, [FromBody] UpdateTaskDto request)
         {
             var result = await _backlogService.UpdateTaskAsync(taskId, request);
-            return HandleResult(result, "Task updated successfully.");
+            return HandleResult(result, SuccessCodes.Task.Updated);
         }
 
-        //[Authorize(Roles = "Admin,ProjectManager")]
         [HttpDelete("~/api/tasks/{taskId:guid}")]
         public async Task<ActionResult> DeleteTask(Guid taskId)
         {
             var result = await _backlogService.DeleteTaskAsync(taskId);
-            return HandleResult(result, "Task deleted successfully.");
+            return HandleResult(result, SuccessCodes.Task.Deleted);
         }
 
-        //[Authorize(Roles = "Admin,ProjectManager")]
         [HttpPost("~/api/projects/{projectId:guid}/backlog/regenerate")]
         public async Task<ActionResult> RegenerateBacklog(Guid projectId)
         {
