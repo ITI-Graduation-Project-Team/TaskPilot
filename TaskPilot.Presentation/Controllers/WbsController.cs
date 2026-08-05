@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using System;
 using System.Linq;
 using System.Threading;
@@ -12,11 +13,13 @@ using TaskPilot.Services.Interfaces;
 using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Common.Errors;
 using TaskPilot.Services.DTOs;
+using TaskPilot.DTOs.Projects;
 
 namespace TaskPilot.Presentation.Controllers
 {
     [ApiController]
     [Route("api/projects/{projectId}/wbs")]
+    [Authorize(Roles = "ProjectManager")]
     public class WbsController : ApiControllerBase
     {
         private readonly IWbsGenerationService _wbsGenerationService;
@@ -69,29 +72,29 @@ namespace TaskPilot.Presentation.Controllers
         {
             var stories = await _userStoryRepository.GetByProjectIdAsync(projectId, cancellationToken);
             
-            var result = new
+            var result = new WbsDto
             {
-                projectId = projectId,
-                userStories = stories.Select(s => new
+                ProjectId = projectId,
+                UserStories = stories.Select(s => new WbsUserStoryDto
                 {
-                    id = s.Id,
-                    titleEn = s.TitleEn,
-                    titleAr = s.TitleAr,
-                    priority = s.Priority.ToString(),
-                    sprintId = s.SprintId,
-                    tasks = s.Tasks?.Select(t => new
+                    Id = s.Id,
+                    TitleEn = s.TitleEn,
+                    TitleAr = s.TitleAr,
+                    Priority = s.Priority.ToString(),
+                    SprintId = s.SprintId,
+                    Tasks = s.Tasks?.Select(t => new WbsTaskDto
                     {
-                        id = t.Id,
-                        titleEn = t.TitleEn,
-                        effortSize = t.EffortSize.ToString(),
-                        type = t.Type.ToString(),
-                        estimatedHours = t.EstimatedHours,
-                        sprintId = t.SprintId
+                        Id = t.Id,
+                        TitleEn = t.TitleEn,
+                        EffortSize = t.EffortSize.ToString(),
+                        Type = t.Type.ToString(),
+                        EstimatedHours = t.EstimatedHours,
+                        SprintId = t.SprintId
                     })
                 })
             };
 
-            return HandleResult(Result.Success<object>(result));
+            return HandleResult(Result.Success(result));
         }
     }
 }

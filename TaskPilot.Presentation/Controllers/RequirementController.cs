@@ -18,7 +18,7 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace TaskPilot.Presentation.Controllers
 {
-    //[Authorize(Roles = "Admin,ProjectManager")]
+    [Authorize(Roles = "ProjectManager")]
     [ApiController]
     [Route("api/requirements")]
     public class RequirementController : ApiControllerBase
@@ -29,6 +29,7 @@ namespace TaskPilot.Presentation.Controllers
         private readonly IVectorStore _vectorStore;
         private readonly IRequirementFinalizationService _finalizationService;
         private readonly RequirementDiscoveryOrchestrator _discoveryOrchestrator;
+        private readonly IFileValidatorService _fileValidator;
 
         public RequirementController(
             RequirementsOrchestrator orchestrator,
@@ -36,7 +37,8 @@ namespace TaskPilot.Presentation.Controllers
             RequirementDiscoveryOrchestrator discoveryOrchestrator,
             IRequirementSessionStore sessionStore,
             IVectorStore vectorStore,
-            IRequirementFinalizationService finalizationService)
+            IRequirementFinalizationService finalizationService,
+            IFileValidatorService fileValidator)
         {
             _orchestrator = orchestrator;
             _documentIngestionOrchestrator = documentIngestionOrchestrator;
@@ -44,6 +46,7 @@ namespace TaskPilot.Presentation.Controllers
             _sessionStore = sessionStore;
             _vectorStore = vectorStore;
             _finalizationService = finalizationService;
+            _fileValidator = fileValidator;
         }
 
         [HttpPost]
@@ -53,6 +56,23 @@ namespace TaskPilot.Presentation.Controllers
         {
             try
             {
+                if (request.Documents != null && request.Documents.Any())
+                {
+                    foreach (var file in request.Documents)
+                    {
+                        var validationResult = await _fileValidator.ValidateAsync(
+                            file,
+                            new[] { FileType.Pdf, FileType.Docx, FileType.Txt },
+                            15 * 1024 * 1024,
+                            cancellationToken);
+                        
+                        if (!validationResult.IsSuccess)
+                        {
+                            return HandleResult(Result.Failure<RequirementDiscoveryResponse>(validationResult.Error!));
+                        }
+                    }
+                }
+
                 var response = await _discoveryOrchestrator.ExecuteAsync(request, cancellationToken);
                 return HandleResult(Result.Success(response));
             }
@@ -73,17 +93,16 @@ namespace TaskPilot.Presentation.Controllers
                 return HandleResult(Result.Failure<DocumentStartResult>(
                     new Error("NO_FILE", ErrorType.Validation, "No file provided.")));
 
-            var allowed = new[]
-            {
-                "application/pdf",
-                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                "text/plain"
-            };
+            var validationResult = await _fileValidator.ValidateAsync(
+                request.File,
+                new[] { FileType.Pdf, FileType.Docx, FileType.Txt },
+                15 * 1024 * 1024,
+                cancellationToken);
 
-            if (!System.Linq.Enumerable.Contains(allowed, request.File.ContentType))
-                return HandleResult(Result.Failure<DocumentStartResult>(
-                    new Error("UNSUPPORTED_FILE", ErrorType.Validation,
-                        "Unsupported file type. Please upload PDF, DOCX, or TXT.")));
+            if (!validationResult.IsSuccess)
+            {
+                return HandleResult(Result.Failure<DocumentStartResult>(validationResult.Error!));
+            }
 
             // 1. Create session (document-first path)
             var session = await _orchestrator.StartWithDocumentAsync(cancellationToken);
@@ -119,6 +138,21 @@ namespace TaskPilot.Presentation.Controllers
             [FromForm] DocumentUploadRequest request,
             CancellationToken cancellationToken)
         {
+            if (request.File == null || request.File.Length == 0)
+                return HandleResult(Result.Failure<DocumentIngestionResult>(
+                    new Error("NO_FILE", ErrorType.Validation, "No file provided.")));
+
+            var validationResult = await _fileValidator.ValidateAsync(
+                request.File,
+                new[] { FileType.Pdf, FileType.Docx, FileType.Txt },
+                    15 * 1024 * 1024,
+                    cancellationToken);
+
+                if (!validationResult.IsSuccess)
+                {
+                    return HandleResult(Result.Failure<DocumentIngestionResult>(validationResult.Error!));
+                }
+
             var result = await _documentIngestionOrchestrator
                 .IngestAsync(
                     request.SessionId,

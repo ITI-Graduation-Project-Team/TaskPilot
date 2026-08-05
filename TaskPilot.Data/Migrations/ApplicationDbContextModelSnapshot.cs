@@ -336,6 +336,9 @@ namespace TaskPilot.Data.Migrations
                     b.Property<Guid?>("CreatedBy")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<decimal>("DefaultCapacityBufferPercentage")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<bool>("IsDeleted")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
@@ -357,6 +360,12 @@ namespace TaskPilot.Data.Migrations
 
                     b.Property<Guid>("OwnerId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("WorkingDaysMask")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("WorkingHoursPerDay")
+                        .HasColumnType("decimal(18,2)");
 
                     b.HasKey("Id");
 
@@ -859,6 +868,9 @@ namespace TaskPilot.Data.Migrations
 
                     b.Property<Guid>("EmployeeId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("AllocationPercentage")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
@@ -1678,6 +1690,12 @@ namespace TaskPilot.Data.Migrations
                     b.Property<int>("AccessFailedCount")
                         .HasColumnType("int");
 
+                    b.Property<string>("AvatarPublicId")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("AvatarUrl")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<Guid?>("CompanyId")
                         .HasColumnType("uniqueidentifier");
 
@@ -2049,6 +2067,9 @@ namespace TaskPilot.Data.Migrations
                     b.Property<int>("CvProcessingStatus")
                         .HasColumnType("int");
 
+                    b.Property<string>("CvPublicId")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime?>("DeactivatedAt")
                         .HasColumnType("datetime2");
 
@@ -2074,6 +2095,9 @@ namespace TaskPilot.Data.Migrations
 
                     b.Property<DateTime?>("LastCvProcessedAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("LatestCvUrl")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal?>("MaxSprintHours")
                         .HasPrecision(10, 2)

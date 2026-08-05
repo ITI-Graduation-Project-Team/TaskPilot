@@ -12,6 +12,8 @@ namespace TaskPilot.Models.Entities
         public Guid? ModifiedBy { get; set; }
         public bool IsDeleted { get; set; } = false;
         public bool IsActive => !IsDeleted;
+        public string? AvatarUrl { get; set; }
+        public string? AvatarPublicId { get; set; }
         public string FirstNameEn { get; set; } = string.Empty;
         public string LastNameEn { get; set; } = string.Empty;
         public string FirstNameAr { get; set; } = string.Empty;

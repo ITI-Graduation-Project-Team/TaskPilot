@@ -36,6 +36,7 @@ namespace TaskPilot.Services.Implementations
         private readonly ITemporaryBrdStore _tempBrdStore;
         private readonly ICurrentUserService _currentUserService;
         private readonly IRepository<User> _userRepository;
+        private readonly IFileValidatorService _fileValidator;
 
         private static readonly string[] RequiredCategories = new[]
         {
@@ -55,7 +56,8 @@ namespace TaskPilot.Services.Implementations
             IWbsPersistenceService wbsPersistenceService,
             ITemporaryBrdStore tempBrdStore,
             ICurrentUserService currentUserService,
-            IRepository<User> userRepository)
+            IRepository<User> userRepository,
+            IFileValidatorService fileValidator)
         {
             _extractors = extractors;
             _kernelService = kernelService;
@@ -69,14 +71,21 @@ namespace TaskPilot.Services.Implementations
             _tempBrdStore = tempBrdStore;
             _currentUserService = currentUserService;
             _userRepository = userRepository;
+            _fileValidator = fileValidator;
         }
 
         public async Task<Result<BrdUploadResultDto>> UploadBrdAsync(IFormFile file, Guid? projectId, CancellationToken cancellationToken = default)
         {
             try
             {
-                if (file == null || file.Length == 0)
-                    return Result.Failure<BrdUploadResultDto>(new Error("ValidationError", ErrorType.Validation, "File is required."));
+                var validationResult = await _fileValidator.ValidateAsync(
+                    file,
+                    new[] { FileType.Pdf, FileType.Docx, FileType.Txt },
+                    15 * 1024 * 1024, // 15MB limit
+                    cancellationToken);
+
+                if (!validationResult.IsSuccess)
+                    return Result.Failure<BrdUploadResultDto>(validationResult.Error!);
 
                 var extractor = _extractors.FirstOrDefault(e => e.CanHandle(file.ContentType, file.FileName));
                 if (extractor == null)

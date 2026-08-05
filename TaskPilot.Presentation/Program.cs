@@ -21,7 +21,7 @@ using TaskPilot.Services.Interfaces;
 
 namespace TaskPilot.Presentation
 {
-    public class Program
+    public partial class Program
     {
         public static void Main(string[] args)
         {
@@ -104,7 +104,7 @@ namespace TaskPilot.Presentation
             })
            .AddJwtBearer(o =>
            {
-               o.RequireHttpsMetadata = false;
+               o.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
                o.SaveToken = false;
                o.TokenValidationParameters = new TokenValidationParameters
                {
@@ -170,10 +170,13 @@ namespace TaskPilot.Presentation
             app.UseSwagger();
             app.UseSwaggerUI();
 
-            app.UseHangfireDashboard("/hangfire", new DashboardOptions
+            if (!app.Environment.IsProduction())
             {
-                Authorization = new[] { new HangfireAllowAllDashboardFilter() }
-            });
+                app.UseHangfireDashboard("/hangfire", new DashboardOptions
+                {
+                    Authorization = new[] { new HangfireAllowAllDashboardFilter() }
+                });
+            }
             RecurringJob.AddOrUpdate<TaskPilot.Services.BackgroundJobs.SprintRiskDetectionJob>(
                 "SprintRiskDetectionJob",
                 job => job.ExecuteAsync(CancellationToken.None),

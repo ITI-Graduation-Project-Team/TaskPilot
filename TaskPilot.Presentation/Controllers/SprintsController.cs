@@ -1,22 +1,15 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
-using TaskPilot.DTOs.Sprints;
-using TaskPilot.DTOs.Backlog;
-using TaskPilot.Services.Interfaces;
-using TaskPilot.Services.Assignment;
-using TaskPilot.Models.Common.Results;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using TaskPilot.Data.Repositories;
-using TaskPilot.Models.Entities;
-using TaskPilot.Models.Common.Errors;
 using TaskPilot.DTOs.Assignment;
-using Microsoft.EntityFrameworkCore;
-using TaskPilot.Models.Enums;
-using TaskPilot.Data.Repositories.Interfaces;
+using TaskPilot.DTOs.Sprints;
 using TaskPilot.Models.Common;
+using TaskPilot.Models.Common.Errors;
+using TaskPilot.Models.Common.Results;
+using TaskPilot.Models.Entities;
+using TaskPilot.Services.Assignment;
+using TaskPilot.Services.Interfaces;
 
 namespace TaskPilot.Presentation.Controllers
 {
@@ -53,6 +46,7 @@ namespace TaskPilot.Presentation.Controllers
             _unitOfWork = unitOfWork;
         }
 
+        [Authorize(Roles = "ProjectManager")]
         [HttpPost("confirm")]
         public async Task<ActionResult> Confirm(
             Guid projectId,
@@ -65,7 +59,7 @@ namespace TaskPilot.Presentation.Controllers
             return HandleResult(result);
         }
 
-        [Authorize(Roles = "Admin,ProjectManager")]
+        [Authorize(Roles = "ProjectManager")]
         [HttpGet("{sprintId:guid}/assignment/snapshot")]
         public async Task<ActionResult> GetSnapshot(
             Guid projectId,
@@ -94,7 +88,7 @@ namespace TaskPilot.Presentation.Controllers
             return HandleResult(result);
         }
 
-        [Authorize(Roles = "Admin,ProjectManager")]
+        [Authorize(Roles = "ProjectManager")]
         [HttpGet("{sprintId:guid}/assignment/validate")]
         public async Task<ActionResult> ValidateAssignment(
             Guid projectId,
@@ -123,6 +117,7 @@ namespace TaskPilot.Presentation.Controllers
             return HandleResult(result);
         }
 
+        [Authorize(Roles = "ProjectManager")]
         [HttpPost("{sprintId:guid}/start")]
         public async Task<ActionResult> StartSprint(Guid projectId, Guid sprintId, CancellationToken cancellationToken)
         {
@@ -134,6 +129,7 @@ namespace TaskPilot.Presentation.Controllers
             return HandleResult(result, SuccessCodes.Sprint.Started);
         }
 
+        [Authorize(Roles = "ProjectManager")]
         [HttpPost("{sprintId:guid}/complete")]
         public async Task<ActionResult> CompleteSprint(Guid projectId, Guid sprintId, [FromBody] CompleteSprintRequest? request, CancellationToken cancellationToken)
         {
@@ -145,6 +141,7 @@ namespace TaskPilot.Presentation.Controllers
             return HandleResult(result, SuccessCodes.Sprint.Completed);
         }
 
+        [Authorize(Roles = "ProjectManager,Employee")]
         [HttpGet("active")]
         public async Task<ActionResult> GetActiveSprint(Guid projectId, CancellationToken cancellationToken)
         {
@@ -152,6 +149,7 @@ namespace TaskPilot.Presentation.Controllers
             return HandleResult(result, SuccessCodes.Sprint.ActiveRetrieved);
         }
 
+        [Authorize(Roles = "ProjectManager")]
         [HttpGet("planned")]
         public async Task<ActionResult> GetPlannedSprint(Guid projectId, CancellationToken cancellationToken)
         {
@@ -160,7 +158,7 @@ namespace TaskPilot.Presentation.Controllers
         }
 
         [HttpGet]
-        [Authorize(Roles = "ProjectManager,Employee")]
+        [Authorize(Roles = "ProjectManager")]
         public async Task<IActionResult> GetAllSprints(Guid projectId)
         {
             var result = await _sprintLifecycleService.GetAllSprintsAsync(projectId);
@@ -168,13 +166,14 @@ namespace TaskPilot.Presentation.Controllers
         }
 
         [HttpGet("completed/latest")]
-        [Authorize(Roles = "ProjectManager,Employee")]
+        [Authorize(Roles = "ProjectManager")]
         public async Task<IActionResult> GetLatestCompletedSprint(Guid projectId)
         {
             var result = await _sprintLifecycleService.GetLatestCompletedSprintAsync(projectId);
             return HandleResult(result);
         }
 
+        [Authorize(Roles = "ProjectManager,Employee")]
         [HttpGet("{sprintId:guid}/tasks")]
         public async Task<ActionResult> GetSprintTasks(
             Guid projectId,

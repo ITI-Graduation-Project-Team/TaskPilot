@@ -9,6 +9,7 @@ public class ProjectEmployeeDto
     public Guid EmployeeId { get; set; }
     public string FullName { get; set; } = string.Empty;
     public ProjectRole Role { get; set; }
+    public decimal AllocationPercentage { get; set; }
     public string JobTitle { get; set; } = string.Empty;
     public SeniorityLevel SeniorityLevel { get; set; }
     public int ActiveProjectsCount { get; set; }

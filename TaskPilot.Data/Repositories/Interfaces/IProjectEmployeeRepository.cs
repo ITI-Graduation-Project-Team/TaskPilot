@@ -20,5 +20,9 @@ namespace TaskPilot.Data.Repositories.Interfaces
         Task<List<ProjectEmployee>> GetActiveByEmployeeIdAsync(
             Guid employeeId,
             CancellationToken cancellationToken = default);
+
+        Task<List<ProjectEmployee>> GetActiveByProjectIdAsync(
+            Guid projectId,
+            CancellationToken cancellationToken = default);
     }
 }

@@ -45,6 +45,9 @@ namespace TaskPilot.Services
         private readonly IUnitOfWork
             _unitOfWork;
 
+        private readonly IFileValidatorService
+            _fileValidator;
+
         public CompanyService(
             IRepository<Company> companyRepository,
             IRepository<ProjectManager>
@@ -57,8 +60,11 @@ namespace TaskPilot.Services
             IFileStorageService fileStorage,
             IRepository<Employee> employeeRepository,
             IRepository<User> userRepository,
-            IUnitOfWork unitOfWork)
+            IUnitOfWork unitOfWork,
+            IFileValidatorService fileValidator)
         {
+            _fileValidator = fileValidator;
+            
             _companyRepository =
                 companyRepository;
 
@@ -146,6 +152,16 @@ namespace TaskPilot.Services
 
             if (request.PolicyDocument != null)
             {
+                var validationResult = await _fileValidator.ValidateAsync(
+                    request.PolicyDocument,
+                    new[] { FileType.Pdf },
+                    15 * 1024 * 1024); // 15MB limit
+                
+                if (!validationResult.IsSuccess)
+                {
+                    return Result<CompanyResponse>.Failure(validationResult.Error!);
+                }
+
                 var uploadResult =
                     await _fileStorage
                         .UploadFileAsync(
@@ -369,6 +385,7 @@ namespace TaskPilot.Services
                     EmployeeId = e.Id,
                     FullName = fullName,
                     Email = e.Email ?? string.Empty,
+                    AvatarUrl = e.AvatarUrl,
                     JobTitle = e.JobTitle ?? string.Empty,
                     SeniorityLevel = e.SeniorityLevel?.ToString() ?? string.Empty,
                     ActiveProjectsCount = activeProjectsCount,
@@ -677,6 +694,7 @@ namespace TaskPilot.Services
                 EmployeeId = e.Id,
                 FullName = fullName,
                 Email = e.Email ?? string.Empty,
+                AvatarUrl = e.AvatarUrl,
                 JobTitle = e.JobTitle ?? string.Empty,
                 SeniorityLevel = e.SeniorityLevel?.ToString() ?? string.Empty,
                 ActiveProjectsCount = activeProjectsCount,
@@ -720,6 +738,16 @@ namespace TaskPilot.Services
             }
             else if (request.Logo != null && request.Logo.Length > 0)
             {
+                var validationResult = await _fileValidator.ValidateAsync(
+                    request.Logo,
+                    new[] { FileType.Jpeg, FileType.Png },
+                    2 * 1024 * 1024); // 2MB limit
+                
+                if (!validationResult.IsSuccess)
+                {
+                    return Result<CompanyResponse>.Failure(validationResult.Error!);
+                }
+
                 // Upload the new logo to Cloudinary
                 var uploadResult = await _fileStorage.UploadFileAsync(
                     request.Logo,
@@ -756,6 +784,60 @@ namespace TaskPilot.Services
             };
 
             return Result<CompanyResponse>.Success(response);
+        }
+
+        public async Task<Result<bool>> UpdateWorkingConfigAsync(
+            Guid companyId,
+            Guid ownerId,
+            UpdateWorkingConfigDto request,
+            CancellationToken cancellationToken = default)
+        {
+            var company = await _companyRepository.GetByIdAsync(companyId);
+            if (company == null)
+            {
+                return Result<bool>.Failure(CompanyErrors.NotFound);
+            }
+
+            if (company.OwnerId != ownerId)
+            {
+                return Result<bool>.Failure(CompanyErrors.InvalidOwner);
+            }
+
+            company.WorkingHoursPerDay = request.WorkingHoursPerDay;
+            company.WorkingDaysMask = request.WorkingDaysMask;
+            company.DefaultCapacityBufferPercentage = request.DefaultCapacityBufferPercentage;
+            company.ModifiedAt = DateTime.UtcNow;
+
+            _companyRepository.Update(company);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return Result<bool>.Success(true);
+        }
+
+        public async Task<Result<WorkingConfigDto>> GetWorkingConfigAsync(
+            Guid companyId,
+            Guid ownerId,
+            CancellationToken cancellationToken = default)
+        {
+            var company = await _companyRepository.GetByIdAsync(companyId);
+            if (company == null)
+            {
+                return Result<WorkingConfigDto>.Failure(CompanyErrors.NotFound);
+            }
+
+            if (company.OwnerId != ownerId)
+            {
+                return Result<WorkingConfigDto>.Failure(CompanyErrors.InvalidOwner);
+            }
+
+            var dto = new WorkingConfigDto
+            {
+                WorkingHoursPerDay = company.WorkingHoursPerDay,
+                WorkingDaysMask = company.WorkingDaysMask,
+                DefaultCapacityBufferPercentage = company.DefaultCapacityBufferPercentage
+            };
+
+            return Result<WorkingConfigDto>.Success(dto);
         }
     }
 }

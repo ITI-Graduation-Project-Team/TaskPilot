@@ -22,19 +22,22 @@ namespace TaskPilot.Services
         private readonly IRepository<ProjectManager> _managerRepo;
         private readonly ILocalizationService _localizationService;
         private readonly ILogger<ProjectService> _logger;
+        private readonly ICurrentUserService _currentUserService;
 
         public ProjectService(
             IRepository<Project> projectRepo, 
             IRepository<Company> companyRepo,
             IRepository<ProjectManager> managerRepo,
             ILocalizationService localizationService,
-            ILogger<ProjectService> logger)
+            ILogger<ProjectService> logger,
+            ICurrentUserService currentUserService)
         {
             _projectRepo = projectRepo;
             _companyRepo = companyRepo;
             _managerRepo = managerRepo;
             _localizationService = localizationService;
             _logger = logger;
+            _currentUserService = currentUserService;
         }
 
         public async Task<Result<ProjectDto>> GetByIdAsync(Guid id)
@@ -91,10 +94,14 @@ namespace TaskPilot.Services
             if (!companyExists)
                 return Result.Failure<IEnumerable<ProjectDto>>(CompanyErrors.NotFound);
 
+            var userId = _currentUserService.UserId;
+            if (userId == null)
+                return Result.Failure<IEnumerable<ProjectDto>>(CommonErrors.Unauthorized());
+
             bool isArabic = _localizationService.CurrentLanguage == "ar";
 
             var projects = await _projectRepo.GetQueryable()
-                .Where(p => p.CompanyId == companyId && !p.IsDeleted)
+                .Where(p => p.CompanyId == companyId && p.ManagerId == userId && !p.IsDeleted)
                 .OrderByDescending(p => p.CreatedAt)
                 .Select(p => new ProjectDto
                 {
@@ -235,7 +242,11 @@ namespace TaskPilot.Services
 
         public async Task<Result<ProjectDto>> CreateAsync(CreateProjectDto dto)
         {
-            var managerExists = await _managerRepo.AnyAsync(pm => pm.Id == dto.ManagerId);
+            var userId = _currentUserService.UserId;
+            if (userId == null)
+                return Result.Failure<ProjectDto>(CommonErrors.Unauthorized());
+
+            var managerExists = await _managerRepo.AnyAsync(pm => pm.Id == userId.Value);
 
             if (!managerExists)
                 return Result.Failure<ProjectDto>(UserErrors.ProjectManagerNotFound);
@@ -251,7 +262,7 @@ namespace TaskPilot.Services
                 NameAr = dto.NameAr,
                 DescriptionEn = dto.DescriptionEn,
                 DescriptionAr = dto.DescriptionAr,
-                ManagerId = dto.ManagerId,
+                ManagerId = userId.Value,
                 CompanyId = dto.CompanyId
             };
 

@@ -1,260 +1,99 @@
-# name: SprintSuggestion
-# description: Analyzes the project backlog and suggests only the next Sprint (Sprint 1) focusing on building a coherent business milestone with multiple related stories.
-# template_format: semantic-kernel
-# template: |
-#   You are an Agile Sprint Planning Expert.
-#   Your task is to analyze the project backlog and suggest the MOST VALUABLE NEXT SPRINT (Sprint 1).
-#   You must NEVER suggest a complete roadmap or multiple sprints. Only suggest ONE sprint.
-#   You are building the next Sprint, which should represent one coherent business milestone.
-
-#   Project Details:
-#   - ProjectId: {{$projectId}}
-#   - Project Name: {{$projectName}}
-#   - Sprint Duration (Days): {{$sprintDurationInDays}}
-#   - Target Sprint Hours: {{$targetSprintHours}}
-
-#   Current Unassigned Backlog:
-#   {{$backlog}}
-
-#   INSTRUCTIONS AND PLANNING RULES:
-#   1. The AI must recommend ONE complete Sprint. Do not select only ONE User Story unless the backlog only has one.
-#   2. Start with the highest business value Story.
-#   3. Continue selecting related UserStories. Maximize Business Cohesion, not priority alone. Stories inside one Sprint should naturally belong together (e.g. Identity Sprint: Authentication + Authorization + Profile; NOT random unrelated stories).
-#   4. Capacity Rules:
-#   TargetSprintHours is a planning guideline, NOT a hard stopping condition.
-#   After selecting each User Story:
-#   - Calculate CurrentEstimatedHours.
-#   - Continue selecting additional related User Stories whenever they contribute to the same business milestone.
-#   - Prefer completing one coherent business capability over stopping early because the TargetSprintHours has been reached.
-#   - Use TargetSprintHours only to avoid creating an obviously oversized Sprint.
-#   - The total hours should reflect the actual scope of the coherent business capability.
-#   - A Sprint may exceed TargetSprintHours naturally if required to complete the business milestone.
-#   5.Never stop after selecting the first User Story unless the backlog contains only one story.
-
-#   If there are additional User Stories that belong to the same business capability,
-#   they MUST be included even if the TargetSprintHours has already been reached.
-#   Business Cohesion has higher priority than Capacity Optimization.
-#   The Sprint should feel like a usable product increment rather than a collection of isolated stories.
-#   6. Generate only Business Dependency Risks (e.g., "Patient Registration is required before Appointment Scheduling"). Do NOT generate timeline, velocity, team, capacity, or workload risks.
-#   7. Return a highly realistic Sprint Goal in both English and Arabic. Provide reasons for each story's inclusion in Sprint 1 (in English and Arabic).
-
-#   FORMAT YOUR OUTPUT AS VALID JSON ONLY. The structure must strictly match:
-#   {
-#     "sprintGoalEn": "string",
-#     "sprintGoalAr": "string",
-#     "totalEstimatedHours": number,
-#     "risks": [ "string" ],
-#     "stories": [
-#       {
-#         "storyId": "guid",
-#         "titleEn": "string",
-#         "titleAr": "string",
-#         "estimatedHours": number,
-#         "priorityScore": number, // 0 - 100
-#         "reasonEn": "string",
-#         "reasonAr": "string"
-#       }
-#     ]
-#   }
-#   DO NOT include markdown block formatting (like ```json). Just output the raw JSON.
 name: SprintSuggestion
-description: Analyzes the project backlog and suggests ONLY the next Sprint (Sprint 1), producing a complete and coherent business milestone rather than simply filling estimated hours.
+description: Generates a narrative Sprint Goal, Title, Risks, and Rationale based on a pre-selected set of stories.
 
 template_format: semantic-kernel
 
 execution_settings:
   default:
-    max_tokens: 16384
+    max_tokens: 8192
 
 template: |
-  You are a Senior Agile Coach and Scrum Sprint Planning Expert.
+  You are an Agile Sprint Planning Expert.
 
-  Your task is to analyze the current unassigned project backlog and recommend ONLY the next Sprint (Sprint {{$sprintNumber}}).
+  Your task is to generate the narrative context (Sprint Goal, Sprint Title, Risks, and Rationale) for the next Sprint (Sprint {{$sprintNumber}}).
 
   IMPORTANT:
-  - Suggest ONLY ONE Sprint (Sprint {{$sprintNumber}}).
-  - Do NOT generate future sprints or a complete roadmap.
-  - Think exactly like an experienced Scrum team during Sprint Planning.
+  - The Sprint Selection is FINAL and has already been determined by a deterministic capacity algorithm.
+  - DO NOT second-guess, dispute, or alter the selection.
+  - DO NOT mention that the selection was made by an algorithm.
+  - DO NOT reference raw priorityScore numbers (e.g. "1000", "400"). Describe priority qualitatively (carry-over, critical, high, etc.).
+  - Your ONLY job is to explain the selection cohesively and professionally.
 
   -------------------------------------------------------------------
   PROJECT DETAILS
   -------------------------------------------------------------------
 
-  Project Id:
-  {{$projectId}}
-
-  Project Name:
-  {{$projectName}}
-
-  Sprint Number:
-  {{$sprintNumber}}
-
-  Sprint Duration:
-  {{$sprintDurationInDays}} Days
-
-  Recommended Sprint Capacity (Soft Guideline):
-  {{$targetSprintHours}} Hours
+  Project Id: {{$projectId}}
+  Project Name: {{$projectName}}
+  Sprint Number: {{$sprintNumber}}
+  Sprint Duration: {{$sprintDurationInDays}} Days
+  Target Sprint Hours: {{$targetSprintHours}} Hours
+  Utilized Sprint Hours: {{$utilizedHours}} Hours
 
   -------------------------------------------------------------------
-  CURRENT UNASSIGNED BACKLOG
+  PRE-SELECTED SPRINT STORIES (FINAL)
   -------------------------------------------------------------------
+  These stories HAVE been included in the sprint.
+  {{$selectedStories}}
 
-  {{$backlog}}
+  -------------------------------------------------------------------
+  EXCLUDED STORIES SUMMARY (CONTEXT ONLY)
+  -------------------------------------------------------------------
+  The following stories/counts represent items deliberately excluded from this sprint by capacity/dependency constraints:
+  {{$excludedStories}}
 
   -------------------------------------------------------------------
   PREVIOUS SPRINT LESSONS & RETROSPECTIVE CONTEXT
   -------------------------------------------------------------------
-
   {{$retrospectiveContext}}
 
-  If retrospectiveContext is not empty:
-  - FEATURE COMPLETENESS RULE (Idea 5): If PARTIALLY COMPLETED FEATURES are listed, ALWAYS select their remaining tasks FIRST to bring those User Stories to 100% completion before picking brand-new 0% stories.
-  - CARRY-OVER TASKS RULE (Idea 1): Give highest priority to unfinished carry-over tasks from the previous sprint to ensure work is completed and not abandoned.
-  - Apply ReduceCapacity suggestions by reducing hours for flagged developers
-  - Apply ReduceTaskCount by selecting fewer stories than normal
-  - Apply AddBuffer by leaving a 15-20% margin under targetSprintHours
-
   -------------------------------------------------------------------
-  SPRINT PLANNING PRINCIPLES
+  INSTRUCTIONS
   -------------------------------------------------------------------
 
-  Assign as many user stories as the targetSprintHours capacity allows, based purely on priority score and estimated hours. Do not artificially limit the number of stories per sprint. A sprint may include stories from multiple features or capabilities if capacity and priority justify it.
+  1. SPRINT TITLE
+  Generate a concise, descriptive title for the sprint that summarizes the primary business value of the SELECTED stories (e.g., "Sprint {{$sprintNumber}}: Authentication & Profile Setup").
 
-  Your primary objective is to deliver ONE valuable business milestone that
-  could realistically be demonstrated at the Sprint Review.
+  2. SPRINT GOAL
+  Write a realistic, cohesive Sprint Goal based on the SELECTED stories. If the selection covers multiple distinct areas (due to priority-driven greedy packing), synthesize them into a professional goal that acknowledges the cross-cutting priorities without forcing a false theme.
+  Incorporate retrospective context if carry-over work is heavily present in the selection.
 
-  Think like a Product Owner and Scrum Team together.
+  3. STORY JUSTIFICATION (RATIONALE)
+  For every SELECTED User Story provide a reasonEn and reasonAr.
+  Explain WHY this story is included.
+  Base your explanation on its business value, priority, and capacity efficiency. DO NOT argue with the selection. Assume every selected story is critical to the sprint's success.
 
-  Every selected User Story should naturally belong with the others.
+  4. RISKS
+  Generate factual Business Dependency Risks, logical flow risks, or specific risks based on the provided context (e.g., "A Critical-priority story ('SSO Integration') could not be scheduled this sprint due to capacity constraints").
+  Do NOT generate GENERIC, speculative, or guessed risks regarding:
+  - Capacity (unless explicitly tied to a highlighted excluded story)
+  - Team/Personnel
+  - Velocity
+  - Timelines
+  - Workload
 
-  The Sprint should feel complete, not random.
-
-  -------------------------------------------------------------------
-  STORY SELECTION & CAPACITY RULES (CONDITIONAL PLANNING BEHAVIOR)
-  -------------------------------------------------------------------
-
-  DETERMINE WHICH CASE APPLIES BASED ON retrospectiveContext:
-
-  ===================================================================
-  CASE A: retrospectiveContext CONTAINS CARRY-OVER / UNFINISHED WORK
-  ===================================================================
-  1. Priority #1 (Carry-Over & Feature Completeness):
-     ALWAYS select remaining tasks for Partially Completed Stories and Unfinished Carry-Over Tasks listed in retrospectiveContext FIRST to deliver 100% completed shippable features.
-  2. Priority #2 (Capacity Utilization for Carry-over Sprints):
-     After resolving carry-over work, CONTINUE selecting remaining unassigned User Stories from the backlog to fill targetSprintHours capacity (accounting for any AddBuffer or ReduceCapacity rules). When selecting additional backlog stories to fill remaining capacity, select stories from a SINGLE secondary business capability to maintain domain focus rather than scattering across multiple unrelated domains.
-  3. STOPPING RULE FOR CASE A:
-     Stop ONLY when targetSprintHours capacity is reached (accounting for AddBuffer margins), OR when no unassigned stories remain in the backlog.
-
-  ===================================================================
-  CASE B: NO CARRY-OVER WORK (Normal Sprint / Sprint 1 / Empty Retrospective Context)
-  ===================================================================
-  1. Priority #1 (Single Coherent Business Capability):
-     Select the highest business value User Story.
-  2. Priority #2 (Cohesive Milestone Only):
-     Select ONLY additional User Stories that logically belong to the SAME SINGLE BUSINESS CAPABILITY (e.g. Identity Sprint: Auth + Authorization + User Profile; NOT mixing unrelated capabilities).
-  3. STRICT STOPPING RULE FOR CASE B:
-     STOP selecting new stories ONCE THE SINGLE COHERENT BUSINESS CAPABILITY IS COMPLETE, even if targetSprintHours is not fully reached. DO NOT mix unrelated business capabilities in a normal sprint without carry-over work.
-
-  -------------------------------------------------------------------
-  BUSINESS DEPENDENCY RULES
-  -------------------------------------------------------------------
-
-  Always respect logical dependencies.
-
-  Examples:
-
-  Patient Registration
-      before
-  Appointment Scheduling
-
-  Authentication
-      before
-  Authorization
-
-  Product Management
-      before
-  Inventory Tracking
-
-  Generate ONLY business dependency risks.
-
-  Do NOT generate:
-
-  - Capacity risks
-  - Team risks
-  - Velocity risks
-  - Timeline risks
-  - Workload risks
-
-  -------------------------------------------------------------------
-  SPRINT GOAL
-  -------------------------------------------------------------------
-
-  Produce a realistic Sprint Goal.
-
-  The Sprint Goal must describe ONE primary business outcome.
-  In CASE A, the Sprint Goal must focus primarily on finalizing and delivering the carry-over feature as the main outcome, while concisely acknowledging the secondary milestone.
-
-  Return it in:
-
-  - English
-  - Arabic
-
-  -------------------------------------------------------------------
-  STORY JUSTIFICATION
-  -------------------------------------------------------------------
-
-  For every selected User Story provide:
-
-  - reasonEn
-  - reasonAr
-
-  Explain WHY this story belongs inside Sprint 1.
-
-  The explanation should reference:
-
-  - business value
-  - dependencies
-  - milestone completion
-
-  -------------------------------------------------------------------
-  SELF VALIDATION (VERY IMPORTANT)
-  -------------------------------------------------------------------
-
-  Before producing the final JSON verify ALL of the following:
-
-  ✓ More than one User Story has been selected whenever possible.
-
-  ✓ The selected stories together form ONE coherent business capability.
-
-  ✓ The Sprint represents a demonstrable product increment.
-
-  ✓ No unrelated stories have been mixed together.
-
-  If any condition fails,
-  reconsider the selected stories before generating the final answer.
+  Return all narrative fields in BOTH English and Arabic.
 
   -------------------------------------------------------------------
   OUTPUT
   -------------------------------------------------------------------
 
   Return ONLY valid JSON.
-
   Never return Markdown.
-
-  Never explain your reasoning.
-
   Never wrap JSON inside ```json.
 
   The JSON MUST exactly match:
-
   {
     "sprintNumber": {{$sprintNumber}},
     "sprintTitleEn": "string (e.g. 'Sprint {{$sprintNumber}}: Payment Confirmations')",
     "sprintTitleAr": "string (e.g. 'السبرينت {{$sprintNumber}}: تأكيدات الدفع')",
     "sprintGoalEn": "string",
     "sprintGoalAr": "string",
-    "totalEstimatedHours": number,
-    "risks": [
+    "totalEstimatedHours": {{$utilizedHours}},
+    "risksEn": [
+      "string"
+    ],
+    "risksAr": [
       "string"
     ],
     "stories": [

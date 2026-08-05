@@ -30,6 +30,7 @@ namespace TaskPilot.Presentation.Controllers
             _userRepository = userRepository;
         }
 
+        [Authorize(Roles = "ProjectManager")]
         [HttpPost("setup")]
         public async Task<ActionResult>
             SetupCompany(
@@ -225,6 +226,39 @@ namespace TaskPilot.Presentation.Controllers
             // Use HandleResult to wrap response in the standard ApiResponse envelope
             // { succeeded, message, data } — consistent with all other endpoints
             return HandleResult(result, SuccessCodes.Company.Updated);
+        }
+
+        [Authorize(Roles = "ProjectManager")]
+        [HttpPut("{companyId}/working-config")]
+        public async Task<IActionResult> UpdateWorkingConfig(
+            [FromRoute] Guid companyId,
+            [FromBody] UpdateWorkingConfigDto request,
+            CancellationToken cancellationToken = default)
+        {
+            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(userIdStr, out Guid ownerId))
+            {
+                return Unauthorized(CommonErrors.Unauthorized("User is not authenticated."));
+            }
+
+            var result = await _companyService.UpdateWorkingConfigAsync(companyId, ownerId, request, cancellationToken);
+            return HandleResult(result, "COMPANY_WORKING_CONFIG_UPDATED");
+        }
+
+        [Authorize(Roles = "ProjectManager")]
+        [HttpGet("{companyId}/working-config")]
+        public async Task<IActionResult> GetWorkingConfig(
+            [FromRoute] Guid companyId,
+            CancellationToken cancellationToken = default)
+        {
+            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(userIdStr, out Guid ownerId))
+            {
+                return Unauthorized(CommonErrors.Unauthorized("User is not authenticated."));
+            }
+
+            var result = await _companyService.GetWorkingConfigAsync(companyId, ownerId, cancellationToken);
+            return HandleResult(result, "COMPANY_WORKING_CONFIG_RETRIEVED");
         }
     }
 }

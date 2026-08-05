@@ -524,45 +524,43 @@ namespace TaskPilot.Services
             });
         }
 
-        public async Task<Result<IEnumerable<TaskItemDto>>> GetSprintTasksAsync(
+        public async Task<Result<IEnumerable<SprintBoardTaskDto>>> GetSprintTasksAsync(
             Guid projectId,
             Guid sprintId,
             CancellationToken cancellationToken = default)
         {
-            if (projectId == Guid.Empty) return Result.Failure<IEnumerable<TaskItemDto>>(SprintErrors.InvalidProject);
-            if (sprintId == Guid.Empty) return Result.Failure<IEnumerable<TaskItemDto>>(SprintErrors.InvalidSprint);
+            if (projectId == Guid.Empty) return Result.Failure<IEnumerable<SprintBoardTaskDto>>(SprintErrors.InvalidProject);
+            if (sprintId == Guid.Empty) return Result.Failure<IEnumerable<SprintBoardTaskDto>>(SprintErrors.InvalidSprint);
 
             var project = await _projectRepository.GetByIdAsync(projectId);
             if (project == null)
             {
-                return Result.Failure<IEnumerable<TaskItemDto>>(SprintErrors.ProjectNotFound);
+                return Result.Failure<IEnumerable<SprintBoardTaskDto>>(SprintErrors.ProjectNotFound);
             }
 
             var sprint = await _sprintRepository.GetSprintWithTasksAsync(sprintId, cancellationToken);
             if (sprint == null)
             {
-                return Result.Failure<IEnumerable<TaskItemDto>>(SprintErrors.SprintNotFound);
+                return Result.Failure<IEnumerable<SprintBoardTaskDto>>(SprintErrors.SprintNotFound);
             }
 
             if (sprint.ProjectId != projectId)
             {
-                return Result.Failure<IEnumerable<TaskItemDto>>(SprintErrors.SprintDoesNotBelongToProject);
+                return Result.Failure<IEnumerable<SprintBoardTaskDto>>(SprintErrors.SprintDoesNotBelongToProject);
             }
             bool isArabic = _localizationService?.CurrentLanguage == "ar";
-            var tasks = sprint.Tasks.Select(t => new TaskItemDto
+            var tasks = sprint.Tasks.Select(t => new SprintBoardTaskDto
             {
-                Id = t.Id,
+                TaskId = t.Id,
                 UserStoryId = t.UserStoryId ?? Guid.Empty,
                 TitleEn = t.TitleEn,
                 TitleAr = t.TitleAr,
                 DescriptionEn = t.DescriptionEn,
                 DescriptionAr = t.DescriptionAr,
-                TechnicalSummaryEn = t.TechnicalSummaryEn,
-                TechnicalSummaryAr = t.TechnicalSummaryAr,
                 AcceptanceCriteriaEn = t.AcceptanceCriteriaEn,
                 AcceptanceCriteriaAr = t.AcceptanceCriteriaAr,
                 EstimatedHours = t.EstimatedHours,
-                EffortSize = t.EffortSize.ToString(),
+                ActualHours = t.ActualHours,
                 Type = t.Type.ToString(),
                 Priority = t.Priority.ToString(),
                 Status = t.Status.ToString(),
@@ -570,7 +568,7 @@ namespace TaskPilot.Services
                 AssigneeName = t.Employee != null ? (isArabic ? $"{t.Employee.FirstNameAr} {t.Employee.LastNameAr}" : $"{t.Employee.FirstNameEn} {t.Employee.LastNameEn}") : null
             }).ToList();
 
-            return Result.Success<IEnumerable<TaskItemDto>>(tasks);
+            return Result.Success<IEnumerable<SprintBoardTaskDto>>(tasks);
         }
     }
 }

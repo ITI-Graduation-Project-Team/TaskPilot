@@ -25,6 +25,7 @@ public class EmployeeController : ApiControllerBase
     private readonly IRepository<User> _userRepository;
     private readonly IRepository<Company> _companyRepository;
     private readonly IProjectService _projectService;
+    private readonly IFileValidatorService _fileValidator;
 
     public EmployeeController(
         ICvService cvService,
@@ -34,8 +35,8 @@ public class EmployeeController : ApiControllerBase
         IRepository<Employee> employeeRepository,
         IRepository<User> userRepository,
         IRepository<Company> companyRepository,
-        IProjectService projectService
-         )
+        IProjectService projectService,
+        IFileValidatorService fileValidator)
     {
         _cvService = cvService;
         _cvConfirmationService = cvConfirmationService;
@@ -45,6 +46,7 @@ public class EmployeeController : ApiControllerBase
         _userRepository = userRepository;
         _companyRepository = companyRepository;
         _projectService = projectService;
+        _fileValidator = fileValidator;
     }
 
     /// <summary>
@@ -63,21 +65,15 @@ public class EmployeeController : ApiControllerBase
         {
             return HandleResult(Result.Failure<ParsedCvDto>(CvErrors.InvalidFile));
         }
-        const long maxFileSize = 5 * 1024 * 1024;
 
-        if (request.File.Length > maxFileSize)
+        var validationResult = await _fileValidator.ValidateAsync(
+            request.File,
+            new[] { FileType.Pdf, FileType.Docx },
+            5 * 1024 * 1024); // 5MB limit
+
+        if (!validationResult.IsSuccess)
         {
-            return HandleResult(Result.Failure<ParsedCvDto>(CvErrors.FileTooLarge));
-        }
-        var allowedExtensions = new[] { ".pdf", ".docx" };
-
-        var extension = Path
-            .GetExtension(request.File.FileName)
-            .ToLowerInvariant();
-
-        if (!allowedExtensions.Contains(extension))
-        {
-            return HandleResult(Result.Failure<ParsedCvDto>(CvErrors.UnsupportedFormat));
+            return HandleResult(Result.Failure<ParsedCvDto>(validationResult.Error!));
         }
 
         Guid finalUserId;
@@ -152,6 +148,20 @@ public class EmployeeController : ApiControllerBase
         return HandleResult(result, SuccessCodes.Employee.CvUploaded);
     }
 
+    [Authorize(Roles = "Employee,ProjectManager")]
+    [HttpPut("profile")]
+    public async Task<ActionResult> UpdateProfile(
+        [FromForm] TaskPilot.DTOs.Employees.UpdateEmployeeProfileDto request,
+        [FromServices] IEmployeeProfileService profileService,
+        CancellationToken cancellationToken)
+    {
+        if (_currentUser.UserId == null)
+            return HandleResult(Result.Failure(CommonErrors.Unauthorized()));
+
+        var result = await profileService.UpdateProfileAsync(_currentUser.UserId.Value, request);
+        return HandleResult(result, SuccessCodes.Employee.Updated);
+    }
+
     [HttpGet("profile")]
     public async Task<ActionResult> GetProfile(CancellationToken cancellationToken)
     {
@@ -187,6 +197,10 @@ public class EmployeeController : ApiControllerBase
                 Id = user.Id,
                 FirstName = user.FirstNameEn,
                 LastName = user.LastNameEn,
+                FirstNameAr = user.FirstNameAr,
+                LastNameAr = user.LastNameAr,
+                PhoneNumber = user.PhoneNumber,
+                AvatarUrl = user.AvatarUrl,
                 Email = user.Email,
                 JobTitle = "Project Manager",
                 SeniorityLevel = "Manager",
@@ -195,7 +209,7 @@ public class EmployeeController : ApiControllerBase
                 CompanyId = user.CompanyId,
                 CompanyName = companyName,
                 CompanyLogoUrl = companyLogoUrl,
-                Skills = new List<string>()
+                Skills = new List<object>()
             });
         }
 
@@ -212,6 +226,11 @@ public class EmployeeController : ApiControllerBase
             Id = employee.Id,
             FirstName = employee.FirstNameEn,
             LastName = employee.LastNameEn,
+            FirstNameAr = employee.FirstNameAr,
+            LastNameAr = employee.LastNameAr,
+            PhoneNumber = employee.PhoneNumber,
+            AvatarUrl = employee.AvatarUrl,
+            LatestCvUrl = employee.LatestCvUrl,
             Email = employee.Email,
             JobTitle = employee.JobTitle ?? string.Empty,
             SeniorityLevel = employee.SeniorityLevel?.ToString() ?? "MidLevel",
@@ -220,7 +239,13 @@ public class EmployeeController : ApiControllerBase
             CompanyId = employee.CompanyId,
             CompanyName = companyName,
             CompanyLogoUrl = empCompanyLogoUrl,
-            Skills = employee.UserSkills.Select(us => us.Skill.Name).ToList()
+            Skills = employee.UserSkills.Select(us => new 
+            { 
+                Name = us.Skill.Name, 
+                Level = us.Level.ToString(), 
+                YearsOfExperience = us.YearsOfExperience, 
+                IsPrimary = us.IsPrimary 
+            }).ToList()
         });
     }
 

@@ -50,5 +50,18 @@ namespace TaskPilot.Services.Interfaces
                 Guid companyId,
                 Guid ownerId,
                 UpdateCompanyDto request);
+
+        Task<Result<bool>>
+            UpdateWorkingConfigAsync(
+                Guid companyId,
+                Guid ownerId,
+                UpdateWorkingConfigDto request,
+                CancellationToken cancellationToken = default);
+
+        Task<Result<WorkingConfigDto>>
+            GetWorkingConfigAsync(
+                Guid companyId,
+                Guid ownerId,
+                CancellationToken cancellationToken = default);
     }
 }
