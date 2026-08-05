@@ -89,7 +89,8 @@ public class ProjectTeamService : IProjectTeamService
         {
             ProjectId = projectId,
             EmployeeId = a.EmployeeId,
-            Role = a.Role
+            Role = a.Role,
+            AllocationPercentage = a.AllocationPercentage
         }).ToList();
 
         await _projectEmployeeRepository.AddRangeAsync(newAssignments);
@@ -138,6 +139,7 @@ public class ProjectTeamService : IProjectTeamService
                 EmployeeId = pe.EmployeeId,
                 FullName = $"{pe.Employee.FirstNameEn} {pe.Employee.LastNameEn}".Trim(),
                 Role = pe.Role,
+                AllocationPercentage = pe.AllocationPercentage,
                 JobTitle = pe.Employee.JobTitle ?? string.Empty,
                 SeniorityLevel = pe.Employee.SeniorityLevel ?? default,
                 ActiveProjectsCount = activeProjectsCount,

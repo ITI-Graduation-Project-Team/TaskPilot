@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.SemanticKernel;
 using TaskPilot.Models.Common;
 using TaskPilot.Services.Filters;
+using TaskPilot.Services.Implementations;
 using TaskPilot.Services.Interfaces;
 using TaskPilot.Services.Interfaces.CVExtractorInterfaces;
 using TaskPilot.Services.Repositories;
@@ -34,6 +35,7 @@ namespace TaskPilot.Services
             services.AddScoped<IBacklogService, BacklogService>();
             services.AddScoped<IBacklogRegenerationService, BacklogRegenerationService>();
             services.AddScoped<ISprintPlanningService, SprintPlanningService>();
+            services.AddScoped<ICapacityCalculationService, TaskPilot.Services.Implementations.CapacityCalculationService>();
             services.AddScoped<ISprintConfirmationService, SprintConfirmationService>();
             services.AddScoped<ISprintLifecycleService, SprintLifecycleService>();
             services.AddScoped<ITechStackService, TechStackService>();
@@ -80,6 +82,7 @@ namespace TaskPilot.Services
             services.AddScoped<ITaskStatusService, TaskPilot.Services.Implementations.TaskStatusService>();
             services.AddScoped<ICompanyService, CompanyService>();
             services.AddScoped<IEmployeeDeactivationService, TaskPilot.Services.Implementations.EmployeeDeactivationService>();
+            services.AddScoped<ISprintSelectionService, SprintSelectionService>();
 
             services.AddHostedService<BackgroundJobs.SubscriptionExpiryJob>();
 

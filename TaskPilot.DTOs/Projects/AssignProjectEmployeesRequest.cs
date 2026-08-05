@@ -13,4 +13,5 @@ public class ProjectEmployeeAssignmentDto
 {
     public Guid EmployeeId { get; set; }
     public ProjectRole Role { get; set; }
+    public decimal AllocationPercentage { get; set; } = 100m;
 }
