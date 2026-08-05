@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TaskPilot.Models.Common;
 using TaskPilot.Data.Repositories;
@@ -8,6 +9,7 @@ using TaskPilot.DTOs.AI.ProjectPolicies;
 
 namespace TaskPilot.Presentation.Controllers
 {
+    [Authorize(Roles = "ProjectManager")]
     public class ProjectsController : ApiControllerBase
     {
         private readonly IProjectService _projectService;

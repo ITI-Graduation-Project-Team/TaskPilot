@@ -16,7 +16,7 @@ namespace TaskPilot.Services.Interfaces
         Task<Result<ActiveSprintDto>> GetActiveSprintAsync(Guid projectId, CancellationToken cancellationToken = default);
         Task<Result<ActiveSprintDto>> GetPlannedSprintAsync(Guid projectId, CancellationToken cancellationToken = default);
         Task<Result<LatestCompletedSprintDto>> GetLatestCompletedSprintAsync(Guid projectId);
-        Task<Result<IEnumerable<TaskItemDto>>> GetSprintTasksAsync(Guid projectId, Guid sprintId, CancellationToken cancellationToken = default);
+        Task<Result<IEnumerable<SprintBoardTaskDto>>> GetSprintTasksAsync(Guid projectId, Guid sprintId, CancellationToken cancellationToken = default);
         /// <summary>
         /// Completes a sprint only when it is due. Returns false when the sprint
         /// is cancelled, deleted, missing, or its end date has been moved forward.

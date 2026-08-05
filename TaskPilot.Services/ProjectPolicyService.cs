@@ -30,6 +30,7 @@ namespace TaskPilot.Services
         private readonly IRepository<Policy> _policyRepository;
         private readonly IRepository<Project> _projectRepository;
         private readonly IFileStorageService _fileStorage;
+        private readonly IFileValidatorService _fileValidator;
         private readonly ILogger<ProjectPolicyService> _logger;
 
         private static readonly ConcurrentDictionary<Guid, SemaphoreSlim> _tenantLocks = new();
@@ -43,6 +44,7 @@ namespace TaskPilot.Services
             IRepository<Policy> policyRepository,
             IRepository<Project> projectRepository,
             IFileStorageService fileStorage,
+            IFileValidatorService fileValidator,
             ILogger<ProjectPolicyService> logger)
         {
             _extractors = extractors;
@@ -53,6 +55,7 @@ namespace TaskPilot.Services
             _policyRepository = policyRepository;
             _projectRepository = projectRepository;
             _fileStorage = fileStorage;
+            _fileValidator = fileValidator;
             _logger = logger;
         }
 
@@ -132,6 +135,17 @@ namespace TaskPilot.Services
                         ? $"taskpilot/project-policies/projects/{request.ProjectId.Value}" 
                         : $"taskpilot/project-policies/sessions/{request.RequirementSessionId!.Value}";
                         
+                    var validationResult = await _fileValidator.ValidateAsync(
+                        request.File,
+                        new[] { FileType.Pdf, FileType.Docx, FileType.Txt },
+                        15 * 1024 * 1024,
+                        cancellationToken);
+                        
+                    if (!validationResult.IsSuccess)
+                    {
+                        return Result.Failure<UploadProjectPolicyResponse>(validationResult.Error!);
+                    }
+
                     var uploadResult = await _fileStorage.UploadFileAsync(request.File, path);
                     if (!uploadResult.IsSuccess)
                     {

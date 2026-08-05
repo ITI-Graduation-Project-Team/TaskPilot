@@ -149,8 +149,19 @@ namespace TaskPilot.Models.Common
         }
 
 
+        public static class UserStory
+        {
+            public const string Created = "USER_STORY_CREATED_SUCCESS";
+            public const string Updated = "USER_STORY_UPDATED_SUCCESS";
+            public const string Deleted = "USER_STORY_DELETED_SUCCESS";
+        }
+
         public static class Task
         {
+            public const string Created = "TASK_CREATED_SUCCESS";
+            public const string Updated = "TASK_UPDATED_SUCCESS";
+            public const string Deleted = "TASK_DELETED_SUCCESS";
+
             public const string MyTasksRetrieved = "TASK_MY_TASKS_RETRIEVED_SUCCESS";
             public const string StatusUpdated = "TASK_STATUS_UPDATED_SUCCESS";
             public const string ActualHoursUpdated = "TASK_ACTUAL_HOURS_UPDATED_SUCCESS";

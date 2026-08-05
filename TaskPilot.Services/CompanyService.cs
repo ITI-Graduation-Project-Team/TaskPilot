@@ -45,6 +45,9 @@ namespace TaskPilot.Services
         private readonly IUnitOfWork
             _unitOfWork;
 
+        private readonly IFileValidatorService
+            _fileValidator;
+
         public CompanyService(
             IRepository<Company> companyRepository,
             IRepository<ProjectManager>
@@ -57,8 +60,11 @@ namespace TaskPilot.Services
             IFileStorageService fileStorage,
             IRepository<Employee> employeeRepository,
             IRepository<User> userRepository,
-            IUnitOfWork unitOfWork)
+            IUnitOfWork unitOfWork,
+            IFileValidatorService fileValidator)
         {
+            _fileValidator = fileValidator;
+            
             _companyRepository =
                 companyRepository;
 
@@ -146,6 +152,16 @@ namespace TaskPilot.Services
 
             if (request.PolicyDocument != null)
             {
+                var validationResult = await _fileValidator.ValidateAsync(
+                    request.PolicyDocument,
+                    new[] { FileType.Pdf },
+                    15 * 1024 * 1024); // 15MB limit
+                
+                if (!validationResult.IsSuccess)
+                {
+                    return Result<CompanyResponse>.Failure(validationResult.Error!);
+                }
+
                 var uploadResult =
                     await _fileStorage
                         .UploadFileAsync(
@@ -722,6 +738,16 @@ namespace TaskPilot.Services
             }
             else if (request.Logo != null && request.Logo.Length > 0)
             {
+                var validationResult = await _fileValidator.ValidateAsync(
+                    request.Logo,
+                    new[] { FileType.Jpeg, FileType.Png },
+                    2 * 1024 * 1024); // 2MB limit
+                
+                if (!validationResult.IsSuccess)
+                {
+                    return Result<CompanyResponse>.Failure(validationResult.Error!);
+                }
+
                 // Upload the new logo to Cloudinary
                 var uploadResult = await _fileStorage.UploadFileAsync(
                     request.Logo,
