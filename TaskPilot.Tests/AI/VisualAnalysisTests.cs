@@ -62,7 +62,9 @@ template: mock";
             promptLoaderMock.Setup(x => x.LoadAsync(It.IsAny<string>()))
                 .ReturnsAsync(validYaml);
 
-            var agent = new VisualAnalysisAgent(kernelServiceMock.Object, promptLoaderMock.Object);
+            var loggerMock = new Mock<Microsoft.Extensions.Logging.ILogger<VisualAnalysisAgent>>();
+            var telemetryMock = new Mock<ITelemetryAccumulator>();
+            var agent = new VisualAnalysisAgent(kernelServiceMock.Object, promptLoaderMock.Object, loggerMock.Object, telemetryMock.Object);
 
             // Act
             var result = await agent.AnalyzeImageAsync("url", new byte[] { 0x01 }, "image/png");

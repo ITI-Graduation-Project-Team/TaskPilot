@@ -52,5 +52,14 @@ namespace TaskPilot.Data.Repositories
                 .Where(pe => pe.EmployeeId == employeeId && pe.IsActive)
                 .ToListAsync(cancellationToken);
         }
+
+        public async Task<List<ProjectEmployee>> GetActiveByProjectIdAsync(
+            Guid projectId,
+            CancellationToken cancellationToken = default)
+        {
+            return await _context.ProjectEmployees
+                .Where(pe => pe.ProjectId == projectId && pe.IsActive)
+                .ToListAsync(cancellationToken);
+        }
     }
 }

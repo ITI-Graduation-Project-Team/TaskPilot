@@ -757,5 +757,33 @@ namespace TaskPilot.Services
 
             return Result<CompanyResponse>.Success(response);
         }
+
+        public async Task<Result<bool>> UpdateWorkingConfigAsync(
+            Guid companyId,
+            Guid ownerId,
+            UpdateWorkingConfigDto request,
+            CancellationToken cancellationToken = default)
+        {
+            var company = await _companyRepository.GetByIdAsync(companyId);
+            if (company == null)
+            {
+                return Result<bool>.Failure(CompanyErrors.NotFound);
+            }
+
+            if (company.OwnerId != ownerId)
+            {
+                return Result<bool>.Failure(CompanyErrors.InvalidOwner);
+            }
+
+            company.WorkingHoursPerDay = request.WorkingHoursPerDay;
+            company.WorkingDaysMask = request.WorkingDaysMask;
+            company.DefaultCapacityBufferPercentage = request.DefaultCapacityBufferPercentage;
+            company.ModifiedAt = DateTime.UtcNow;
+
+            _companyRepository.Update(company);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return Result<bool>.Success(true);
+        }
     }
 }

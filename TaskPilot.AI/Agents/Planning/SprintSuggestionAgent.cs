@@ -19,12 +19,14 @@ namespace TaskPilot.AI.Agents.Planning
             _promptLoader = promptLoader;
         }
 
-        public async Task<SprintSuggestionDto> SuggestSprintAsync(
+        public virtual async Task<SprintSuggestionDto> SuggestSprintAsync(
             Guid projectId,
             string projectName,
             int sprintDurationInDays,
             decimal targetSprintHours,
-            string backlogJson,
+            decimal utilizedHours,
+            string selectedStoriesJson,
+            string excludedStoriesJson,
             string retrospectiveContext = "",
             int sprintNumber = 1,
             CancellationToken cancellationToken = default)
@@ -37,71 +39,127 @@ namespace TaskPilot.AI.Agents.Planning
 
             var function = KernelFunctionYaml.FromPromptYaml(prompt);
 
-            var result = await kernel.InvokeAsync(
-                function,
-                new KernelArguments
+            var executionSettings = new Microsoft.SemanticKernel.Connectors.OpenAI.OpenAIPromptExecutionSettings
+            {
+                MaxTokens = 16384,
+                Temperature = 0.0,
+                Seed = 42,
+                ResponseFormat = "json_object"
+            };
+
+            var arguments = new KernelArguments(executionSettings)
+            {
+                ["projectId"] = projectId.ToString(),
+                ["projectName"] = projectName,
+                ["sprintDurationInDays"] = sprintDurationInDays.ToString(),
+                ["targetSprintHours"] = targetSprintHours.ToString(),
+                ["utilizedHours"] = utilizedHours.ToString(),
+                ["selectedStories"] = selectedStoriesJson,
+                ["excludedStories"] = excludedStoriesJson,
+                ["retrospectiveContext"] = retrospectiveContext ?? string.Empty,
+                ["sprintNumber"] = sprintNumber.ToString()
+            };
+
+            SprintSuggestionDto? suggestion = null;
+            int maxAttempts = 3;
+            Exception? lastException = null;
+
+            for (int attempt = 1; attempt <= maxAttempts; attempt++)
+            {
+                try
                 {
-                    ["projectId"] = projectId.ToString(),
-                    ["projectName"] = projectName,
-                    ["sprintDurationInDays"] = sprintDurationInDays.ToString(),
-                    ["targetSprintHours"] = targetSprintHours.ToString(),
-                    ["backlog"] = backlogJson,
-                    ["retrospectiveContext"] = retrospectiveContext ?? string.Empty,
-                    ["sprintNumber"] = sprintNumber.ToString()
-                },
-                cancellationToken: cancellationToken);
+                    var result = await kernel.InvokeAsync(function, arguments, cancellationToken);
+                    var raw = result.ToString();
+                    var repairedJson = TryRepairJson(raw);
+                    
+                    suggestion = JsonSerializer.Deserialize<SprintSuggestionDto>(repairedJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    
+                    if (suggestion != null && suggestion.Stories.Any())
+                    {
+                        break;
+                    }
+                }
+                catch (JsonException ex)
+                {
+                    lastException = ex;
+                }
+            }
 
-            var raw = result.ToString();
+            if (suggestion == null || !suggestion.Stories.Any())
+            {
+                throw new InvalidOperationException($"Sprint suggestion failed after 3 attempts due to invalid JSON.", lastException);
+            }
 
-            // Handle potential markdown code block format from AI just in case
+            if (suggestion.SprintNumber <= 0)
+            {
+                suggestion.SprintNumber = sprintNumber;
+            }
+
+            if (string.IsNullOrWhiteSpace(suggestion.SprintTitleEn))
+            {
+                suggestion.SprintTitleEn = $"Sprint {sprintNumber}";
+            }
+
+            if (string.IsNullOrWhiteSpace(suggestion.SprintTitleAr))
+            {
+                suggestion.SprintTitleAr = $"السبرينت {sprintNumber}";
+            }
+
+            return suggestion;
+        }
+
+        public static string TryRepairJson(string raw)
+        {
+            raw = raw.Trim();
             if (raw.StartsWith("```json"))
             {
                 raw = raw.Substring(7);
+                if (raw.EndsWith("```"))
+                {
+                    raw = raw.Substring(0, raw.Length - 3);
+                }
+                raw = raw.Trim();
             }
-            if (raw.StartsWith("```"))
+            else if (raw.StartsWith("```"))
             {
                 raw = raw.Substring(3);
-            }
-            if (raw.EndsWith("```"))
-            {
-                raw = raw.Substring(0, raw.Length - 3);
-            }
-            raw = raw.Trim();
-
-            try
-            {
-                var suggestion = JsonSerializer.Deserialize<SprintSuggestionDto>(
-                    raw,
-                    new JsonSerializerOptions
-                    {
-                        PropertyNameCaseInsensitive = true
-                    });
-
-                if (suggestion is null || !suggestion.Stories.Any())
-                    throw new InvalidOperationException("Sprint suggestion returned empty or null result.");
-
-                if (suggestion.SprintNumber <= 0)
+                if (raw.EndsWith("```"))
                 {
-                    suggestion.SprintNumber = sprintNumber;
+                    raw = raw.Substring(0, raw.Length - 3);
                 }
-
-                if (string.IsNullOrWhiteSpace(suggestion.SprintTitleEn))
-                {
-                    suggestion.SprintTitleEn = $"Sprint {sprintNumber}";
-                }
-
-                if (string.IsNullOrWhiteSpace(suggestion.SprintTitleAr))
-                {
-                    suggestion.SprintTitleAr = $"السبرينت {sprintNumber}";
-                }
-
-                return suggestion;
+                raw = raw.Trim();
             }
-            catch (JsonException ex)
+
+            if (!raw.StartsWith("{")) return raw;
+            if (raw.EndsWith("}")) return raw;
+
+            int lastClosingBrace = -1;
+            int depth = 0;
+            bool inString = false;
+            bool escape = false;
+
+            for (int i = 0; i < raw.Length; i++)
             {
-                throw new InvalidOperationException(
-                    $"Sprint suggestion returned invalid JSON: {ex.Message}. Raw AI output: {raw}", ex);
+                char c = raw[i];
+                if (escape) { escape = false; continue; }
+                if (c == '\\' && inString) { escape = true; continue; }
+                if (c == '"') { inString = !inString; continue; }
+                if (inString) continue;
+
+                if (c == '{') depth++;
+                else if (c == '}')
+                {
+                    depth--;
+                    if (depth == 1) 
+                        lastClosingBrace = i;
+                    else if (depth == 0)
+                        return raw; 
+                }
             }
+
+            if (lastClosingBrace == -1) return raw;
+
+            return raw.Substring(0, lastClosingBrace + 1) + "\n  ]\n}";
         }
     }
 }
