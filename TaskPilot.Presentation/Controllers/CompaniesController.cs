@@ -243,5 +243,21 @@ namespace TaskPilot.Presentation.Controllers
             var result = await _companyService.UpdateWorkingConfigAsync(companyId, ownerId, request, cancellationToken);
             return HandleResult(result, "COMPANY_WORKING_CONFIG_UPDATED");
         }
+
+        [Authorize(Roles = "ProjectManager")]
+        [HttpGet("{companyId}/working-config")]
+        public async Task<IActionResult> GetWorkingConfig(
+            [FromRoute] Guid companyId,
+            CancellationToken cancellationToken = default)
+        {
+            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(userIdStr, out Guid ownerId))
+            {
+                return Unauthorized(CommonErrors.Unauthorized("User is not authenticated."));
+            }
+
+            var result = await _companyService.GetWorkingConfigAsync(companyId, ownerId, cancellationToken);
+            return HandleResult(result, "COMPANY_WORKING_CONFIG_RETRIEVED");
+        }
     }
 }

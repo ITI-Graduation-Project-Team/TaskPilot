@@ -787,5 +787,31 @@ namespace TaskPilot.Services
 
             return Result<bool>.Success(true);
         }
+
+        public async Task<Result<WorkingConfigDto>> GetWorkingConfigAsync(
+            Guid companyId,
+            Guid ownerId,
+            CancellationToken cancellationToken = default)
+        {
+            var company = await _companyRepository.GetByIdAsync(companyId);
+            if (company == null)
+            {
+                return Result<WorkingConfigDto>.Failure(CompanyErrors.NotFound);
+            }
+
+            if (company.OwnerId != ownerId)
+            {
+                return Result<WorkingConfigDto>.Failure(CompanyErrors.InvalidOwner);
+            }
+
+            var dto = new WorkingConfigDto
+            {
+                WorkingHoursPerDay = company.WorkingHoursPerDay,
+                WorkingDaysMask = company.WorkingDaysMask,
+                DefaultCapacityBufferPercentage = company.DefaultCapacityBufferPercentage
+            };
+
+            return Result<WorkingConfigDto>.Success(dto);
+        }
     }
 }
