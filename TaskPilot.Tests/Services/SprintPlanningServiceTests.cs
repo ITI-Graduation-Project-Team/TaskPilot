@@ -87,6 +87,29 @@ namespace TaskPilot.Tests.Services
         }
 
         [Fact]
+        public async Task GenerateSprintSuggestionAsync_HasPlannedSprint_ReturnsAnotherSprintAlreadyPlannedError()
+        {
+            var projectId = Guid.NewGuid();
+            var project = new Project { NameEn = "Test Project" };
+
+            _projectRepoMock.Setup(r => r.GetByIdAsync(projectId))
+                .ReturnsAsync(project);
+
+            var existingSprints = new List<Sprint>
+            {
+                new Sprint { ProjectId = projectId, Status = SprintStatus.Planned }
+            };
+
+            _sprintRepoMock.Setup(r => r.GetQueryable())
+                .Returns(existingSprints.BuildMockDbSet().Object);
+
+            var result = await _service.GenerateSprintSuggestionAsync(projectId);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(SprintErrors.AnotherSprintAlreadyPlanned.Code, result.Error!.Code);
+        }
+
+        [Fact]
         public async Task GenerateSprintSuggestionAsync_OrchestratesCorrectly_AndMergesAiOutput()
         {
             // Arrange

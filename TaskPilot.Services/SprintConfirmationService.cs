@@ -1,4 +1,5 @@
 using Hangfire;
+using Microsoft.EntityFrameworkCore;
 using TaskPilot.Data.Repositories;
 using TaskPilot.Data.Repositories.Interfaces;
 using TaskPilot.DTOs.Sprints;
@@ -54,6 +55,19 @@ namespace TaskPilot.Services
             var assignedEmployees = await _projectEmployeeRepository.GetEmployeeIdsByProjectAsync(projectId, cancellationToken);
             if (!assignedEmployees.Any())
                 return Result.Failure<ConfirmSprintResult>(SprintErrors.NoEmployeesAssigned);
+
+            if (_sprintRepository != null)
+            {
+                var hasActiveSprint = await _sprintRepository.GetQueryable()
+                    .AnyAsync(s => s.ProjectId == projectId && s.Status == SprintStatus.Active, cancellationToken);
+                if (hasActiveSprint)
+                    return Result.Failure<ConfirmSprintResult>(SprintErrors.AnotherSprintAlreadyActive);
+
+                var hasPlannedSprint = await _sprintRepository.GetQueryable()
+                    .AnyAsync(s => s.ProjectId == projectId && s.Status == SprintStatus.Planned, cancellationToken);
+                if (hasPlannedSprint)
+                    return Result.Failure<ConfirmSprintResult>(SprintErrors.AnotherSprintAlreadyPlanned);
+            }
 
             // 2. Load the selected UserStories and validate they belong to
             //    this project AND are currently unassigned (SprintId == null).

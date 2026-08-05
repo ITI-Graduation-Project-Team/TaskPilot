@@ -73,6 +73,13 @@ namespace TaskPilot.Services
                 {
                     return Result.Failure<SprintSuggestionDto>(SprintErrors.AnotherSprintAlreadyActive);
                 }
+
+                var hasPlannedSprint = await _sprintRepository.GetQueryable()
+                    .AnyAsync(s => s.ProjectId == projectId && s.Status == SprintStatus.Planned, cancellationToken);
+                if (hasPlannedSprint)
+                {
+                    return Result.Failure<SprintSuggestionDto>(SprintErrors.AnotherSprintAlreadyPlanned);
+                }
             }
 
             var assignedEmployees = await _projectEmployeeRepository.GetEmployeeIdsByProjectAsync(projectId, cancellationToken);
