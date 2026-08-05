@@ -80,6 +80,18 @@ namespace TaskPilot.Presentation.Controllers
             return Ok(Result.Success());
         }
 
+        [HttpGet("{sprintId}/audit-log")]
+        [ProducesResponseType(typeof(Result<List<ActivityFeedItemDto>>), 200)]
+        [ProducesResponseType(typeof(Result<List<ActivityFeedItemDto>>), 400)]
+        public async Task<IActionResult> GetFullAuditLog(Guid sprintId, CancellationToken ct)
+        {
+            var result = await _riskService.GetFullAuditLogAsync(sprintId, ct);
+            if (!result.IsSuccess)
+                return BadRequest(result);
+
+            return Ok(result);
+        }
+
         [HttpGet("seed-mock-data")]
         [AllowAnonymous]
         public async Task<IActionResult> SeedMockData([FromServices] ApplicationDbContext db, [FromServices] Microsoft.AspNetCore.Identity.UserManager<User> userManager, [FromServices] Microsoft.AspNetCore.Identity.RoleManager<Microsoft.AspNetCore.Identity.IdentityRole<Guid>> roleManager)
