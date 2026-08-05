@@ -11,6 +11,8 @@ using TaskPilot.Models.Common.Errors;
 using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Enums;
 using TaskPilot.Services.Interfaces;
+using TaskPilot.Models.Entities;
+using TaskPilot.Data.Repositories;
 
 namespace TaskPilot.Services.Implementations
 {
@@ -19,24 +21,24 @@ namespace TaskPilot.Services.Implementations
         private readonly ITaskRepository _taskRepository;
         private readonly ISprintRepository _sprintRepository;
         private readonly IProjectEmployeeRepository _projectEmployeeRepository;
-        private readonly IProjectRepository _projectRepository;
         private readonly INotificationService _notificationService;
         private readonly ILogger<TaskStatusService> _logger;
+        private readonly IRepository<Project> _projectRepository;
 
         public TaskStatusService(
             ITaskRepository taskRepository,
             ISprintRepository sprintRepository,
             IProjectEmployeeRepository projectEmployeeRepository,
-            IProjectRepository projectRepository,
             INotificationService notificationService,
-            ILogger<TaskStatusService> logger)
+            ILogger<TaskStatusService> logger,
+            IRepository<Project> projectRepository)
         {
             _taskRepository = taskRepository;
             _sprintRepository = sprintRepository;
             _projectEmployeeRepository = projectEmployeeRepository;
-            _projectRepository = projectRepository;
             _notificationService = notificationService;
             _logger = logger;
+            _projectRepository = projectRepository;
         }
 
         public async Task<Result<MyTasksSummaryDto>> GetMyTasksAsync(
