@@ -536,6 +536,78 @@ namespace TaskPilot.Services
             return Result<TeamPulseDto>.Success(teamPulse);
         }
 
+        public async Task<Result<List<ActivityFeedItemDto>>> GetFullAuditLogAsync(Guid sprintId, CancellationToken ct = default)
+        {
+            var sprint = await _context.Set<Sprint>()
+                .Include(s => s.Project)
+                .ThenInclude(p => p.ProjectEmployees)
+                .ThenInclude(pe => pe.Employee)
+                .FirstOrDefaultAsync(s => s.Id == sprintId, ct);
+                
+            if (sprint == null)
+                return Result<List<ActivityFeedItemDto>>.Failure(SprintRiskErrors.SprintNotFound);
+
+            var alerts = await _context.Set<SprintRiskAlert>()
+                .Include(a => a.AffectedEmployee)
+                .Where(a => a.SprintId == sprintId)
+                .ToListAsync(ct);
+
+            var tasks = await _context.Set<TaskItem>()
+                .Where(t => t.SprintId == sprintId && !t.IsDeleted)
+                .ToListAsync(ct);
+
+            var activities = new List<ActivityFeedItemDto>();
+            
+            foreach(var a in alerts)
+            {
+                activities.Add(new ActivityFeedItemDto {
+                    Id = a.Id,
+                    Initials = a.AffectedEmployee != null ? $"{a.AffectedEmployee.FirstNameEn.FirstOrDefault()}{a.AffectedEmployee.LastNameEn.FirstOrDefault()}" : "AI",
+                    Name = a.AffectedEmployee != null ? $"{a.AffectedEmployee.FirstNameEn} {a.AffectedEmployee.LastNameEn}" : "System",
+                    ActionType = a.Severity == RiskSeverity.Critical ? "CRITICAL" : "ALERT",
+                    Description = a.MessageEn,
+                    Timestamp = a.CreatedAt,
+                    TimeAgo = GetTimeAgo(a.CreatedAt),
+                    AgentTag = "Agile Coach"
+                });
+            }
+            
+            foreach(var t in tasks)
+            {
+                var emp = sprint.Project.ProjectEmployees.FirstOrDefault(pe => pe.EmployeeId == t.EmployeeId)?.Employee;
+                
+                // Add creation activity
+                activities.Add(new ActivityFeedItemDto {
+                    Id = Guid.NewGuid(), // synthetic id for activity
+                    Initials = emp != null ? $"{emp.FirstNameEn.FirstOrDefault()}{emp.LastNameEn.FirstOrDefault()}" : "UK",
+                    Name = emp != null ? $"{emp.FirstNameEn} {emp.LastNameEn}" : "Unknown",
+                    ActionType = "INFO",
+                    Description = $"Added task: {t.TitleEn}",
+                    Timestamp = t.CreatedAt,
+                    TimeAgo = GetTimeAgo(t.CreatedAt),
+                    AgentTag = ""
+                });
+
+                // If done, add completion activity
+                if (t.Status == TaskItemStatus.Done && t.ModifiedAt.HasValue)
+                {
+                    activities.Add(new ActivityFeedItemDto {
+                        Id = t.Id,
+                        Initials = emp != null ? $"{emp.FirstNameEn.FirstOrDefault()}{emp.LastNameEn.FirstOrDefault()}" : "UK",
+                        Name = emp != null ? $"{emp.FirstNameEn} {emp.LastNameEn}" : "Unknown",
+                        ActionType = "SUCCESS",
+                        Description = $"Completed task: {t.TitleEn}",
+                        Timestamp = t.ModifiedAt.Value,
+                        TimeAgo = GetTimeAgo(t.ModifiedAt.Value),
+                        AgentTag = ""
+                    });
+                }
+            }
+
+            var sortedActivities = activities.OrderByDescending(a => a.Timestamp).ToList();
+            return Result<List<ActivityFeedItemDto>>.Success(sortedActivities);
+        }
+
         private string GetTimeAgo(DateTime timestamp)
         {
             var span = DateTime.UtcNow - timestamp;

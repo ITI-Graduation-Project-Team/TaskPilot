@@ -16,5 +16,6 @@ namespace TaskPilot.Services.Interfaces
         Task<Result<List<SprintRiskAlertDto>>> GetAlertsAsync(Guid sprintId);
         Task<Result> DismissAlertAsync(Guid alertId, Guid requestingUserId);
         Task<Result<SprintRiskSimulationResponseDto>> SimulateAsync(Guid alertId, CancellationToken ct = default);
+        Task<Result<List<ActivityFeedItemDto>>> GetFullAuditLogAsync(Guid sprintId, CancellationToken ct = default);
     }
 }
