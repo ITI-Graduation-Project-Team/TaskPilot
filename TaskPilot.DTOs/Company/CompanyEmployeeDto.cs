@@ -9,6 +9,7 @@ public class CompanyEmployeeDto
     public Guid EmployeeId { get; set; }
     public string FullName { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
+    public string? AvatarUrl { get; set; }
     public string JobTitle { get; set; } = string.Empty;
     public string SeniorityLevel { get; set; } = string.Empty;
     public List<string> Skills { get; set; } = new();

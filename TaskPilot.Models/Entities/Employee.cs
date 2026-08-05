@@ -13,6 +13,8 @@ namespace TaskPilot.Models.Entities
         public bool IsProfileCompleted { get; set; } = false;
         public DateTime? LastCvProcessedAt { get; set; }
         public AiProcessingStatus CvProcessingStatus { get; set; }
+        public string? LatestCvUrl { get; set; }
+        public string? CvPublicId { get; set; }
 
         public bool IsDeactivated { get; set; }
         public DateTime? DeactivatedAt { get; set; }
