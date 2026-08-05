@@ -11,5 +11,6 @@ public class TaskSnapshotDto
     public TaskPriority Priority { get; set; }
     public EffortSize EffortSize { get; set; }
     public TaskType Type { get; set; }
+    public Guid? AssigneeId { get; set; }
     public List<TaskRequiredSkillDto> RequiredSkills { get; set; } = new();
 }

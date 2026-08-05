@@ -117,6 +117,129 @@ namespace TaskPilot.Services
             return Result.Success(projects.AsEnumerable());
         }
 
+        public async Task<Result<IEnumerable<ProjectDto>>> GetProjectsByEmployeeIdAsync(Guid employeeId, CancellationToken cancellationToken = default)
+        {
+            if (employeeId == Guid.Empty)
+                return Result.Failure<IEnumerable<ProjectDto>>(CommonErrors.InvalidInput("Employee ID cannot be empty."));
+
+            var isArabic = _localizationService.CurrentLanguage == "ar";
+
+            var projects = await _projectRepo.GetQueryable()
+                .Where(p => p.ProjectEmployees.Any(pe => pe.EmployeeId == employeeId) && !p.IsDeleted)
+                .OrderByDescending(p => p.CreatedAt)
+                .Select(p => new ProjectDto
+                {
+                    Id = p.Id,
+                    Name = isArabic ? p.NameAr : p.NameEn,
+                    Description = isArabic ? p.DescriptionAr : p.DescriptionEn,
+                    CompanyId = p.CompanyId,
+                    ManagerId = p.ManagerId,
+                    TechStack = p.TechStack,
+                    PlatformTargets = p.PlatformTargets,
+                    ProjectType = p.ProjectType,
+                    status = p.Status,
+                    TeamSize = p.ProjectEmployees.Count,
+                    TotalUserStories = p.UserStories.Count,
+                    CompletedSprintsCount = p.Sprints.Count(s => s.Status == SprintStatus.Completed),
+                    ActiveSprintsCount = p.Sprints.Count(s => s.Status == SprintStatus.Active)
+                })
+                .ToListAsync(cancellationToken);
+
+            return Result.Success(projects.AsEnumerable());
+        }
+
+        public async Task<Result<PagedResult<ProjectDto>>> GetProjectsByCompanyIdPagedAsync(Guid companyId, int page, int pageSize, CancellationToken cancellationToken = default)
+        {
+            var companyExists = await _companyRepo.AnyAsync(c => c.Id == companyId);
+            if (!companyExists)
+                return Result.Failure<PagedResult<ProjectDto>>(CompanyErrors.NotFound);
+
+            var isArabic = _localizationService.CurrentLanguage == "ar";
+
+            var query = _projectRepo.GetQueryable()
+                .Where(p => p.CompanyId == companyId && !p.IsDeleted)
+                .OrderByDescending(p => p.CreatedAt);
+
+            var totalCount = await query.CountAsync(cancellationToken);
+
+            var projects = await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(p => new ProjectDto
+                {
+                    Id = p.Id,
+                    Name = isArabic ? p.NameAr : p.NameEn,
+                    Description = isArabic ? p.DescriptionAr : p.DescriptionEn,
+                    CompanyId = p.CompanyId,
+                    ManagerId = p.ManagerId,
+                    TechStack = p.TechStack,
+                    PlatformTargets = p.PlatformTargets,
+                    ProjectType = p.ProjectType,
+                    status = p.Status,
+                    TeamSize = p.ProjectEmployees.Count,
+                    TotalUserStories = p.Sprints.SelectMany(s => s.Tasks).Count(),
+                    CompletedSprintsCount = p.Sprints.Count(s => s.Status == SprintStatus.Completed),
+                    ActiveSprintsCount = p.Sprints.Count(s => s.Status == SprintStatus.Active)
+                })
+                .ToListAsync(cancellationToken);
+
+            var pagedResult = new PagedResult<ProjectDto> 
+            {
+                Items = projects,
+                TotalItems = totalCount,
+                Page = page,
+                PageSize = pageSize,
+                TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize),
+                HasNextPage = page * pageSize < totalCount,
+                HasPreviousPage = page > 1
+            };
+            return Result.Success(pagedResult);
+        }
+
+        public async Task<Result<PagedResult<ProjectDto>>> GetProjectsByEmployeeIdPagedAsync(Guid employeeId, int page, int pageSize, CancellationToken cancellationToken = default)
+        {
+            var isArabic = _localizationService.CurrentLanguage == "ar";
+
+            var query = _projectRepo.GetQueryable()
+                .Where(p => p.ProjectEmployees.Any(pe => pe.EmployeeId == employeeId) && !p.IsDeleted)
+                .OrderByDescending(p => p.CreatedAt);
+
+            var totalCount = await query.CountAsync(cancellationToken);
+
+            var projects = await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(p => new ProjectDto
+                {
+                    Id = p.Id,
+                    Name = isArabic ? p.NameAr : p.NameEn,
+                    Description = isArabic ? p.DescriptionAr : p.DescriptionEn,
+                    CompanyId = p.CompanyId,
+                    ManagerId = p.ManagerId,
+                    TechStack = p.TechStack,
+                    PlatformTargets = p.PlatformTargets,
+                    ProjectType = p.ProjectType,
+                    status = p.Status,
+                    TeamSize = p.ProjectEmployees.Count,
+                    TotalUserStories = p.Sprints.SelectMany(s => s.Tasks).Count(),
+                    CompletedSprintsCount = p.Sprints.Count(s => s.Status == SprintStatus.Completed),
+                    ActiveSprintsCount = p.Sprints.Count(s => s.Status == SprintStatus.Active)
+                })
+                .ToListAsync(cancellationToken);
+
+            var pagedResult = new PagedResult<ProjectDto> 
+            {
+                Items = projects,
+                TotalItems = totalCount,
+                Page = page,
+                PageSize = pageSize,
+                TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize),
+                HasNextPage = page * pageSize < totalCount,
+                HasPreviousPage = page > 1
+            };
+            return Result.Success(pagedResult);
+        }
+
         public async Task<Result<ProjectDto>> CreateAsync(CreateProjectDto dto)
         {
             var userId = _currentUserService.UserId;
@@ -266,29 +389,6 @@ namespace TaskPilot.Services
             return Result.Success(transitions);
         }
 
-        public async Task<Result<IEnumerable<ProjectDto>>> GetProjectsByEmployeeIdAsync(Guid employeeId, CancellationToken cancellationToken = default)
-        {
-            if (employeeId == Guid.Empty)
-                return Result.Failure<IEnumerable<ProjectDto>>(CommonErrors.InvalidInput("Employee ID cannot be empty."));
-
-            bool isArabic = _localizationService.CurrentLanguage == "ar";
-
-            var projects = await _projectRepo.GetQueryable()
-                .Where(p => !p.IsDeleted && p.ProjectEmployees.Any(pe => pe.EmployeeId == employeeId))
-                .OrderByDescending(p => p.CreatedAt)
-                .Select(p => new ProjectDto
-                {
-                    Id = p.Id,
-                    Name = isArabic ? p.NameAr : p.NameEn,
-                    Description = isArabic ? p.DescriptionAr : p.DescriptionEn,
-                    CompanyId = p.CompanyId,
-                    ManagerId = p.ManagerId,
-                    status = p.Status
-                })
-                .ToListAsync(cancellationToken);
-
-            return Result.Success<IEnumerable<ProjectDto>>(projects);
-        }
 
         private List<ProjectStatus> GetAllowedTransitions(ProjectStatus currentStatus)
         {

@@ -1,4 +1,8 @@
 using Hangfire;
+using TaskPilot.Services.BackgroundJobs;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using TaskPilot.Data.Repositories;
 using TaskPilot.Data.Repositories.Interfaces;
@@ -7,7 +11,6 @@ using TaskPilot.Models.Common.Errors;
 using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Entities;
 using TaskPilot.Models.Enums;
-using TaskPilot.Services.BackgroundJobs;
 using TaskPilot.Services.Interfaces;
 namespace TaskPilot.Services
 {
@@ -140,6 +143,10 @@ namespace TaskPilot.Services
                 _backgroundJobClient.Schedule<SprintCompletionJob>(
                     job => job.ExecuteAsync(sprint.Id),
                     new DateTimeOffset(DateTime.SpecifyKind(sprint.EndDate, DateTimeKind.Utc)));
+
+                _backgroundJobClient.Schedule<SprintEndReminderJob>(
+                    job => job.ExecuteAsync(sprint.Id),
+                    new DateTimeOffset(DateTime.SpecifyKind(sprint.EndDate.AddDays(-1), DateTimeKind.Utc)));
 
                 var confirmResult = new ConfirmSprintResult
                 {
