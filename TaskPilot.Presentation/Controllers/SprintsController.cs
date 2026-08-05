@@ -1,22 +1,15 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
-using TaskPilot.DTOs.Sprints;
-using TaskPilot.DTOs.Backlog;
-using TaskPilot.Services.Interfaces;
-using TaskPilot.Services.Assignment;
-using TaskPilot.Models.Common.Results;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using TaskPilot.Data.Repositories;
-using TaskPilot.Models.Entities;
-using TaskPilot.Models.Common.Errors;
 using TaskPilot.DTOs.Assignment;
-using Microsoft.EntityFrameworkCore;
-using TaskPilot.Models.Enums;
-using TaskPilot.Data.Repositories.Interfaces;
+using TaskPilot.DTOs.Sprints;
 using TaskPilot.Models.Common;
+using TaskPilot.Models.Common.Errors;
+using TaskPilot.Models.Common.Results;
+using TaskPilot.Models.Entities;
+using TaskPilot.Services.Assignment;
+using TaskPilot.Services.Interfaces;
 
 namespace TaskPilot.Presentation.Controllers
 {
@@ -156,7 +149,7 @@ namespace TaskPilot.Presentation.Controllers
             return HandleResult(result, SuccessCodes.Sprint.ActiveRetrieved);
         }
 
-        [Authorize(Roles = "ProjectManager,Employee")]
+        [Authorize(Roles = "ProjectManager")]
         [HttpGet("planned")]
         public async Task<ActionResult> GetPlannedSprint(Guid projectId, CancellationToken cancellationToken)
         {
@@ -165,7 +158,7 @@ namespace TaskPilot.Presentation.Controllers
         }
 
         [HttpGet]
-        [Authorize(Roles = "ProjectManager,Employee")]
+        [Authorize(Roles = "ProjectManager")]
         public async Task<IActionResult> GetAllSprints(Guid projectId)
         {
             var result = await _sprintLifecycleService.GetAllSprintsAsync(projectId);
@@ -173,7 +166,7 @@ namespace TaskPilot.Presentation.Controllers
         }
 
         [HttpGet("completed/latest")]
-        [Authorize(Roles = "ProjectManager,Employee")]
+        [Authorize(Roles = "ProjectManager")]
         public async Task<IActionResult> GetLatestCompletedSprint(Guid projectId)
         {
             var result = await _sprintLifecycleService.GetLatestCompletedSprintAsync(projectId);
