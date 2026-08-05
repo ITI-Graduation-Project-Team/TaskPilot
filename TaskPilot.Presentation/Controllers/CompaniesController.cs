@@ -226,5 +226,22 @@ namespace TaskPilot.Presentation.Controllers
             // { succeeded, message, data } — consistent with all other endpoints
             return HandleResult(result, SuccessCodes.Company.Updated);
         }
+
+        [Authorize(Roles = "ProjectManager")]
+        [HttpPut("{companyId}/working-config")]
+        public async Task<IActionResult> UpdateWorkingConfig(
+            [FromRoute] Guid companyId,
+            [FromBody] UpdateWorkingConfigDto request,
+            CancellationToken cancellationToken = default)
+        {
+            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(userIdStr, out Guid ownerId))
+            {
+                return Unauthorized(CommonErrors.Unauthorized("User is not authenticated."));
+            }
+
+            var result = await _companyService.UpdateWorkingConfigAsync(companyId, ownerId, request, cancellationToken);
+            return HandleResult(result, "COMPANY_WORKING_CONFIG_UPDATED");
+        }
     }
 }

@@ -78,7 +78,9 @@ template: mock";
                     (col, sId, pId, cId, query, k, min, filter, ct) => capturedQuery = query)
                 .ReturnsAsync(new List<KnowledgeChunk> { diagramChunk });
 
-            var agent = new RequirementsBuilderAgent(kernelServiceMock.Object, promptLoaderMock.Object, vectorStoreMock.Object);
+            var loggerMock = new Mock<Microsoft.Extensions.Logging.ILogger<RequirementsBuilderAgent>>();
+            var telemetryMock = new Mock<ITelemetryAccumulator>();
+            var agent = new RequirementsBuilderAgent(kernelServiceMock.Object, promptLoaderMock.Object, vectorStoreMock.Object, loggerMock.Object, telemetryMock.Object);
 
             // Act
             try

@@ -36,7 +36,7 @@ namespace TaskPilot.Tests.Services
             var kernelServiceMock = new Mock<TaskPilot.AI.Services.Interfaces.IAiKernelService>();
             var promptLoaderMock = new Mock<TaskPilot.AI.Services.Interfaces.IPromptLoaderService>();
             var loggerMock = new Mock<Microsoft.Extensions.Logging.ILogger<RequiredSkillsEnrichmentAgent>>();
-            _agentMock = new Mock<RequiredSkillsEnrichmentAgent>(kernelServiceMock.Object, promptLoaderMock.Object, loggerMock.Object);
+            _agentMock = new Mock<RequiredSkillsEnrichmentAgent>(kernelServiceMock.Object, promptLoaderMock.Object, loggerMock.Object, null!);
 
             _unitOfWorkMock = new Mock<IUnitOfWork>();
         }

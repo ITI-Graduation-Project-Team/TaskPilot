@@ -19,5 +19,7 @@ namespace TaskPilot.DTOs.Backlog
         public string Type { get; set; } = string.Empty;
         public string Priority { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
+        public Guid? AssigneeId { get; set; }
+        public string? AssigneeName { get; set; }
     }
 }

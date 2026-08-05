@@ -18,5 +18,7 @@ namespace TaskPilot.Models.Entities
         // Preserves the historical record while excluding the employee
         // from active-member queries (e.g. sprint planning, assignment scoring).
         public bool IsActive { get; set; } = true;
+
+        public decimal AllocationPercentage { get; set; } = 100.0m;
     }
 }

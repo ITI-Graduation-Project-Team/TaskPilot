@@ -29,6 +29,8 @@ namespace TaskPilot.Services
         private readonly IRepository<Sprint> _sprintRepository;
         private readonly SprintDataCollectionService _dataCollectionService;
         private readonly SprintSuggestionAgent _sprintSuggestionAgent;
+        private readonly ICapacityCalculationService _capacityCalculationService;
+        private readonly ISprintSelectionService _sprintSelectionService;
         private readonly ILogger<SprintPlanningService> _logger;
 
         public SprintPlanningService(
@@ -39,6 +41,8 @@ namespace TaskPilot.Services
             IRepository<Sprint> sprintRepository,
             SprintDataCollectionService dataCollectionService,
             SprintSuggestionAgent sprintSuggestionAgent,
+            ICapacityCalculationService capacityCalculationService,
+            ISprintSelectionService sprintSelectionService,
             ILogger<SprintPlanningService> logger)
         {
             _projectRepository = projectRepository;
@@ -48,6 +52,8 @@ namespace TaskPilot.Services
             _sprintRepository = sprintRepository;
             _dataCollectionService = dataCollectionService;
             _sprintSuggestionAgent = sprintSuggestionAgent;
+            _capacityCalculationService = capacityCalculationService;
+            _sprintSelectionService = sprintSelectionService;
             _logger = logger;
         }
 
@@ -66,6 +72,13 @@ namespace TaskPilot.Services
                 if (hasActiveSprint)
                 {
                     return Result.Failure<SprintSuggestionDto>(SprintErrors.AnotherSprintAlreadyActive);
+                }
+
+                var hasPlannedSprint = await _sprintRepository.GetQueryable()
+                    .AnyAsync(s => s.ProjectId == projectId && s.Status == SprintStatus.Planned, cancellationToken);
+                if (hasPlannedSprint)
+                {
+                    return Result.Failure<SprintSuggestionDto>(SprintErrors.AnotherSprintAlreadyPlanned);
                 }
             }
 
@@ -88,34 +101,6 @@ namespace TaskPilot.Services
                 return Result.Failure<SprintSuggestionDto>(CommonErrors.InvalidInput("Every UserStory already belongs to a Sprint."));
             }
 
-            var backlogData = unassignedStories.Select(us => new
-            {
-                us.Id,
-                us.TitleEn,
-                us.TitleAr,
-                us.DescriptionEn,
-                us.DescriptionAr,
-                us.AcceptanceCriteriaEn,
-                us.AcceptanceCriteriaAr,
-                Priority = us.Priority.ToString(),
-                Tasks = us.Tasks.Where(t => t.Status != TaskItemStatus.Done).Select(t => new
-                {
-                    t.TitleEn,
-                    t.TitleAr,
-                    t.EstimatedHours,
-                    EffortSize = t.EffortSize.ToString(),
-                    Priority = t.Priority.ToString(),
-                    Type = t.Type.ToString()
-                }).ToList(),
-                TotalEstimatedHours = us.Tasks.Where(t => t.Status != TaskItemStatus.Done).Sum(t => t.EstimatedHours)
-            }).ToList();
-
-            var backlogJson = JsonSerializer.Serialize(backlogData, new JsonSerializerOptions
-            {
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                WriteIndented = true
-            });
-
             // Fetch previous retrospective context
             var previousRetrospective = await _retrospectiveRepository.GetQueryable()
                 .Include(r => r.Sprint)
@@ -124,6 +109,7 @@ namespace TaskPilot.Services
                 .FirstOrDefaultAsync(cancellationToken);
 
             var retrospectiveContext = string.Empty;
+            var carryOverStoryIds = new HashSet<Guid>();
 
             if (previousRetrospective is not null)
             {
@@ -157,6 +143,7 @@ namespace TaskPilot.Services
 
                         foreach (var story in retroData.PartiallyCompletedStories)
                         {
+                            if (story.UserStoryId != Guid.Empty) carryOverStoryIds.Add(story.UserStoryId);
                             contextLines.Add($"  - Story '{story.TitleEn}' (ID: {story.UserStoryId}) is {story.CompletionPercentage}% complete ({story.CompletedTasks}/{story.TotalTasks} tasks done):");
 
                             var storyTasks = retroData.UnfinishedTasks.Where(t => t.UserStoryId == story.UserStoryId).ToList();
@@ -173,6 +160,10 @@ namespace TaskPilot.Services
                             contextLines.Add("  - Unattached Carry-Over Tasks:");
                             foreach (var task in orphanTasks)
                             {
+                                if (task.UserStoryId.HasValue && task.UserStoryId.Value != Guid.Empty)
+                                {
+                                    carryOverStoryIds.Add(task.UserStoryId.Value);
+                                }
                                 contextLines.Add($"      └── Task: '{task.TitleEn}' (Estimated: {task.EstimatedHours}h, Status: {task.Reason}, Assignee: {task.AssigneeName})");
                             }
                         }
@@ -197,15 +188,104 @@ namespace TaskPilot.Services
 
             var nextSprintNumber = existingSprintsCount + 1;
 
-            var suggestion = await _sprintSuggestionAgent.SuggestSprintAsync(
-                projectId,
-                project.NameEn,
-                project.SprintDurationInDays,
-                project.TargetSprintHours,
-                backlogJson,
-                retrospectiveContext,
-                nextSprintNumber,
-                cancellationToken);
+            var startDate = DateTime.UtcNow;
+            var endDate = startDate.AddDays(project.SprintDurationInDays);
+            
+            var capacityResult = await _capacityCalculationService.CalculateTargetSprintHoursAsync(projectId, startDate, endDate, cancellationToken);
+            if (!capacityResult.IsSuccess)
+            {
+                return Result.Failure<SprintSuggestionDto>(capacityResult.Error!);
+            }
+
+            // 1. Run Deterministic Selection Algorithm
+            var options = new SprintSelectionOptions { TargetSprintHours = capacityResult.Value!.TargetSprintHours };
+            var selectionResult = _sprintSelectionService.SelectStories(unassignedStories, carryOverStoryIds.ToList(), options);
+
+            // 2. Map AI Payload (Selected Stories & Excluded Stories Summary)
+            var selectedStoriesJson = JsonSerializer.Serialize(selectionResult.SelectedStories, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, WriteIndented = true });
+            
+            var highlightedExcluded = new List<object>();
+            var summaryCounts = new Dictionary<string, int>();
+
+            foreach (var excluded in selectionResult.ExcludedStories)
+            {
+                var originalStory = unassignedStories.FirstOrDefault(u => u.Id == excluded.StoryId);
+                bool isHighlighted = originalStory != null && (carryOverStoryIds.Contains(originalStory.Id) || originalStory.Priority == StoryPriority.Critical || originalStory.Priority == StoryPriority.High);
+                
+                if (isHighlighted)
+                {
+                    highlightedExcluded.Add(new
+                    {
+                        excluded.StoryId,
+                        excluded.TitleEn,
+                        excluded.Reason
+                    });
+                }
+                else
+                {
+                    if (!summaryCounts.ContainsKey(excluded.Reason))
+                        summaryCounts[excluded.Reason] = 0;
+                    summaryCounts[excluded.Reason]++;
+                }
+            }
+
+            var summaryText = summaryCounts.Any() 
+                ? $"{summaryCounts.Values.Sum()} additional lower-priority stories excluded: " + string.Join(", ", summaryCounts.Select(kvp => $"{kvp.Value} due to '{kvp.Key}'"))
+                : "No additional stories excluded.";
+
+            var excludedPayload = new
+            {
+                highlighted = highlightedExcluded,
+                summary = summaryText
+            };
+
+            var excludedStoriesJson = JsonSerializer.Serialize(excludedPayload, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, WriteIndented = true });
+
+            // 3. Call AI Agent
+            SprintSuggestionDto suggestion;
+            try
+            {
+                suggestion = await _sprintSuggestionAgent.SuggestSprintAsync(
+                    projectId,
+                    project.NameEn,
+                    project.SprintDurationInDays,
+                    capacityResult.Value!.TargetSprintHours,
+                    selectionResult.UtilizedHours,
+                    selectedStoriesJson,
+                    excludedStoriesJson,
+                    retrospectiveContext,
+                    nextSprintNumber,
+                    cancellationToken);
+                    
+                // Append transparency fields from C# calculation
+                suggestion.CapacityExplanationEn = capacityResult.Value!.ExplanationEn;
+                suggestion.CapacityExplanationAr = capacityResult.Value!.ExplanationAr;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Sprint generation failed.");
+                return Result.Failure<SprintSuggestionDto>(CommonErrors.InvalidInput("Failed to generate sprint suggestion due to an internal AI error."));
+            }
+
+            // 4. Merge AI Output with Deterministic Selection Data
+            // The algorithm is authoritative on: StoryId, EstimatedHours, TotalEstimatedHours, ExcludedStories
+            // The AI is authoritative on: SprintTitle, SprintGoal, Risks, and Story Rationale (ReasonEn/Ar)
+
+            suggestion.TotalEstimatedHours = selectionResult.UtilizedHours;
+            suggestion.ExcludedStories = selectionResult.ExcludedStories;
+
+            // Map rationale to the selected stories
+            var finalStories = new List<SuggestedStoryDto>();
+            foreach (var algoStory in selectionResult.SelectedStories)
+            {
+                var aiStory = suggestion.Stories.FirstOrDefault(s => s.StoryId == algoStory.StoryId);
+                algoStory.ReasonEn = aiStory?.ReasonEn ?? string.Empty;
+                algoStory.ReasonAr = aiStory?.ReasonAr ?? string.Empty;
+                
+                finalStories.Add(algoStory);
+            }
+
+            suggestion.Stories = finalStories;
 
             return Result.Success(suggestion);
         }
