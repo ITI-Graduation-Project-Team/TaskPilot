@@ -14,5 +14,11 @@ namespace TaskPilot.DTOs.Projects
         public System.Collections.Generic.List<string> PlatformTargets { get; set; } = new();
         public string ProjectType { get; set; } = string.Empty;
         public ProjectStatus status { get; set; }
+        
+        // New statistics fields for Project Card
+        public int TeamSize { get; set; }
+        public int TotalUserStories { get; set; }
+        public int CompletedSprintsCount { get; set; }
+        public int ActiveSprintsCount { get; set; }
     }
 }

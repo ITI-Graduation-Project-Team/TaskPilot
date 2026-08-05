@@ -126,4 +126,25 @@ public class EmployeeDeactivationService : IEmployeeDeactivationService
         await _unitOfWork.SaveChangesAsync(ct);
         return Result.Success();
     }
+
+    public async Task<Result> ReactivateEmployeeAsync(Guid employeeId, CancellationToken ct = default)
+    {
+        var employee = await _employeeRepository.GetQueryable()
+            .FirstOrDefaultAsync(e => e.Id == employeeId, ct);
+
+        if (employee == null)
+            return Result.Failure(new Error("Employee.NotFound", ErrorType.NotFound, "Employee not found."));
+
+        if (!employee.IsDeactivated)
+            return Result.Failure(new Error("Employee.AlreadyActive", ErrorType.Validation, "Employee is already active."));
+
+        employee.IsDeactivated = false;
+        employee.DeactivationReason = null;
+        employee.DeactivatedAt = null;
+
+        _employeeRepository.Update(employee);
+        await _unitOfWork.SaveChangesAsync(ct);
+
+        return Result.Success();
+    }
 }

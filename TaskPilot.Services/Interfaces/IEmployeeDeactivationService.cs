@@ -10,4 +10,5 @@ public interface IEmployeeDeactivationService
 {
     Task<Result<AnalysisResultDto>> AnalyzeDeactivationAsync(Guid employeeId, CancellationToken ct = default);
     Task<Result> DeactivateEmployeeAsync(Guid employeeId, DeactivateEmployeeRequest request, CancellationToken ct = default);
+    Task<Result> ReactivateEmployeeAsync(Guid employeeId, CancellationToken ct = default);
 }

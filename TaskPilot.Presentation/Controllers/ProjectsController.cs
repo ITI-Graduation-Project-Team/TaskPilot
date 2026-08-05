@@ -44,6 +44,13 @@ namespace TaskPilot.Presentation.Controllers
             return HandleResult(result, SuccessCodes.Project.Retrieved);
         }
 
+        [HttpGet("company/{companyId:guid}/paged")]
+        public async Task<ActionResult> GetByCompanyIdPaged(Guid companyId, [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+        {
+            var result = await _projectService.GetProjectsByCompanyIdPagedAsync(companyId, page, pageSize);
+            return HandleResult(result);
+        }
+
         [HttpPost]
         public async Task<ActionResult> Create([FromBody] CreateProjectDto project)
         {

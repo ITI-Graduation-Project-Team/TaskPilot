@@ -12,6 +12,7 @@ using TaskPilot.Models.Common.Errors;
 using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Entities;
 using TaskPilot.Services.Interfaces;
+using TaskPilot.Models.Enums;
 
 namespace TaskPilot.Services.Implementations
 {
@@ -21,6 +22,8 @@ namespace TaskPilot.Services.Implementations
         private readonly IRepository<TaskItem> _taskRepository;
         private readonly IRepository<User> _userRepository;
         private readonly IProjectEmployeeRepository _projectEmployeeRepository;
+        private readonly INotificationService _notificationService;
+        private readonly IRepository<ProjectManager> _pmRepository;
         private readonly ILogger<TaskCommentService> _logger;
 
         public TaskCommentService(
@@ -28,12 +31,16 @@ namespace TaskPilot.Services.Implementations
             IRepository<TaskItem> taskRepository,
             IRepository<User> userRepository,
             IProjectEmployeeRepository projectEmployeeRepository,
+            INotificationService notificationService,
+            IRepository<ProjectManager> pmRepository,
             ILogger<TaskCommentService> logger)
         {
             _commentRepository = commentRepository;
             _taskRepository = taskRepository;
             _userRepository = userRepository;
             _projectEmployeeRepository = projectEmployeeRepository;
+            _notificationService = notificationService;
+            _pmRepository = pmRepository;
             _logger = logger;
         }
 
@@ -47,6 +54,11 @@ namespace TaskPilot.Services.Implementations
             if (task == null)
             {
                 return Result.Failure<TaskCommentDto>(TaskErrors.TaskNotFound);
+            }
+
+            if (task.Sprint?.Status == SprintStatus.Completed)
+            {
+                return Result.Failure<TaskCommentDto>(TaskErrors.ForbiddenTaskUpdate);
             }
 
             var projectId = task.Sprint?.ProjectId ?? task.UserStory?.ProjectId ?? Guid.Empty;
@@ -86,6 +98,38 @@ namespace TaskPilot.Services.Implementations
                 CreatedAt = comment.CreatedAt,
                 UpdatedAt = comment.ModifiedAt
             };
+
+            // Notifications
+            var taskUrl = $"/dashboard/projects/{projectId}/sprint?taskId={task.Id}";
+
+            if (isPm && task.EmployeeId.HasValue)
+            {
+                await _notificationService.SendAsync(
+                    task.EmployeeId.Value,
+                    NotificationType.CommentAdded,
+                    $"New comment from Project Manager on task: {task.TitleEn}",
+                    $"تعليق جديد من مدير المشروع على المهمة: {task.TitleAr}",
+                    url: taskUrl
+                );
+            }
+            else if (isAssignee)
+            {
+                var pmUserId = await _pmRepository.GetQueryable()
+                    .Where(pm => pm.ManagedProjects.Any(p => p.Id == projectId))
+                    .Select(pm => pm.Id)
+                    .FirstOrDefaultAsync(ct);
+
+                if (pmUserId != Guid.Empty)
+                {
+                    await _notificationService.SendAsync(
+                        pmUserId,
+                        NotificationType.CommentAdded,
+                        $"New comment from Assignee on task: {task.TitleEn}",
+                        $"تعليق جديد من المسؤول على المهمة: {task.TitleAr}",
+                        url: taskUrl
+                    );
+                }
+            }
 
             return Result.Success(dto);
         }

@@ -143,6 +143,11 @@ namespace TaskPilot.Services
                 return Result.Failure<SprintStatusDto>(SprintErrors.AnotherSprintAlreadyActive);
             }
 
+            if (project.Status == ProjectStatus.Draft)
+            {
+                project.Status = ProjectStatus.Active;
+            }
+
             sprint.Status = SprintStatus.Active;
             sprint.StartDate = DateTime.UtcNow;
 
@@ -249,9 +254,9 @@ namespace TaskPilot.Services
                     task.Status = TaskItemStatus.Done;
                 }
             }
-
             sprint.Status = SprintStatus.Completed;
             sprint.EndDate = DateTime.UtcNow;
+
 
             var unfinishedTasks = sprint.Tasks.Where(t => t.Status != TaskItemStatus.Done).ToList();
             if (unfinishedTasks.Any() && _userStoryRepository != null)

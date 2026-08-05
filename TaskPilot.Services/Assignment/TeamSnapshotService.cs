@@ -58,7 +58,7 @@ public class TeamSnapshotService : ITeamSnapshotService
 
         var projectEmployees = await _projectEmployeeRepository.GetQueryable()
             .Include(pe => pe.Employee)
-            .Where(pe => pe.ProjectId == projectId)
+            .Where(pe => pe.ProjectId == projectId && !pe.Employee.IsDeactivated)
             .ToListAsync(cancellationToken);
 
         if (!projectEmployees.Any())
@@ -77,7 +77,7 @@ public class TeamSnapshotService : ITeamSnapshotService
         var aliasLookup = skillAliases.GroupBy(a => a.SkillId).ToDictionary(g => g.Key, g => g.Select(a => a.Alias).ToList());
 
         var unassignedTasks = sprintTasks
-            .Where(t => t.EmployeeId == null)
+            .Where(t => t.Status != TaskItemStatus.Done)
             .Select(t => new TaskSnapshotDto
             {
                 TaskId = t.Id,
@@ -87,6 +87,7 @@ public class TeamSnapshotService : ITeamSnapshotService
                 Priority = t.Priority,
                 EffortSize = t.EffortSize,
                 Type = t.Type,
+                AssigneeId = t.EmployeeId,
                 RequiredSkills = t.RequiredSkills.Select(rs => new TaskRequiredSkillDto
                 {
                     SkillId = rs.SkillId,

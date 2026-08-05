@@ -233,6 +233,17 @@ public class EmployeeController : ApiControllerBase
         return HandleResult(result);
     }
 
+    [HttpGet("{employeeId:guid}/projects/paged")]
+    public async Task<ActionResult> GetEmployeeProjectsPaged(
+        Guid employeeId,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _projectService.GetProjectsByEmployeeIdPagedAsync(employeeId, page, pageSize, cancellationToken);
+        return HandleResult(result);
+    }
+
     [Authorize(Roles = "Admin,ProjectManager")]
     [HttpGet("{employeeId:guid}/deactivation/analyze")]
     public async Task<ActionResult> AnalyzeDeactivation(
@@ -253,6 +264,17 @@ public class EmployeeController : ApiControllerBase
         CancellationToken cancellationToken)
     {
         var result = await deactivationService.DeactivateEmployeeAsync(employeeId, request, cancellationToken);
+        return HandleResult(result);
+    }
+
+    [Authorize(Roles = "Admin,ProjectManager")]
+    [HttpPost("{employeeId:guid}/reactivate")]
+    public async Task<ActionResult> ReactivateEmployee(
+        [FromRoute] Guid employeeId,
+        [FromServices] IEmployeeDeactivationService deactivationService,
+        CancellationToken cancellationToken)
+    {
+        var result = await deactivationService.ReactivateEmployeeAsync(employeeId, cancellationToken);
         return HandleResult(result);
     }
 }
