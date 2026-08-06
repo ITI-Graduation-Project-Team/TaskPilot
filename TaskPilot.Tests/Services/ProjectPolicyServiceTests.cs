@@ -17,6 +17,7 @@ using TaskPilot.Models.Common.Errors;
 using TaskPilot.Models.Entities;
 using TaskPilot.Models.Enums;
 using TaskPilot.Services;
+using TaskPilot.Services.Interfaces;
 using TaskPilot.Services.Interfaces.ExternalServicesInterfaces;
 using Xunit;
 
@@ -32,6 +33,7 @@ namespace TaskPilot.Tests.Services
         private readonly Mock<IRepository<Policy>> _policyRepoMock;
         private readonly Mock<IRepository<Project>> _projectRepoMock;
         private readonly Mock<IFileStorageService> _fileStorageMock;
+        private readonly Mock<IFileValidatorService> _fileValidatorMock;
         private readonly Mock<ILogger<ProjectPolicyService>> _loggerMock;
 
         public ProjectPolicyServiceTests()
@@ -44,6 +46,7 @@ namespace TaskPilot.Tests.Services
             _policyRepoMock = new Mock<IRepository<Policy>>();
             _projectRepoMock = new Mock<IRepository<Project>>();
             _fileStorageMock = new Mock<IFileStorageService>();
+            _fileValidatorMock = new Mock<IFileValidatorService>();
             _loggerMock = new Mock<ILogger<ProjectPolicyService>>();
         }
 
@@ -58,6 +61,7 @@ namespace TaskPilot.Tests.Services
                 _policyRepoMock.Object,
                 _projectRepoMock.Object,
                 _fileStorageMock.Object,
+                _fileValidatorMock.Object,
                 _loggerMock.Object);
         }
 

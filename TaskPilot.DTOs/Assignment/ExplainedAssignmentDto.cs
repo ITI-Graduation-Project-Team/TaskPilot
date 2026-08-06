@@ -3,6 +3,7 @@ namespace TaskPilot.DTOs.Assignment;
 public class ExplainedTaskScoringResultDto
 {
     public TaskSnapshotDto Task { get; set; } = new();
+    public bool IsUnassignable { get; set; }
     public List<ExplainedDeveloperDto> RankedDevelopers { get; set; } = new();
 }
 
