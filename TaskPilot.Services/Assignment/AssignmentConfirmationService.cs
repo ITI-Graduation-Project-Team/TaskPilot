@@ -11,6 +11,7 @@ using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Enums;
 using TaskPilot.Services.Interfaces;
 using TaskPilot.Services.Interfaces.External; // <-- تمت إضافة مسار خدمة جوجل
+using TaskPilot.Services.Assignment;
 
 namespace TaskPilot.Services.Assignment;
 
@@ -25,6 +26,7 @@ public class AssignmentConfirmationService : IAssignmentConfirmationService
 
     // 1. إضافة خدمة جوجل هنا
     private readonly IGoogleCalendarService _googleCalendarService;
+    private readonly ITeamSnapshotService _teamSnapshotService;
 
     public AssignmentConfirmationService(
         ITaskRepository taskRepository,
@@ -33,6 +35,7 @@ public class AssignmentConfirmationService : IAssignmentConfirmationService
         INotificationService notificationService,
         ICalenderService calenderService,
         IGoogleCalendarService googleCalendarService, // <-- حقن الخدمة هنا
+        ITeamSnapshotService teamSnapshotService,
         ILogger<AssignmentConfirmationService> logger)
     {
         _taskRepository = taskRepository;
@@ -41,6 +44,7 @@ public class AssignmentConfirmationService : IAssignmentConfirmationService
         _notificationService = notificationService;
         _calenderService = calenderService;
         _googleCalendarService = googleCalendarService; // <-- حفظ الخدمة في المتغير
+        _teamSnapshotService = teamSnapshotService;
         _logger = logger;
     }
 
@@ -69,6 +73,19 @@ public class AssignmentConfirmationService : IAssignmentConfirmationService
 
         var sprintTaskMap = sprintTasks.ToDictionary(t => t.Id);
 
+        var snapshotResult = await _teamSnapshotService.GetSnapshotAsync(projectId, sprintId, cancellationToken);
+        var provisionalRemaining = new Dictionary<Guid, double>();
+        var totalCapacities = new Dictionary<Guid, double>();
+
+        if (snapshotResult.IsSuccess && snapshotResult.Value != null)
+        {
+            foreach (var dev in snapshotResult.Value.Team.Developers)
+            {
+                provisionalRemaining[dev.EmployeeId] = dev.RemainingHours;
+                totalCapacities[dev.EmployeeId] = dev.RemainingHours;
+            }
+        }
+
         foreach (var assignment in request.Assignments)
         {
             if (!sprintTaskMap.TryGetValue(assignment.TaskId, out var task))
@@ -93,18 +110,25 @@ public class AssignmentConfirmationService : IAssignmentConfirmationService
 
             //.........................................................................
             // Capacity warning — not a block
-            var employeeCurrentHours = sprintTasks
-                .Where(t => t.EmployeeId == assignment.EmployeeId)
-                .Sum(t => (double)t.EstimatedHours);
-
-            // This is a rough check using already-loaded data
-            var maxSprintHours = 84.0; // default 14d × 6h
-            var remaining = maxSprintHours - employeeCurrentHours;
-
-            if (remaining < (double)task.EstimatedHours)
+            if (provisionalRemaining.ContainsKey(assignment.EmployeeId))
             {
-                var warningTpl = _localizationService.GetString("assignment.warnings.insufficientCapacity");
-                result.Warnings.Add(string.Format(warningTpl, task.TitleEn, remaining.ToString("F0"), task.EstimatedHours));
+                provisionalRemaining[assignment.EmployeeId] -= (double)task.EstimatedHours;
+
+                if (provisionalRemaining[assignment.EmployeeId] < 0)
+                {
+                    // Using invariant English string as default if localization not set
+                    var warnEn = $"Developer over capacity. Sprint capacity: {totalCapacities[assignment.EmployeeId]:F0}h, Assigned: {(totalCapacities[assignment.EmployeeId] - provisionalRemaining[assignment.EmployeeId]):F0}h.";
+                    var warningTpl = _localizationService.GetString("assignment.warnings.insufficientCapacity") ?? warnEn;
+                    
+                    if (warningTpl.Contains("{0}"))
+                    {
+                        result.Warnings.Add(string.Format(warningTpl, task.TitleEn, provisionalRemaining[assignment.EmployeeId].ToString("F0"), task.EstimatedHours));
+                    }
+                    else
+                    {
+                        result.Warnings.Add(warnEn);
+                    }
+                }
             }
 
                 //.....................................................................................

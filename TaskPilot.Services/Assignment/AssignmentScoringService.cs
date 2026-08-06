@@ -87,6 +87,8 @@ public class AssignmentScoringService : IAssignmentScoringService
         var velocityCalculator = _calculators.FirstOrDefault(c => c is VelocityScoreCalculator);
         var experienceCalculator = _calculators.FirstOrDefault(c => c is ExperienceScoreCalculator);
 
+        var provisionalRemaining = snapshot.Team.Developers.ToDictionary(d => d.EmployeeId, d => d.RemainingHours);
+
         foreach (var task in snapshot.UnassignedTasks)
         {
             var taskScoringResult = new TaskScoringResultDto
@@ -97,6 +99,15 @@ public class AssignmentScoringService : IAssignmentScoringService
 
             foreach (var developer in snapshot.Team.Developers)
             {
+                var currentRemaining = provisionalRemaining[developer.EmployeeId];
+                if (currentRemaining <= 0.01)
+                {
+                    continue; // Hard exclusion
+                }
+
+                // Update the snapshot object so calculators receive the current capacity
+                developer.RemainingHours = currentRemaining;
+
                 var skillScore = skillCalculator?.Calculate(task, developer) ?? 0;
                 var availabilityScore = availabilityCalculator?.Calculate(task, developer) ?? 0;
                 var velocityScore = velocityCalculator?.Calculate(task, developer) ?? 0;
@@ -142,8 +153,8 @@ public class AssignmentScoringService : IAssignmentScoringService
                     ExperienceScore = experienceScore,
                     FinalScore = finalScore,
                     SkillGaps = skillGaps,
-                    RemainingHours = developer.RemainingHours,
-                    HasSufficientCapacity = developer.RemainingHours >= (double)task.EstimatedHours
+                    RemainingHours = currentRemaining,
+                    HasSufficientCapacity = currentRemaining >= (double)task.EstimatedHours
                 });
             }
 
@@ -154,6 +165,17 @@ public class AssignmentScoringService : IAssignmentScoringService
                 // or we could add it to DeveloperScoreDto. We'll just omit it here.
 
                 .ToList();
+
+            // Decay capacity for the selected top developer
+            var topDeveloper = taskScoringResult.RankedDevelopers.FirstOrDefault();
+            if (topDeveloper != null)
+            {
+                provisionalRemaining[topDeveloper.EmployeeId] -= (double)task.EstimatedHours;
+            }
+            else
+            {
+                taskScoringResult.IsUnassignable = true;
+            }
 
             scoredAssignment.TaskScores.Add(taskScoringResult);
         }

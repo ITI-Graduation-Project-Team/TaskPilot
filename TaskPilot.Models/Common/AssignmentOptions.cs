@@ -7,4 +7,6 @@ public class AssignmentOptions
     public double HighUtilizationThreshold { get; set; }
 
     public int RecommendedTasksPerDeveloper { get; set; }
+
+    public int MaxExplanationConcurrency { get; set; } = 5;
 }
