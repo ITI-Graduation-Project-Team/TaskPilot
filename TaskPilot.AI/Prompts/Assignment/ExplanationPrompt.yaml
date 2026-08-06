@@ -127,15 +127,15 @@ template: |
 
   Incorrect
 
-  ≈ÿ«— ⁄„· «·ﬂÌ«‰
+  √Ö√ò√á√ë √ö√£√° √á√°√ü√≠√á√§
 
-  Ê«ÃÂ«  REST
+  √¶√á√å√•√á√ä REST
 
-  Œ«œ„ SQL
+  √é√á√è√£ SQL
 
-  √‰ÃÊ·«—
+  √É√§√å√¶√°√á√ë
 
-  ”Ì ‘«—»
+  √ì√≠ √î√á√ë√à
 
   Translate surrounding sentences only.
 
@@ -246,19 +246,19 @@ template: |
 
   Prefer
 
-  «·»—„Ã… «·ﬂ«∆‰Ì…
+  √á√°√à√ë√£√å√â √á√°√ü√á√Ü√§√≠√â
 
   over
 
-  «·»—„Ã… ﬂ«∆‰« 
+  √á√°√à√ë√£√å√â √ü√á√Ü√§√á√ä
 
   Prefer
 
-   ÿÊÌ— Ê«ÃÂ«  »—„ÃÌ… RESTful
+  √ä√ò√¶√≠√ë √¶√á√å√•√á√ä √à√ë√£√å√≠√â RESTful
 
   over
 
-  Ê«ÃÂ«  REST
+  √¶√á√å√•√á√ä REST
 
   Prefer fluent professional Arabic instead of literal translation.
 
@@ -276,15 +276,15 @@ template: |
 
   Incorrect
 
-  «·»—„Ã… ﬂ«∆‰« 
+  √á√°√à√ë√£√å√â √ü√á√Ü√§√á√ä
 
   Correct
 
-  «·»—„Ã… «·ﬂ«∆‰Ì…
+  √á√°√à√ë√£√å√â √á√°√ü√á√Ü√§√≠√â
 
   or
 
-  «·»—„Ã… ﬂ«∆‰Ì… «· ÊÃÂ
+  √á√°√à√ë√£√å√â √ü√á√Ü√§√≠√â √á√°√ä√¶√å√•
 
   Use natural professional Arabic.
 
@@ -461,21 +461,21 @@ template: |
 
   Incorrect examples
 
-  - «·“«ÊÌ…
-  - ≈ÿ«— ⁄„· «·ﬂÌ«‰
-  - Œ«œ„ SQL
-  - Ê«ÃÂ«  REST
-  - Â „·
-  - ”Ì ≈” ≈”
-  - ”Ì ‘«—»
+  - √á√°√í√á√¶√≠√â
+  - √Ö√ò√á√ë √ö√£√° √á√°√ü√≠√á√§
+  - √é√á√è√£ SQL
+  - √¶√á√å√•√á√ä REST
+  - √•√ä√£√°
+  - √ì√≠ √Ö√ì √Ö√ì
+  - √ì√≠ √î√á√ë√à
 
   Correct Arabic example
 
-  Ì› ﬁ— ≈·Ï «·Œ»—… ›Ì Entity Framework Core ÊSQL Server.
+  √≠√ù√ä√û√ë √Ö√°√¨ √á√°√é√à√ë√â √ù√≠ Entity Framework Core √¶SQL Server.
 
   Incorrect Arabic example
 
-  Ì› ﬁ— ≈·Ï «·Œ»—… ›Ì ≈ÿ«— ⁄„· «·ﬂÌ«‰ ÊŒ«œ„ SQL.
+  √≠√ù√ä√û√ë √Ö√°√¨ √á√°√é√à√ë√â √ù√≠ √Ö√ò√á√ë √ö√£√° √á√°√ü√≠√á√§ √¶√é√á√è√£ SQL.
 
   Never translate technical terminology.
 
@@ -525,6 +525,7 @@ template: |
   Each object MUST contain exactly
 
   {
+    "EmployeeId": "...",
     "ReasonEn": "...",
     "ReasonAr": "..."
   }

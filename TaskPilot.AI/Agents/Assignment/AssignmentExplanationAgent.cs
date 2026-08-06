@@ -14,7 +14,7 @@ namespace TaskPilot.AI.Agents.Assignment;
 
 public interface IAssignmentExplanationAgent
 {
-    Task<Result<List<(string ReasonEn, string ReasonAr)>>> GenerateExplanationsAsync(ExplanationContextDto context);
+    Task<Result<List<(string EmployeeId, string ReasonEn, string ReasonAr)>>> GenerateExplanationsAsync(ExplanationContextDto context);
 }
 
 public class AssignmentExplanationAgent : IAssignmentExplanationAgent
@@ -30,9 +30,10 @@ public class AssignmentExplanationAgent : IAssignmentExplanationAgent
         _promptLoader = promptLoader;
     }
 
-    public async Task<Result<List<(string ReasonEn, string ReasonAr)>>> GenerateExplanationsAsync(ExplanationContextDto context)
+    public async Task<Result<List<(string EmployeeId, string ReasonEn, string ReasonAr)>>> GenerateExplanationsAsync(ExplanationContextDto context)
     {
         var fallbackReasons = context.TopDevelopers.Select(d => (
+            EmployeeId: d.EmployeeId.ToString(),
             ReasonEn: $"Recommended as a suitable {d.JobTitle} for this task.",
             ReasonAr: $"تم التوصية به كـ {d.JobTitle} مناسب لهذه المهمة."
         )).ToList();
@@ -77,7 +78,7 @@ public class AssignmentExplanationAgent : IAssignmentExplanationAgent
                 return Result.Success(fallbackReasons);
             }
 
-            return Result.Success(explanations.Select(e => (e.ReasonEn, e.ReasonAr)).ToList());
+            return Result.Success(explanations.Select(e => (e.EmployeeId, e.ReasonEn, e.ReasonAr)).ToList());
         }
         catch (JsonException)
         {
@@ -85,12 +86,13 @@ public class AssignmentExplanationAgent : IAssignmentExplanationAgent
         }
         catch (Exception)
         {
-            return Result.Failure<List<(string ReasonEn, string ReasonAr)>>(AssignmentErrors.ExplanationGenerationFailed);
+            return Result.Failure<List<(string EmployeeId, string ReasonEn, string ReasonAr)>>(AssignmentErrors.ExplanationGenerationFailed);
         }
     }
 
     private class ExplanationResponse
     {
+        public string EmployeeId { get; set; } = string.Empty;
         public string ReasonEn { get; set; } = string.Empty;
         public string ReasonAr { get; set; } = string.Empty;
     }

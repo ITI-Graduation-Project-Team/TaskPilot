@@ -80,7 +80,11 @@ public class AssignmentExplanationServiceTests
             .ReturnsAsync(Result.Success(scoredAssignment));
 
         _explanationAgentMock.Setup(x => x.GenerateExplanationsAsync(It.IsAny<ExplanationContextDto>()))
-            .ReturnsAsync(Result.Success(new List<(string, string)> { ("Reason EN", "Reason AR") }));
+            .ReturnsAsync((ExplanationContextDto ctx) => 
+            {
+                var reasons = ctx.TopDevelopers.Select(d => (d.EmployeeId.ToString(), "Reason EN", "Reason AR")).ToList();
+                return Result.Success(reasons);
+            });
 
         // Act
         var result = await _service.GenerateAsync(projectId, sprintId, CancellationToken.None);
@@ -140,6 +144,69 @@ public class AssignmentExplanationServiceTests
         Assert.True(result.IsSuccess);
         
         var fallbackDev = result.Value.TaskScores.First().RankedDevelopers.First();
-        Assert.Equal("Explanation generation failed.", fallbackDev.ReasonEn);
+    }
+
+    [Fact]
+    public async Task GenerateAsync_AgentDropsEmployeeId_ShouldFallBackGracefullyWithoutException()
+    {
+        // Arrange
+        var sprintId = Guid.NewGuid();
+        var projectId = Guid.NewGuid();
+        
+        var dev1Id = Guid.NewGuid();
+        var dev2Id = Guid.NewGuid();
+        var dev3Id = Guid.NewGuid(); // The one that will be dropped by AI
+
+        var scoredAssignment = new ScoredAssignmentDto
+        {
+            ProjectId = projectId,
+            SprintId = sprintId,
+            TaskScores = new List<TaskScoringResultDto>
+            {
+                new TaskScoringResultDto
+                {
+                    Task = new TaskSnapshotDto { TaskId = Guid.NewGuid(), TitleEn = "Task 1" },
+                    RankedDevelopers = new List<DeveloperScoreDto>
+                    {
+                        new DeveloperScoreDto { EmployeeId = dev1Id, FullName = "Dev 1" },
+                        new DeveloperScoreDto { EmployeeId = dev2Id, FullName = "Dev 2" },
+                        new DeveloperScoreDto { EmployeeId = dev3Id, FullName = "Dev 3" }
+                    }
+                }
+            }
+        };
+
+        _scoringServiceMock.Setup(x => x.ScoreAsync(projectId, sprintId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Success(scoredAssignment));
+
+        // Mock the AI agent to return explanations for Dev1 and Dev2, but OMIT Dev3.
+        _explanationAgentMock.Setup(x => x.GenerateExplanationsAsync(It.IsAny<ExplanationContextDto>()))
+            .ReturnsAsync(Result.Success(new List<(string, string, string)> 
+            { 
+                (dev1Id.ToString(), "Reason for Dev 1", "Arabic 1"),
+                (dev2Id.ToString(), "Reason for Dev 2", "Arabic 2")
+                // dev3 is omitted
+            }));
+
+        // Act
+        var result = await _service.GenerateAsync(projectId, sprintId, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        
+        var rankedDevs = result.Value.TaskScores.First().RankedDevelopers;
+        Assert.Equal(3, rankedDevs.Count);
+        
+        // Dev1 got the correct matched explanation
+        var outDev1 = rankedDevs.First(d => d.EmployeeId == dev1Id);
+        Assert.Equal("Reason for Dev 1", outDev1.ReasonEn);
+        
+        // Dev2 got the correct matched explanation
+        var outDev2 = rankedDevs.First(d => d.EmployeeId == dev2Id);
+        Assert.Equal("Reason for Dev 2", outDev2.ReasonEn);
+
+        // Dev3 was dropped by the AI, so it should safely fall back to the generic "Explanation not generated"
+        var outDev3 = rankedDevs.First(d => d.EmployeeId == dev3Id);
+        Assert.Equal("Explanation not generated (not in top 3).", outDev3.ReasonEn);
     }
 }

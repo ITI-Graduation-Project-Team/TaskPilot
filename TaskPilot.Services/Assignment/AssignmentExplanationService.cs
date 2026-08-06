@@ -90,7 +90,7 @@ public class AssignmentExplanationService : IAssignmentExplanationService
                     }).ToList()
                 };
 
-                List<(string ReasonEn, string ReasonAr)> reasons = new();
+                List<(string EmployeeId, string ReasonEn, string ReasonAr)> reasons = new();
                 if (topDevelopers.Count > 0)
                 {
                     using var scope = _serviceScopeFactory.CreateScope();
@@ -106,6 +106,7 @@ public class AssignmentExplanationService : IAssignmentExplanationService
                 for (int i = 0; i < taskScore.RankedDevelopers.Count; i++)
                 {
                     var developer = taskScore.RankedDevelopers[i];
+                    var devReason = reasons.FirstOrDefault(r => r.EmployeeId == developer.EmployeeId.ToString());
                     var explainedDeveloper = new ExplainedDeveloperDto
                     {
                         EmployeeId = developer.EmployeeId,
@@ -119,8 +120,8 @@ public class AssignmentExplanationService : IAssignmentExplanationService
                         SkillGaps = developer.SkillGaps,
                         RemainingHours = developer.RemainingHours,
                         HasSufficientCapacity = developer.HasSufficientCapacity,
-                        ReasonEn = i < 3 && i < reasons.Count ? reasons[i].ReasonEn : "Explanation not generated (not in top 3).",
-                        ReasonAr = i < 3 && i < reasons.Count ? reasons[i].ReasonAr : "لم يتم إنشاء التفسير (ليس ضمن أفضل 3)."
+                        ReasonEn = !string.IsNullOrEmpty(devReason.ReasonEn) ? devReason.ReasonEn : "Explanation not generated (not in top 3).",
+                        ReasonAr = !string.IsNullOrEmpty(devReason.ReasonAr) ? devReason.ReasonAr : "لم يتم إنشاء التفسير (ليس ضمن أفضل 3)."
                     };
                     explainedTaskScore.RankedDevelopers.Add(explainedDeveloper);
                 }
