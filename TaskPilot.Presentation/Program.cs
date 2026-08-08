@@ -17,6 +17,7 @@ using TaskPilot.Models.Enums;
 using TaskPilot.Presentation.Middlewares;
 using TaskPilot.Presentation.Models;
 using TaskPilot.Services;
+using TaskPilot.Services.BackgroundJobs;
 using TaskPilot.Services.Interfaces;
 
 namespace TaskPilot.Presentation
@@ -177,11 +178,16 @@ namespace TaskPilot.Presentation
                     Authorization = new[] { new HangfireAllowAllDashboardFilter() }
                 });
             }
-            RecurringJob.AddOrUpdate<TaskPilot.Services.BackgroundJobs.SprintRiskDetectionJob>(
-                "SprintRiskDetectionJob",
-                job => job.ExecuteAsync(CancellationToken.None),
-                Cron.Daily);
 
+            using (var scope = app.Services.CreateScope())
+            {
+                var recurringJobManager = scope.ServiceProvider.GetRequiredService<IRecurringJobManager>();
+
+                recurringJobManager.AddOrUpdate<SprintRiskDetectionJob>(
+                    "SprintRiskDetectionJob",
+                    job => job.ExecuteAsync(CancellationToken.None),
+                    Cron.Daily);
+            }
             //app.UseCors("AllowAll");
             app.UseCors("AllowFrontend");
 
