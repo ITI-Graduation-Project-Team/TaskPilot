@@ -189,7 +189,7 @@ namespace TaskPilot.Services
             var nextSprintNumber = existingSprintsCount + 1;
 
             var startDate = DateTime.UtcNow;
-            var endDate = startDate.AddDays(project.SprintDurationInDays);
+            var endDate = startDate.AddDays(project.SprintDurationInDays - 1);
             
             var capacityResult = await _capacityCalculationService.CalculateTargetSprintHoursAsync(projectId, startDate, endDate, cancellationToken);
             if (!capacityResult.IsSuccess)
