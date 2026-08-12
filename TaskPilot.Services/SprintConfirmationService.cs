@@ -23,15 +23,13 @@ namespace TaskPilot.Services
         private readonly IProjectEmployeeRepository _projectEmployeeRepository;
         private readonly IUnitOfWork _unitOfWork;
 
-        private readonly IBackgroundJobClient _backgroundJobClient;
         public SprintConfirmationService(
             IRepository<Project> projectRepository,
             IUserStoryRepository userStoryRepository,
             ITaskRepository taskRepository,
             IRepository<Sprint> sprintRepository,
             IProjectEmployeeRepository projectEmployeeRepository,
-            IUnitOfWork unitOfWork,
-            IBackgroundJobClient backgroundJobClient)
+            IUnitOfWork unitOfWork)
         {
             _projectRepository = projectRepository;
             _userStoryRepository = userStoryRepository;
@@ -39,7 +37,6 @@ namespace TaskPilot.Services
             _sprintRepository = sprintRepository;
             _projectEmployeeRepository = projectEmployeeRepository;
             _unitOfWork = unitOfWork;
-            _backgroundJobClient = backgroundJobClient;
         }
 
         public async Task<Result<ConfirmSprintResult>> ConfirmAsync(
@@ -137,16 +134,6 @@ namespace TaskPilot.Services
 
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
                 await _unitOfWork.CommitTransactionAsync(cancellationToken);
-
-                // Schedule only after committing, so Hangfire can never receive an ID
-                // for a sprint that was rolled back.
-                _backgroundJobClient.Schedule<SprintCompletionJob>(
-                    job => job.ExecuteAsync(sprint.Id),
-                    new DateTimeOffset(DateTime.SpecifyKind(sprint.EndDate, DateTimeKind.Utc)));
-
-                _backgroundJobClient.Schedule<SprintEndReminderJob>(
-                    job => job.ExecuteAsync(sprint.Id),
-                    new DateTimeOffset(DateTime.SpecifyKind(sprint.EndDate.AddDays(-1), DateTimeKind.Utc)));
 
                 var confirmResult = new ConfirmSprintResult
                 {

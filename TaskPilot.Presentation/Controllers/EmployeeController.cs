@@ -302,4 +302,16 @@ public class EmployeeController : ApiControllerBase
         var result = await deactivationService.ReactivateEmployeeAsync(employeeId, cancellationToken);
         return HandleResult(result);
     }
+
+    [Authorize(Roles = "Admin")]
+    [HttpPost("{employeeId:guid}/terminate")]
+    public async Task<ActionResult> TerminateEmployee(
+        [FromRoute] Guid employeeId,
+        [FromBody] TaskPilot.DTOs.Employees.TerminateEmployeeRequest request,
+        [FromServices] IEmployeeDeactivationService deactivationService,
+        CancellationToken cancellationToken)
+    {
+        var result = await deactivationService.TerminateEmployeeAsync(employeeId, request, cancellationToken);
+        return HandleResult(result);
+    }
 }

@@ -12,6 +12,8 @@ namespace TaskPilot.Models.Common.Errors
         public static readonly Error SprintNotStarted = new("SPRINT_NOT_STARTED", ErrorType.Conflict, "Sprint.NotStarted");
         public static readonly Error AnotherSprintAlreadyActive = new("ANOTHER_SPRINT_ALREADY_ACTIVE", ErrorType.Conflict, "Sprint.AnotherAlreadyActive");
         public static readonly Error AnotherSprintAlreadyPlanned = new("ANOTHER_SPRINT_ALREADY_PLANNED", ErrorType.Conflict, "Sprint.AnotherAlreadyPlanned");
+        public static readonly Error SprintAlreadyCancelled = new("SPRINT_ALREADY_CANCELLED", ErrorType.Conflict, "Sprint.AlreadyCancelled");
+        public static readonly Error CannotCancelActiveSprint = new("CANNOT_CANCEL_ACTIVE_SPRINT", ErrorType.Validation, "Sprint.CannotCancelActive");
         public static readonly Error SprintDoesNotBelongToProject = new("SPRINT_DOES_NOT_BELONG_TO_PROJECT", ErrorType.Validation, "Sprint.DoesNotBelongToProject");
         public static readonly Error InvalidSprintStatus = new("INVALID_SPRINT_STATUS", ErrorType.Validation, "Sprint.InvalidStatus");
         public static readonly Error InvalidSprint = new("INVALID_SPRINT", ErrorType.Validation, "Sprint.Invalid");

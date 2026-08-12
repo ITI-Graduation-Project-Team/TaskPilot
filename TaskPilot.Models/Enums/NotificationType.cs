@@ -22,6 +22,6 @@ namespace TaskPilot.Models.Enums
         PaymentFailed = 13,
         BugReported = 14,
         SprintRiskDetected = 15,
-
+        EmployeeDeactivated = 16
     }
 }

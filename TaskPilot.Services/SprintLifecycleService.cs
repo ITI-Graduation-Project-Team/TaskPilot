@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 using TaskPilot.Data.Repositories;
 using TaskPilot.Data.Repositories.Interfaces;
 using TaskPilot.DTOs.Sprints;
@@ -14,7 +15,9 @@ using TaskPilot.Models.Entities;
 using TaskPilot.Models.Enums;
 using TaskPilot.Services.Interfaces;
 using TaskPilot.Services.Interfaces.External;
+using TaskPilot.Services.BackgroundJobs;
 using TaskPilot.Models.Common;
+using Hangfire;
 namespace TaskPilot.Services
 {
     public class SprintLifecycleService : ISprintLifecycleService
@@ -29,6 +32,7 @@ namespace TaskPilot.Services
         private readonly ICalenderService _calenderService;
         private readonly IGoogleCalendarService _googleCalendarService;
         private readonly ILocalizationService _localizationService;
+        private readonly IBackgroundJobClient _backgroundJobClient;
 
         public SprintLifecycleService(
             ISprintRepository sprintRepository,
@@ -40,7 +44,8 @@ namespace TaskPilot.Services
             IRepository<UserStory> userStoryRepository = null!,
             IGoogleCalendarService googleCalendarService = null!,
             IProjectEmployeeRepository projectEmployeeRepository = null!,
-            ILocalizationService localizationService = null!)
+            ILocalizationService localizationService = null!,
+            IBackgroundJobClient backgroundJobClient = null!)
         {
             _sprintRepository = sprintRepository;
             _projectRepository = projectRepository;
@@ -52,6 +57,7 @@ namespace TaskPilot.Services
             _calenderService = calenderService;
             _googleCalendarService = googleCalendarService;
             _localizationService = localizationService;
+            _backgroundJobClient = backgroundJobClient;
         }
 
         public async Task<Result<System.Collections.Generic.IEnumerable<SprintListItemDto>>> GetAllSprintsAsync(Guid projectId)
@@ -148,8 +154,21 @@ namespace TaskPilot.Services
                 project.Status = ProjectStatus.Active;
             }
 
+            var originalDuration = sprint.EndDate - sprint.StartDate;
             sprint.Status = SprintStatus.Active;
             sprint.StartDate = DateTime.UtcNow;
+            sprint.EndDate = sprint.StartDate + originalDuration;
+
+            if (_backgroundJobClient != null)
+            {
+                _backgroundJobClient.Schedule<SprintCompletionJob>(
+                    job => job.ExecuteAsync(sprint.Id),
+                    new DateTimeOffset(DateTime.SpecifyKind(sprint.EndDate, DateTimeKind.Utc)));
+
+                _backgroundJobClient.Schedule<SprintEndReminderJob>(
+                    job => job.ExecuteAsync(sprint.Id),
+                    new DateTimeOffset(DateTime.SpecifyKind(sprint.EndDate.AddDays(-1), DateTimeKind.Utc)));
+            }
 
             // --- add Google calendar to PM as sprint event ---
             try
@@ -210,6 +229,45 @@ namespace TaskPilot.Services
                 SprintId = sprint.Id,
                 Status = sprint.Status.ToString()
             });
+        }
+        public async Task<Result<SprintStatusDto>> CancelSprintAsync(Guid projectId, Guid sprintId, CancellationToken cancellationToken = default)
+        {
+            var project = await _projectRepository.GetByIdAsync(projectId);
+            if (project == null) return Result.Failure<SprintStatusDto>(SprintErrors.ProjectNotFound);
+
+            var sprint = await _sprintRepository.GetQueryable()
+                .Include(s => s.Tasks)
+                .Include(s => s.UserStories)
+                .FirstOrDefaultAsync(s => s.Id == sprintId && s.ProjectId == projectId, cancellationToken);
+                
+            if (sprint == null) return Result.Failure<SprintStatusDto>(SprintErrors.SprintNotFound);
+
+            if (sprint.Status == SprintStatus.Active)
+                return Result.Failure<SprintStatusDto>(SprintErrors.CannotCancelActiveSprint);
+                
+            if (sprint.Status == SprintStatus.Cancelled)
+                return Result.Failure<SprintStatusDto>(SprintErrors.SprintAlreadyCancelled);
+                
+            if (sprint.Status == SprintStatus.Completed)
+                return Result.Failure<SprintStatusDto>(SprintErrors.SprintAlreadyCompleted);
+
+            sprint.Status = SprintStatus.Cancelled;
+
+            // Return Tasks to Backlog
+            foreach (var task in sprint.Tasks)
+            {
+                task.SprintId = null;
+                task.EmployeeId = null;
+                task.Status = TaskItemStatus.ToDo; // Reset status just in case
+            }
+
+            // Return UserStories to Backlog
+            foreach (var story in sprint.UserStories)
+            {
+                story.SprintId = null;
+            }
+
+            return Result.Success(new SprintStatusDto { SprintId = sprint.Id, Status = sprint.Status.ToString() });
         }
 
         public async Task<Result<SprintStatusDto>> CompleteSprintAsync(

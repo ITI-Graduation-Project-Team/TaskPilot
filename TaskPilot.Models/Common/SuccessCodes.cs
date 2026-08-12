@@ -115,8 +115,9 @@ namespace TaskPilot.Models.Common
             public const string AlertDismissed = "SPRINT_RISK_ALERT_DISMISSED";
             public const string SimulationGenerated = "SPRINT_RISK_SIMULATION_GENERATED";
             public const string Started = "SPRINT_STARTED_SUCCESS";
-            public const string Completed = "SPRINT_COMPLETED_SUCCESS";
-            public const string ActiveRetrieved = "SPRINT_ACTIVE_RETRIEVED_SUCCESS";
+            public static readonly string Completed = "SPRINT_COMPLETED_SUCCESS";
+            public static readonly string Cancelled = "SPRINT_CANCELLED_SUCCESS";
+            public static readonly string ActiveRetrieved = "SPRINT_ACTIVE_RETRIEVED_SUCCESS";
         }
 
         public static class AgileCoach
