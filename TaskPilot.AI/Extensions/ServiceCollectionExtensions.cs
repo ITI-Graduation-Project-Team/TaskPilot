@@ -32,7 +32,7 @@ namespace TaskPilot.AI.Extensions
             // Register a named HttpClient for long-running AI calls
             services.AddHttpClient("LongRunningAiClient", client =>
             {
-                client.Timeout = TimeSpan.FromSeconds(300); // 5 minutes
+                client.Timeout = TimeSpan.FromSeconds(600); // Fix 5: raised from 300s — English-only generation + translation fits within 600s even with retries
             });
 
             services.AddScoped<
