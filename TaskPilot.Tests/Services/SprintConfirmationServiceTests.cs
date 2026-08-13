@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Hangfire;
 using Moq;
 using TaskPilot.Data.Repositories;
 using TaskPilot.Data.Repositories.Interfaces;
@@ -24,7 +23,6 @@ namespace TaskPilot.Tests.Services
         private readonly Mock<IRepository<Sprint>> _sprintRepoMock;
         private readonly Mock<IProjectEmployeeRepository> _projectEmployeeRepoMock;
         private readonly Mock<IUnitOfWork> _unitOfWorkMock;
-        private readonly Mock<IBackgroundJobClient> _jobClientMock;
         private readonly SprintConfirmationService _service;
 
         public SprintConfirmationServiceTests()
@@ -35,7 +33,6 @@ namespace TaskPilot.Tests.Services
             _sprintRepoMock = new Mock<IRepository<Sprint>>();
             _projectEmployeeRepoMock = new Mock<IProjectEmployeeRepository>();
             _unitOfWorkMock = new Mock<IUnitOfWork>();
-            _jobClientMock = new Mock<IBackgroundJobClient>();
 
             _service = new SprintConfirmationService(
                 _projectRepoMock.Object,
@@ -43,8 +40,7 @@ namespace TaskPilot.Tests.Services
                 _taskRepoMock.Object,
                 _sprintRepoMock.Object,
                 _projectEmployeeRepoMock.Object,
-                _unitOfWorkMock.Object,
-                _jobClientMock.Object);
+                _unitOfWorkMock.Object);
         }
 
         [Fact]

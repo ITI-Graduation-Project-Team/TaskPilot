@@ -199,10 +199,14 @@ namespace TaskPilot.Services
             if (!companyExists)
                 return Result.Failure<PagedResult<ProjectDto>>(CompanyErrors.NotFound);
 
+            var userId = _currentUserService.UserId;
+            if (userId == null)
+                return Result.Failure<PagedResult<ProjectDto>>(CommonErrors.Unauthorized());
+
             var isArabic = _localizationService.CurrentLanguage == "ar";
 
             var query = _projectRepo.GetQueryable()
-                .Where(p => p.CompanyId == companyId && !p.IsDeleted)
+                .Where(p => p.CompanyId == companyId && p.ManagerId == userId && !p.IsDeleted)
                 .OrderByDescending(p => p.CreatedAt);
 
             var totalCount = await query.CountAsync(cancellationToken);
