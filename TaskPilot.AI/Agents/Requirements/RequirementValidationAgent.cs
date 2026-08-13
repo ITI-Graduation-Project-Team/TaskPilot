@@ -1,9 +1,11 @@
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 using TaskPilot.AI.Constants;
 using TaskPilot.AI.Helpers;
+using TaskPilot.AI.Extensions;
 using TaskPilot.AI.Models.Requirements;
 using TaskPilot.AI.Models.Session;
 using TaskPilot.AI.Services.Interfaces;
@@ -46,22 +48,31 @@ namespace TaskPilot.AI.Agents.Requirements
 
             _telemetry.RecordCall(result.Metadata, sw.ElapsedMilliseconds, "RequirementValidationAgent", ModelConstants.CheapModel, _logger);
             
-            var json = result.ToString().Trim();
-
             try
             {
-                var validationResult = JsonSerializer.Deserialize<RequirementValidationResult>(
-                    json,
+                var validationResult = AiResponseParser.Parse<RequirementValidationResult>(
+                    result.ToString(),
                     new JsonSerializerOptions
                     {
                         PropertyNameCaseInsensitive = true
                     });
 
-                return validationResult ?? new RequirementValidationResult();
+                if (validationResult is null)
+                {
+                    throw new JsonException("The validation response did not contain a JSON object.");
+                }
+
+                validationResult.ValidationScore = Math.Clamp(validationResult.ValidationScore, 0, 100);
+                validationResult.Issues ??= new List<string>();
+                validationResult.Warnings ??= new List<string>();
+                return validationResult;
             }
-            catch
+            catch (Exception ex)
             {
-                return new RequirementValidationResult();
+                _logger.LogError(ex, "Failed to parse the requirement validation response.");
+                throw new InvalidOperationException(
+                    "The requirements validation response could not be parsed. Please retry the requirements flow.",
+                    ex);
             }
         }
     }

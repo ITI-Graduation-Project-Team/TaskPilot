@@ -9,5 +9,9 @@ namespace TaskPilot.AI.Models.Requirements
         public List<string> Warnings { get; set; } = new();
         public string BusinessReadiness { get; set; } = string.Empty;
         public int ValidationThresholdUsed { get; set; }
+
+        public bool HasBlockingIssues(int threshold) =>
+            ValidationScore < threshold &&
+            Issues?.Any(issue => !string.IsNullOrWhiteSpace(issue)) == true;
     }
 }

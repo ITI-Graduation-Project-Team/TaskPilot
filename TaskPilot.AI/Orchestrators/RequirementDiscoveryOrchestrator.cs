@@ -638,7 +638,11 @@ namespace TaskPilot.AI.Orchestrators
                 }
                 session.ValidationResult.ValidationThresholdUsed = tenantThreshold;
 
-                if (session.ValidationResult.ValidationScore >= tenantThreshold)
+                // A low advisory score without any critical issue must not leave a
+                // 100%-complete session stuck in RequirementValidation forever.
+                // Warnings remain available in the snapshot, while actual issues
+                // are converted into clarification questions below.
+                if (!session.ValidationResult.HasBlockingIssues(tenantThreshold))
                 {
                     // Finalization is permitted
                     session.Status = RequirementSessionStatus.Planning;
