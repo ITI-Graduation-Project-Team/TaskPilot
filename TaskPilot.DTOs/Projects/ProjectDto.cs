@@ -14,6 +14,7 @@ namespace TaskPilot.DTOs.Projects
         public System.Collections.Generic.List<string> PlatformTargets { get; set; } = new();
         public string ProjectType { get; set; } = string.Empty;
         public ProjectStatus status { get; set; }
+        public ProjectSetupOverallStatus SetupStatus { get; set; } = ProjectSetupOverallStatus.NeedsTechStack;
         
         // New statistics fields for Project Card
         public int TeamSize { get; set; }

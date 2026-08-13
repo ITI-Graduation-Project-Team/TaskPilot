@@ -86,10 +86,6 @@ namespace TaskPilot.Tests.Services
                     new TaskPilot.AI.Models.Planning.GeneratedRequiredSkill { SkillName = "Kubernetes", RequiredLevel = "Beginner" }
                 }));
 
-            // Simulate the DB find for Kubernetes: null first time
-            _skillRepoMock.Setup(x => x.FindSingleAsync(It.IsAny<Expression<Func<Skill, bool>>>()))
-                .ReturnsAsync((Skill)null);
-
             // Act
             var result = await service.EnrichProjectTasksAsync(projectId);
 
@@ -98,7 +94,8 @@ namespace TaskPilot.Tests.Services
             Assert.Equal(1, result.Value.SkillsCreated);
             Assert.Equal(2, result.Value.TasksEnriched);
 
-            _skillRepoMock.Verify(x => x.AddAsync(It.IsAny<Skill>()), Times.Once);
+            _skillRepoMock.Verify(x => x.AddRangeAsync(
+                It.Is<IEnumerable<Skill>>(skills => skills.Count() == 1)), Times.Once);
             _unitOfWorkMock.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
             
             // Check that TaskRequiredSkill was added for both
@@ -122,8 +119,6 @@ namespace TaskPilot.Tests.Services
             _taskRepoMock.Setup(x => x.FindAsync(It.IsAny<Expression<Func<TaskItem, bool>>>()))
                 .ReturnsAsync(tasks);
 
-            _skillRepoMock.Setup(x => x.GetAllAsync()).ReturnsAsync(new List<Skill>());
-
             _agentMock.Setup(x => x.EnrichAsync("Task 1", It.IsAny<string>(), It.IsAny<string>(), It.IsAny<List<string>>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(Result.Success(new List<TaskPilot.AI.Models.Planning.GeneratedRequiredSkill>
                 {
@@ -133,8 +128,7 @@ namespace TaskPilot.Tests.Services
             var existingSkill = new Skill { Name = "Kubernetes", NormalizedName = "kubernetes" };
             existingSkill.GetType().GetProperty("Id").SetValue(existingSkill, 1);
             
-            _skillRepoMock.Setup(x => x.FindSingleAsync(It.IsAny<Expression<Func<Skill, bool>>>()))
-                .ReturnsAsync(existingSkill);
+            _skillRepoMock.Setup(x => x.GetAllAsync()).ReturnsAsync(new List<Skill> { existingSkill });
 
             // Act
             var result = await service.EnrichProjectTasksAsync(projectId);
@@ -144,8 +138,8 @@ namespace TaskPilot.Tests.Services
             Assert.Equal(0, result.Value.SkillsCreated);
             Assert.Equal(1, result.Value.TasksEnriched);
 
-            _skillRepoMock.Verify(x => x.AddAsync(It.IsAny<Skill>()), Times.Never);
-            _unitOfWorkMock.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+            _skillRepoMock.Verify(x => x.AddRangeAsync(It.IsAny<IEnumerable<Skill>>()), Times.Never);
+            _unitOfWorkMock.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
             
             _taskRequiredSkillRepoMock.Verify(x => x.AddRangeAsync(It.Is<IEnumerable<TaskRequiredSkill>>(skills => skills.First().Skill.Name == "Kubernetes")), Times.Once);
         }

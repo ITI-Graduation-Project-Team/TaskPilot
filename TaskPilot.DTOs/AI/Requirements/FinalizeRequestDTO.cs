@@ -20,5 +20,6 @@ namespace TaskPilot.DTOs.AI.Requirements
         public string ProjectName { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
         public bool RequirementsFinalized { get; set; }
+        public string SetupStatus { get; set; } = "NeedsTechStack";
     }
 }

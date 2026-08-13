@@ -2,6 +2,7 @@ using Microsoft.SemanticKernel;
 using System.Text.Json;
 using TaskPilot.AI.Constants;
 using TaskPilot.AI.Helpers;
+using TaskPilot.AI.Extensions;
 using TaskPilot.AI.Models;
 using TaskPilot.AI.Models.Requirements;
 using TaskPilot.AI.Models.Session;
@@ -131,14 +132,10 @@ namespace TaskPilot.AI.Agents.Requirements
 
             _telemetry.RecordCall(result.Metadata, sw.ElapsedMilliseconds, "RequirementsBuilderAgent", ModelConstants.PowerfulModel, _logger);
 
-            var json =
-                result.ToString()
-                      .Trim();
-
             var structuredRequirements =
-                JsonSerializer.Deserialize
+                AiResponseParser.Parse
                     <StructuredRequirements>(
-                        json,
+                        result.ToString(),
                         new JsonSerializerOptions
                         {
                             PropertyNameCaseInsensitive =

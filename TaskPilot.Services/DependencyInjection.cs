@@ -41,6 +41,10 @@ namespace TaskPilot.Services
             services.AddScoped<ISprintLifecycleService, SprintLifecycleService>();
             services.AddScoped<ITechStackService, TechStackService>();
             services.AddScoped<IWbsGenerationService, WbsGenerationService>();
+            services.AddScoped<IProjectSetupService, ProjectSetupService>();
+            services.AddTransient<BackgroundJobs.WbsGenerationJob>();
+            services.AddTransient<BackgroundJobs.WbsSkillEnrichmentJob>();
+            services.AddTransient<BackgroundJobs.ProjectKnowledgePromotionJob>();
             services.AddSingleton<ITemporaryBrdStore, TaskPilot.Services.Implementations.InMemoryTemporaryBrdStore>();
             services.AddScoped<INotificationService, TaskPilot.Services.Implementations.NotificationService>();
             services.AddScoped<IProjectChatService, TaskPilot.Services.Implementations.ProjectChatService>();
