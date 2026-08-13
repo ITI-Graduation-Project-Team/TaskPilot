@@ -20,5 +20,7 @@ namespace TaskPilot.Models.Entities
         public bool IsActive { get; set; } = true;
 
         public decimal AllocationPercentage { get; set; } = 100.0m;
+
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 }

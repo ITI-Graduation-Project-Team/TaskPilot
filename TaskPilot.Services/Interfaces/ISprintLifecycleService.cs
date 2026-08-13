@@ -11,6 +11,7 @@ namespace TaskPilot.Services.Interfaces
     public interface ISprintLifecycleService
     {
         Task<Result<SprintStatusDto>> StartSprintAsync(Guid projectId, Guid sprintId, CancellationToken cancellationToken = default);
+        Task<Result<SprintStatusDto>> CancelSprintAsync(Guid projectId, Guid sprintId, CancellationToken cancellationToken = default);
         Task<Result<SprintStatusDto>> CompleteSprintAsync(Guid projectId, Guid sprintId, ReviewTaskAction? reviewAction = null, CancellationToken cancellationToken = default);
         Task<Result<IEnumerable<SprintListItemDto>>> GetAllSprintsAsync(Guid projectId);
         Task<Result<ActiveSprintDto>> GetActiveSprintAsync(Guid projectId, CancellationToken cancellationToken = default);
