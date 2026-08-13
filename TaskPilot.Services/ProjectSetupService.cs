@@ -225,7 +225,16 @@ namespace TaskPilot.Services
         {
             JsonElement? suggestion = null;
             if (!string.IsNullOrWhiteSpace(state.TechStackSuggestionJson))
-                suggestion = JsonSerializer.Deserialize<JsonElement>(state.TechStackSuggestionJson);
+            {
+                // JsonElement preserves the original property names verbatim. Older
+                // rows were stored with C# PascalCase, so normalize the typed value
+                // before exposing it through the camelCase HTTP contract.
+                var typedSuggestion = JsonSerializer.Deserialize<TaskPilot.AI.Models.Planning.TechStackSuggestion>(
+                    state.TechStackSuggestionJson,
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                if (typedSuggestion != null)
+                    suggestion = JsonSerializer.SerializeToElement(typedSuggestion, JsonSerializerOptions.Web);
+            }
 
             return new ProjectSetupDto
             {

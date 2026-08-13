@@ -51,5 +51,25 @@ namespace TaskPilot.Tests.Services
 
             Assert.Equal(ProjectSetupOverallStatus.Failed, ProjectSetupService.GetOverallStatus(state));
         }
+
+        [Fact]
+        public void ToDto_NormalizesStoredPascalCaseSuggestionToCamelCase()
+        {
+            var project = new Project { NameEn = "Test" };
+            var state = new ProjectSetupState
+            {
+                TechStackStatus = TechStackSetupStatus.Suggested,
+                TechStackSuggestionJson = """
+                    {"PrimaryStack":{"Description":"Primary","TechStack":["Angular"],"Reasoning":"Team fit"},"IdealStack":{"Description":"Ideal","TechStack":["Angular","Redis"],"Reasoning":"Best fit"},"GapAnalysis":[],"PlatformTargets":["Web"],"ProjectType":"SaaS"}
+                    """
+            };
+
+            var dto = ProjectSetupService.ToDto(project, state);
+            var suggestion = dto.TechStack.Suggestion!.Value;
+
+            Assert.True(suggestion.TryGetProperty("primaryStack", out var primary));
+            Assert.Equal("Team fit", primary.GetProperty("reasoning").GetString());
+            Assert.False(suggestion.TryGetProperty("PrimaryStack", out _));
+        }
     }
 }
