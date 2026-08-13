@@ -76,7 +76,6 @@ template: |
   descriptionEn: "As a [role], I want to [goal], so that [benefit]."
   Optionally followed by business context or constraints. (Include technical/entity specifics per Context Threading rule).
 
-  descriptionAr must follow the same format in Arabic.
 
   Every User Story must be independent and deliver clear business value.
 
@@ -113,11 +112,8 @@ template: |
         "id": "string (e.g. S1)",
         "dependsOnStoryId": "string (or null)",
         "titleEn": "string",
-        "titleAr": "string",
         "descriptionEn": "string",
-        "descriptionAr": "string",
         "acceptanceCriteriaEn": "string (bullet points separated by \n)",
-        "acceptanceCriteriaAr": "string (bullet points separated by \n)",
         "priority": "High | Medium | Low"
       }
     ]

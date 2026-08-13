@@ -1,6 +1,6 @@
 name: WbsTaskGeneration
 
-description: Generates implementation tasks for a batch of User Stories.
+description: Generates implementation tasks for a batch of User Stories (English only — Arabic translation is handled in a subsequent phase).
 
 template_format: semantic-kernel
 
@@ -9,7 +9,7 @@ execution_settings:
     temperature: 0.0
     seed: 42
     response_format: { "type": "json_object" }
-    max_tokens: 32768
+    max_tokens: 16384
 
 input_variables:
   - name: userStoriesBatch
@@ -61,8 +61,8 @@ template: |
      - NEVER exceed 16 hours for a single task.
 
   4. LANGUAGE
-     - Generate bilingual fields (En and Ar) for every Title, Description, and Acceptance Criteria.
-     - Do not use placeholders. Provide natural human-readable translations.
+     - Generate English fields only (titleEn, descriptionEn, acceptanceCriteriaEn).
+     - Arabic translation will be handled in a subsequent phase — do NOT generate any Ar fields.
 
   5. JSON OUTPUT
      - Return EXACTLY one JSON object matching the required structure.
@@ -79,11 +79,8 @@ template: |
         "tasks": [
           {
             "titleEn": "string",
-            "titleAr": "string",
             "descriptionEn": "string",
-            "descriptionAr": "string",
             "acceptanceCriteriaEn": "string (bullet points separated by \n)",
-            "acceptanceCriteriaAr": "string (bullet points separated by \n)",
             "effortSize": "Small | Medium | Large",
             "type": "Technical | NonTechnical",
             "estimatedHours": 0,
@@ -93,4 +90,3 @@ template: |
       }
     ]
   }
-

@@ -20,6 +20,10 @@ namespace TaskPilot.AI.Agents.Planning
         private readonly ILogger<RequiredSkillsEnrichmentAgent> _logger;
         private readonly ITelemetryAccumulator _telemetry;
 
+        // Fix 3: cached once per scoped lifetime — avoids 50× disk reads + Kernel builds
+        private KernelFunction? _cachedFunction;
+        private Kernel? _cachedKernel;
+
         public RequiredSkillsEnrichmentAgent(
             IAiKernelService kernelService,
             IPromptLoaderService promptLoader,
@@ -44,9 +48,18 @@ namespace TaskPilot.AI.Agents.Planning
                 return Result.Success(new List<GeneratedRequiredSkill>());
             }
 
-            var promptYaml = await _promptLoader.LoadAsync("Planning/RequiredSkillsEnrichment.yaml");
-            var function = KernelFunctionYaml.FromPromptYaml(promptYaml);
-            var kernel = _kernelService.CreateKernel(ModelConstants.CheapModel);
+            // Fix 3: lazy-init — load YAML + build Kernel only once per request lifetime
+            if (_cachedFunction == null)
+            {
+                var promptYaml = await _promptLoader.LoadAsync("Planning/RequiredSkillsEnrichment.yaml");
+                _cachedFunction = KernelFunctionYaml.FromPromptYaml(promptYaml);
+            }
+            if (_cachedKernel == null)
+            {
+                _cachedKernel = _kernelService.CreateKernel(ModelConstants.CheapModel);
+            }
+            var function = _cachedFunction;
+            var kernel = _cachedKernel;
 
             var arguments = new KernelArguments
             {

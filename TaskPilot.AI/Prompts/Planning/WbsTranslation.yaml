@@ -1,0 +1,53 @@
+name: WbsTranslation
+
+description: Translates English WBS content (stories and tasks) to Arabic. Called after English generation is confirmed valid.
+
+template_format: semantic-kernel
+
+execution_settings:
+  default:
+    temperature: 0.0
+    seed: 42
+    response_format: { "type": "json_object" }
+    max_tokens: 16384
+
+input_variables:
+  - name: itemsBatch
+    description: >
+      A JSON array of items to translate. Each item has an "id", "type" ("story" or "task"),
+      and English text fields: titleEn, descriptionEn, acceptanceCriteriaEn.
+
+template: |
+
+  You are a professional Arabic translator specializing in software project management and Agile terminology.
+
+  Translate the following English Agile WBS content into Arabic.
+  Preserve all technical terms (API, ASP.NET Core, Angular, SQL Server, etc.) in their original English form.
+  Keep acronyms (PM, HR, CRM, UI, UX) in English.
+  User story descriptions must follow the Arabic Agile format: "بوصفي [role]، أريد أن [goal]، حتى أتمكن من [benefit]."
+
+  --------------------------------------------------------
+  ITEMS TO TRANSLATE
+  --------------------------------------------------------
+  {{$itemsBatch}}
+
+  --------------------------------------------------------
+  REQUIRED JSON STRUCTURE
+  --------------------------------------------------------
+
+  Return ONLY a JSON object with a single "translations" array.
+  Each element must have the same "id" as the input item, plus the three Arabic fields.
+
+  {
+    "translations": [
+      {
+        "id": "string",
+        "titleAr": "string",
+        "descriptionAr": "string",
+        "acceptanceCriteriaAr": "string (bullet points separated by \n)"
+      }
+    ]
+  }
+
+  Do NOT include any markdown, comments, or explanation outside the JSON.
+  Do NOT omit any item from the input. Every input id must appear in the output.

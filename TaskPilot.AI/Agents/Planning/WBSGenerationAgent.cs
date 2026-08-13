@@ -53,10 +53,10 @@ namespace TaskPilot.AI.Agents.Planning
                 ModelConstants.MorePowerfulModel,
                 "LongRunningAiClient");
 
-            // Phase 1: Generate Stories
+            // Phase 1: Generate Stories (English only — Arabic stripped in Fix 1)
             var stories = await GenerateStoriesAsync(kernel, snapshot, techStack, platformTargets, projectType, availableSkills, brdContext, cancellationToken);
             
-            // Phase 2: Generate Tasks in Batches
+            // Phase 2: Generate Tasks in Batches (English only, parallel batches)
             var storyTasks = await GenerateTasksBatchedAsync(kernel, stories, techStack, availableSkills, cancellationToken);
 
             // Merge Tasks into Stories
@@ -64,10 +64,11 @@ namespace TaskPilot.AI.Agents.Planning
             {
                 var generatedTasks = storyTasks.FirstOrDefault(st => st.StoryId == story.Id)?.Tasks;
                 if (generatedTasks != null)
-                {
                     story.Tasks = generatedTasks;
-                }
             }
+
+            // Phase 3: Translate English content to Arabic (Fix 1 — separate lightweight call)
+            await TranslateWbsAsync(kernel, stories, cancellationToken);
 
             return new GeneratedWbs { UserStories = stories };
         }
@@ -203,6 +204,11 @@ namespace TaskPilot.AI.Agents.Planning
 
                     var rawJson = invokeResult.ToString();
                     var jsonToParse = TryRepairJson(rawJson);
+                    if (jsonToParse == null)
+                    {
+                        _logger.LogWarning("WBS Story JSON repair returned null on attempt {Attempt}/3 — triggering retry.", attempt);
+                        continue;
+                    }
                     result = JsonSerializer.Deserialize<GeneratedWbs>(jsonToParse, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
                     
                     if (result != null && result.UserStories.Any()) break;
@@ -235,13 +241,13 @@ namespace TaskPilot.AI.Agents.Planning
 
             var executionSettings = new Microsoft.SemanticKernel.Connectors.OpenAI.OpenAIPromptExecutionSettings
             {
-                MaxTokens = 32768,
+                MaxTokens = 16384, // Fix 1: reduced from 32768 — English-only output well within 16k
                 Temperature = 0.0,
                 Seed = 42,
                 ResponseFormat = "json_object"
             };
 
-            int batchSize = 25; // As per the revised gpt-4.1 plan
+            int batchSize = 8; // Fix 1: reduced from 25 — English-only output fits comfortably per batch
             var batches = stories.Select((story, index) => new { story, index })
                                  .GroupBy(x => x.index / batchSize)
                                  .Select(g => g.Select(x => x.story).ToList())
@@ -296,12 +302,15 @@ namespace TaskPilot.AI.Agents.Planning
 
                     var rawJson = invokeResult.ToString();
                     var jsonToParse = TryRepairJson(rawJson, isTasks: true);
+                    if (jsonToParse == null)
+                    {
+                        _logger.LogWarning("WBS Task JSON repair returned null on attempt {Attempt}/3 — triggering retry.", attempt);
+                        continue;
+                    }
                     var result = JsonSerializer.Deserialize<GeneratedStoryTasksBatch>(jsonToParse, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
                     
                     if (result != null && result.StoryTasks != null)
-                    {
                         return result.StoryTasks;
-                    }
                 }
                 catch (JsonException ex)
                 {
@@ -313,32 +322,143 @@ namespace TaskPilot.AI.Agents.Planning
             return new List<GeneratedStoryTasks>();
         }
 
-        private string TryRepairJson(string raw, bool isTasks = false)
+        /// <summary>
+        /// Fix 1 Phase 3: Translates all English story and task fields to Arabic using gpt-4o-mini.
+        /// Called only after English generation is confirmed valid. On failure, logs a warning
+        /// and leaves Ar fields as empty strings so persistence is not blocked.
+        /// </summary>
+        private async Task TranslateWbsAsync(
+            Kernel kernel,
+            List<GeneratedUserStory> stories,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var translationPrompt = await _promptLoader.LoadAsync("Planning/WbsTranslation.yaml");
+                var translationFunction = KernelFunctionYaml.FromPromptYaml(translationPrompt);
+
+                // Use cheap/fast model for translation — create a new kernel for gpt-4o-mini
+                var translationKernel = _kernelService.CreateKernel(ModelConstants.CheapModel, "LongRunningAiClient");
+
+                var translationSettings = new Microsoft.SemanticKernel.Connectors.OpenAI.OpenAIPromptExecutionSettings
+                {
+                    MaxTokens = 16384,
+                    Temperature = 0.0,
+                    Seed = 42,
+                    ResponseFormat = "json_object"
+                };
+
+                // Build flat list of all items (stories + tasks) — each gets a unique translation id
+                var items = new List<object>();
+                var storyMap = new Dictionary<string, GeneratedUserStory>();
+                var taskMap = new Dictionary<string, GeneratedTask>();
+
+                foreach (var story in stories)
+                {
+                    var sid = $"S_{story.Id}";
+                    items.Add(new { id = sid, type = "story", titleEn = story.TitleEn, descriptionEn = story.DescriptionEn, acceptanceCriteriaEn = story.AcceptanceCriteriaEn });
+                    storyMap[sid] = story;
+
+                    foreach (var task in story.Tasks)
+                    {
+                        var tid = $"T_{story.Id}_{task.TitleEn?.GetHashCode():X}";
+                        items.Add(new { id = tid, type = "task", titleEn = task.TitleEn, descriptionEn = task.DescriptionEn, acceptanceCriteriaEn = task.AcceptanceCriteriaEn });
+                        taskMap[tid] = task;
+                    }
+                }
+
+                // Translate in batches of 30 items to stay under 16k max_tokens
+                const int translationBatchSize = 30;
+                var translationBatches = items.Select((item, idx) => new { item, idx })
+                    .GroupBy(x => x.idx / translationBatchSize)
+                    .Select(g => g.Select(x => x.item).ToList())
+                    .ToList();
+
+                foreach (var batch in translationBatches)
+                {
+                    var batchJson = System.Text.Json.JsonSerializer.Serialize(batch);
+                    var args = new KernelArguments(translationSettings) { ["itemsBatch"] = batchJson };
+
+                    var invokeResult = await translationKernel.InvokeAsync(translationFunction, args, cancellationToken);
+                    _telemetry.RecordCall(invokeResult.Metadata, 0, "WBSGenerationAgent_Translation", ModelConstants.CheapModel, _logger);
+
+                    var rawJson = invokeResult.ToString();
+                    var translations = System.Text.Json.JsonSerializer.Deserialize<WbsTranslationBatch>(
+                        rawJson, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                    if (translations?.Translations == null) continue;
+
+                    foreach (var t in translations.Translations)
+                    {
+                        if (storyMap.TryGetValue(t.Id, out var story))
+                        {
+                            story.TitleAr = t.TitleAr ?? story.TitleAr;
+                            story.DescriptionAr = t.DescriptionAr ?? story.DescriptionAr;
+                            story.AcceptanceCriteriaAr = t.AcceptanceCriteriaAr ?? story.AcceptanceCriteriaAr;
+                        }
+                        else if (taskMap.TryGetValue(t.Id, out var task))
+                        {
+                            task.TitleAr = t.TitleAr ?? task.TitleAr;
+                            task.DescriptionAr = t.DescriptionAr ?? task.DescriptionAr;
+                            task.AcceptanceCriteriaAr = t.AcceptanceCriteriaAr ?? task.AcceptanceCriteriaAr;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Translation failure is non-fatal — English content is already persisted
+                _logger.LogWarning(ex, "WBSGenerationAgent: Arabic translation phase failed. WBS will be persisted with English-only content.");
+            }
+        }
+
+        // DTO for deserializing the translation response
+        private sealed class WbsTranslationBatch
+        {
+            public List<WbsTranslationItem> Translations { get; set; } = new();
+        }
+
+        private sealed class WbsTranslationItem
+        {
+            public string Id { get; set; } = string.Empty;
+            public string? TitleAr { get; set; }
+            public string? DescriptionAr { get; set; }
+            public string? AcceptanceCriteriaAr { get; set; }
+        }
+
+        /// <summary>
+        /// Fix 6: Improved JSON repair.
+        /// Tracks lastSafeClosingBrace — only updated when the scanner is outside a string
+        /// (inString==false) at depth==1. Prevents using a "}" inside a truncated string as cut point.
+        /// After repair, validates with JsonDocument.Parse; returns null on failure so the retry loop
+        /// fires a real LLM re-call rather than deserializing guaranteed-broken JSON.
+        /// </summary>
+        private string? TryRepairJson(string raw, bool isTasks = false)
         {
             raw = raw.Trim();
             if (raw.StartsWith("```json"))
             {
                 raw = raw.Substring(7);
                 if (raw.EndsWith("```"))
-                {
                     raw = raw.Substring(0, raw.Length - 3);
-                }
                 raw = raw.Trim();
             }
             else if (raw.StartsWith("```"))
             {
                 raw = raw.Substring(3);
                 if (raw.EndsWith("```"))
-                {
                     raw = raw.Substring(0, raw.Length - 3);
-                }
                 raw = raw.Trim();
             }
 
             if (!raw.StartsWith("{")) return raw;
-            if (raw.EndsWith("}")) return raw;
 
-            int lastClosingBrace = -1;
+            // Already well-formed — quick validate and return
+            if (raw.EndsWith("}"))
+                return IsValidJson(raw) ? raw : null;
+
+            // Fix 6: lastSafeClosingBrace — only updated when provably outside a string
+            int lastSafeClosingBrace = -1;
             int depth = 0;
             bool inString = false;
             bool escape = false;
@@ -355,16 +475,34 @@ namespace TaskPilot.AI.Agents.Planning
                 else if (c == '}')
                 {
                     depth--;
-                    if (depth == 1) 
-                        lastClosingBrace = i;
+                    if (depth == 1)
+                        lastSafeClosingBrace = i;  // safe: we are outside any string
                     else if (depth == 0)
-                        return raw; 
+                        return IsValidJson(raw) ? raw : null;
                 }
             }
 
-            if (lastClosingBrace == -1) return raw;
+            if (lastSafeClosingBrace == -1)
+            {
+                _logger.LogWarning("TryRepairJson: no safe truncation boundary found. Returning null to trigger retry.");
+                return null;
+            }
 
-            return raw.Substring(0, lastClosingBrace + 1) + "\n  ]\n}";
+            var repaired = raw.Substring(0, lastSafeClosingBrace + 1) + "\n  ]\n}";
+
+            if (!IsValidJson(repaired))
+            {
+                _logger.LogWarning("TryRepairJson: repaired JSON still invalid after truncation. Returning null to trigger retry.");
+                return null;
+            }
+
+            return repaired;
+        }
+
+        private static bool IsValidJson(string json)
+        {
+            try { using var _ = System.Text.Json.JsonDocument.Parse(json); return true; }
+            catch (System.Text.Json.JsonException) { return false; }
         }
     }
 }
