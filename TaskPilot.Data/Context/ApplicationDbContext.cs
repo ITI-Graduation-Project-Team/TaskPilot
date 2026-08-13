@@ -26,6 +26,7 @@ namespace TaskPilot.Data.Context
 
         public DbSet<Company> Companies => Set<Company>();
         public DbSet<Project> Projects => Set<Project>();
+        public DbSet<ProjectSetupState> ProjectSetupStates => Set<ProjectSetupState>();
         public DbSet<Sprint> Sprints => Set<Sprint>();
         public DbSet<UserStory> UserStories => Set<UserStory>();
         public DbSet<TaskItem> TaskItems => Set<TaskItem>();

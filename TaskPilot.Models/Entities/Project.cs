@@ -57,5 +57,6 @@ namespace TaskPilot.Models.Entities
         public Guid? RequirementsSessionId { get; set; }
         public List<Guid> DocumentIds { get; set; } = new List<Guid>();
         public ICollection<UserStory> UserStories { get; set; } = new List<UserStory>();
+        public ProjectSetupState? SetupState { get; set; }
     }
 }

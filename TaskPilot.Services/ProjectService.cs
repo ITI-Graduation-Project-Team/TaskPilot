@@ -56,7 +56,19 @@ namespace TaskPilot.Services
                     TechStack = p.TechStack,
                     PlatformTargets = p.PlatformTargets,
                     ProjectType = p.ProjectType,
-                    status = p.Status
+                    status = p.Status,
+                    SetupStatus = p.SetupState == null
+                        ? (p.UserStories.Any(us => !us.IsDeleted) ? ProjectSetupOverallStatus.Ready : ProjectSetupOverallStatus.NeedsTechStack)
+                        : p.SetupState.WbsStatus == BackgroundSetupStatus.Failed || p.SetupState.TechStackStatus == TechStackSetupStatus.Failed
+                            ? ProjectSetupOverallStatus.Failed
+                            : p.SetupState.WbsStatus == BackgroundSetupStatus.Succeeded
+                                ? (p.SetupState.SkillsStatus == BackgroundSetupStatus.Succeeded ? ProjectSetupOverallStatus.Ready
+                                    : p.SetupState.SkillsStatus == BackgroundSetupStatus.Failed || p.SetupState.SkillsStatus == BackgroundSetupStatus.PartiallySucceeded ? ProjectSetupOverallStatus.ReadyWithWarnings
+                                    : ProjectSetupOverallStatus.EnrichingSkills)
+                                : p.SetupState.WbsStatus == BackgroundSetupStatus.Running ? ProjectSetupOverallStatus.WbsGenerating
+                                : p.SetupState.WbsStatus == BackgroundSetupStatus.Queued ? ProjectSetupOverallStatus.WbsQueued
+                                : p.SetupState.TechStackStatus == TechStackSetupStatus.Confirmed ? ProjectSetupOverallStatus.ReadyForWbs
+                                : ProjectSetupOverallStatus.NeedsTechStack
                 })
                 .FirstOrDefaultAsync();
 
@@ -80,7 +92,18 @@ namespace TaskPilot.Services
                     Description = isArabic ? p.DescriptionAr : p.DescriptionEn,
                     CompanyId = p.CompanyId,
                     ManagerId = p.ManagerId,
-                    status = p.Status
+                    status = p.Status,
+                    SetupStatus = p.SetupState != null && (p.SetupState.WbsStatus == BackgroundSetupStatus.Failed || p.SetupState.TechStackStatus == TechStackSetupStatus.Failed)
+                        ? ProjectSetupOverallStatus.Failed
+                        : p.SetupState != null && p.SetupState.WbsStatus == BackgroundSetupStatus.Succeeded
+                            ? ProjectSetupOverallStatus.Ready
+                            : p.SetupState != null && p.SetupState.WbsStatus == BackgroundSetupStatus.Running
+                                ? ProjectSetupOverallStatus.WbsGenerating
+                                : p.SetupState != null && p.SetupState.WbsStatus == BackgroundSetupStatus.Queued
+                                    ? ProjectSetupOverallStatus.WbsQueued
+                                    : p.SetupState != null && p.SetupState.TechStackStatus == TechStackSetupStatus.Confirmed
+                                        ? ProjectSetupOverallStatus.ReadyForWbs
+                                        : ProjectSetupOverallStatus.NeedsTechStack
                 })
                 .ToListAsync();
 
@@ -110,7 +133,18 @@ namespace TaskPilot.Services
                     Description = isArabic ? p.DescriptionAr : p.DescriptionEn,
                     CompanyId = p.CompanyId,
                     ManagerId = p.ManagerId,
-                    status = p.Status
+                    status = p.Status,
+                    SetupStatus = p.SetupState != null && (p.SetupState.WbsStatus == BackgroundSetupStatus.Failed || p.SetupState.TechStackStatus == TechStackSetupStatus.Failed)
+                        ? ProjectSetupOverallStatus.Failed
+                        : p.SetupState != null && p.SetupState.WbsStatus == BackgroundSetupStatus.Succeeded
+                            ? ProjectSetupOverallStatus.Ready
+                        : p.SetupState != null && p.SetupState.WbsStatus == BackgroundSetupStatus.Running
+                            ? ProjectSetupOverallStatus.WbsGenerating
+                            : p.SetupState != null && p.SetupState.WbsStatus == BackgroundSetupStatus.Queued
+                                ? ProjectSetupOverallStatus.WbsQueued
+                                : p.SetupState != null && p.SetupState.TechStackStatus == TechStackSetupStatus.Confirmed
+                                    ? ProjectSetupOverallStatus.ReadyForWbs
+                                    : ProjectSetupOverallStatus.NeedsTechStack
                 })
                 .ToListAsync();
 
@@ -138,6 +172,17 @@ namespace TaskPilot.Services
                     PlatformTargets = p.PlatformTargets,
                     ProjectType = p.ProjectType,
                     status = p.Status,
+                    SetupStatus = p.SetupState != null && (p.SetupState.WbsStatus == BackgroundSetupStatus.Failed || p.SetupState.TechStackStatus == TechStackSetupStatus.Failed)
+                        ? ProjectSetupOverallStatus.Failed
+                        : p.SetupState != null && p.SetupState.WbsStatus == BackgroundSetupStatus.Succeeded
+                            ? ProjectSetupOverallStatus.Ready
+                        : p.SetupState != null && p.SetupState.WbsStatus == BackgroundSetupStatus.Running
+                            ? ProjectSetupOverallStatus.WbsGenerating
+                            : p.SetupState != null && p.SetupState.WbsStatus == BackgroundSetupStatus.Queued
+                                ? ProjectSetupOverallStatus.WbsQueued
+                                : p.SetupState != null && p.SetupState.TechStackStatus == TechStackSetupStatus.Confirmed
+                                    ? ProjectSetupOverallStatus.ReadyForWbs
+                                    : ProjectSetupOverallStatus.NeedsTechStack,
                     TeamSize = p.ProjectEmployees.Count,
                     TotalUserStories = p.UserStories.Count,
                     CompletedSprintsCount = p.Sprints.Count(s => s.Status == SprintStatus.Completed),
@@ -176,6 +221,17 @@ namespace TaskPilot.Services
                     PlatformTargets = p.PlatformTargets,
                     ProjectType = p.ProjectType,
                     status = p.Status,
+                    SetupStatus = p.SetupState != null && (p.SetupState.WbsStatus == BackgroundSetupStatus.Failed || p.SetupState.TechStackStatus == TechStackSetupStatus.Failed)
+                        ? ProjectSetupOverallStatus.Failed
+                        : p.SetupState != null && p.SetupState.WbsStatus == BackgroundSetupStatus.Succeeded
+                            ? ProjectSetupOverallStatus.Ready
+                        : p.SetupState != null && p.SetupState.WbsStatus == BackgroundSetupStatus.Running
+                            ? ProjectSetupOverallStatus.WbsGenerating
+                            : p.SetupState != null && p.SetupState.WbsStatus == BackgroundSetupStatus.Queued
+                                ? ProjectSetupOverallStatus.WbsQueued
+                                : p.SetupState != null && p.SetupState.TechStackStatus == TechStackSetupStatus.Confirmed
+                                    ? ProjectSetupOverallStatus.ReadyForWbs
+                                    : ProjectSetupOverallStatus.NeedsTechStack,
                     TeamSize = p.ProjectEmployees.Count,
                     TotalUserStories = p.Sprints.SelectMany(s => s.Tasks).Count(),
                     CompletedSprintsCount = p.Sprints.Count(s => s.Status == SprintStatus.Completed),
@@ -264,6 +320,7 @@ namespace TaskPilot.Services
                 DescriptionAr = dto.DescriptionAr,
                 ManagerId = userId.Value,
                 CompanyId = dto.CompanyId
+                ,SetupState = new ProjectSetupState()
             };
 
             await _projectRepo.AddAsync(project);

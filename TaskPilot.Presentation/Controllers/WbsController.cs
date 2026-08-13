@@ -14,6 +14,7 @@ using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Common.Errors;
 using TaskPilot.Services.DTOs;
 using TaskPilot.DTOs.Projects;
+using TaskPilot.Presentation.Models;
 
 namespace TaskPilot.Presentation.Controllers
 {
@@ -22,21 +23,15 @@ namespace TaskPilot.Presentation.Controllers
     [Authorize(Roles = "ProjectManager")]
     public class WbsController : ApiControllerBase
     {
-        private readonly IWbsGenerationService _wbsGenerationService;
-        private readonly IWbsSkillEnrichmentService _wbsSkillEnrichmentService;
+        private readonly IProjectSetupService _projectSetupService;
         private readonly IUserStoryRepository _userStoryRepository;
-        private readonly IUnitOfWork _unitOfWork;
 
         public WbsController(
-            IWbsGenerationService wbsGenerationService,
-            IWbsSkillEnrichmentService wbsSkillEnrichmentService,
-            IUserStoryRepository userStoryRepository,
-            IUnitOfWork unitOfWork)
+            IProjectSetupService projectSetupService,
+            IUserStoryRepository userStoryRepository)
         {
-            _wbsGenerationService = wbsGenerationService;
-            _wbsSkillEnrichmentService = wbsSkillEnrichmentService;
+            _projectSetupService = projectSetupService;
             _userStoryRepository = userStoryRepository;
-            _unitOfWork = unitOfWork;
         }
 
         [HttpPost("generate")]
@@ -44,12 +39,16 @@ namespace TaskPilot.Presentation.Controllers
             Guid projectId,
             CancellationToken cancellationToken)
         {
-            var result = await _wbsGenerationService.GenerateAsync(projectId, cancellationToken);
-            if (result.IsSuccess)
-            {
-                await _unitOfWork.SaveChangesAsync(cancellationToken);
-            }
-            return HandleResult(result);
+            return await QueueGeneration(projectId, cancellationToken);
+        }
+
+        [HttpPost("generation")]
+        public async Task<ActionResult> QueueGeneration(Guid projectId, CancellationToken cancellationToken)
+        {
+            var result = await _projectSetupService.QueueWbsAsync(projectId, cancellationToken);
+            return result.IsSuccess
+                ? Accepted(ApiResponse.Success(result.Value, "WBS generation was queued."))
+                : HandleResult(result);
         }
 
         [HttpPost("enrich-skills")]
@@ -57,12 +56,16 @@ namespace TaskPilot.Presentation.Controllers
             Guid projectId,
             CancellationToken cancellationToken)
         {
-            var result = await _wbsSkillEnrichmentService.EnrichProjectTasksAsync(projectId, cancellationToken);
-            if (result.IsSuccess)
-            {
-                await _unitOfWork.SaveChangesAsync(cancellationToken);
-            }
-            return HandleResult(result, TaskPilot.Models.Common.SuccessCodes.Wbs.SkillsEnriched);
+            return await QueueSkillEnrichment(projectId, cancellationToken);
+        }
+
+        [HttpPost("skills-enrichment")]
+        public async Task<ActionResult> QueueSkillEnrichment(Guid projectId, CancellationToken cancellationToken)
+        {
+            var result = await _projectSetupService.QueueSkillsAsync(projectId, cancellationToken);
+            return result.IsSuccess
+                ? Accepted(ApiResponse.Success(result.Value, "Skill enrichment was queued."))
+                : HandleResult(result);
         }
 
         [HttpGet]

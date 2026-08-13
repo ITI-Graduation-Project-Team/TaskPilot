@@ -15,6 +15,8 @@ using TaskPilot.Services.Interfaces;
 using TaskPilot.AI.Services.Requirements;
 using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Common.Errors;
+using Hangfire;
+using TaskPilot.Services.BackgroundJobs;
 
 namespace TaskPilot.Services
 {
@@ -26,8 +28,8 @@ namespace TaskPilot.Services
         private readonly IRepository<Company> _companyRepository;
         private readonly UserManager<User> _userManager;
         private readonly ILogger<RequirementFinalizationService> _logger;
-        private readonly IServiceProvider _serviceProvider;
         private readonly IRequirementReadinessEvaluator _readinessEvaluator;
+        private readonly IBackgroundJobClient _backgroundJobs;
 
         public RequirementFinalizationService(
             IRequirementSessionStore sessionStore,
@@ -36,8 +38,8 @@ namespace TaskPilot.Services
             IRepository<Company> companyRepository,
             UserManager<User> userManager,
             ILogger<RequirementFinalizationService> logger,
-            IServiceProvider serviceProvider,
-            IRequirementReadinessEvaluator readinessEvaluator)
+            IRequirementReadinessEvaluator readinessEvaluator,
+            IBackgroundJobClient backgroundJobs)
         {
             _sessionStore = sessionStore;
             _unitOfWork = unitOfWork;
@@ -45,8 +47,8 @@ namespace TaskPilot.Services
             _companyRepository = companyRepository;
             _userManager = userManager;
             _logger = logger;
-            _serviceProvider = serviceProvider;
             _readinessEvaluator = readinessEvaluator;
+            _backgroundJobs = backgroundJobs;
         }
 
         public async Task<Result<FinalizeRequirementsResponse>> FinalizeRequirementsAsync(Guid sessionId, FinalizeRequirementsRequest request, CancellationToken cancellationToken = default)
@@ -61,22 +63,10 @@ namespace TaskPilot.Services
             _logger.LogInformation("Finalizing requirements for SessionId: {SessionId}. Current Status: {Status}, AllQuestionsAnswered: {AllQuestionsAnswered}, QuestionPool Count: {Count}", 
                 sessionId, session.Status, session.AllQuestionsAnswered, session.QuestionPool?.Count ?? 0);
 
-            // Force transition to Planning status to finalize requirements successfully
-            if (session.Status != RequirementSessionStatus.Planning)
-            {
-                _logger.LogInformation("Transitioning session {SessionId} from {Status} to Planning status for finalization.", sessionId, session.Status);
-                session.Status = RequirementSessionStatus.Planning;
-            }
-
-            // Generate final requirements if missing
             if (session.FinalRequirements == null)
             {
-                _logger.LogInformation("Building final requirements snapshot for session {SessionId}...", sessionId);
-                var builder = _serviceProvider.GetService(typeof(TaskPilot.AI.Agents.Requirements.RequirementsBuilderAgent)) as TaskPilot.AI.Agents.Requirements.RequirementsBuilderAgent;
-                if (builder != null)
-                {
-                    session.FinalRequirements = await builder.BuildAsync(session);
-                }
+                return Result.Failure<FinalizeRequirementsResponse>(
+                    CommonErrors.Conflict("REQUIREMENTS_NOT_READY", "Final requirements are still being prepared. Complete the requirements flow and retry."));
             }
 
             // Make sure all questions are marked answered as a safety measure for the snapshot
@@ -172,24 +162,12 @@ namespace TaskPilot.Services
                 RequirementsSnapshot = snapshot,
                 RequirementsSessionId = sessionId,
                 DocumentIds = session.Knowledge.DocumentIds.ToList()
+                ,SetupState = new ProjectSetupState()
             };
 
             try
             {
                 await _projectRepository.AddAsync(project);
-                
-                var vectorStore = _serviceProvider.GetService(typeof(TaskPilot.AI.Services.Interfaces.IVectorStore)) as TaskPilot.AI.Services.Interfaces.IVectorStore;
-                if (vectorStore != null)
-                {
-                    foreach (var docId in session.Knowledge.DocumentIds)
-                    {
-                        await vectorStore.PromoteKnowledgeAsync(
-                            TaskPilot.Models.Enums.KnowledgeCollectionType.ProjectPolicies,
-                            project.Id,
-                            docId,
-                            cancellationToken);
-                    }
-                }
                 
                 // Update Session Status
                 session.Status = RequirementSessionStatus.Completed;
@@ -198,6 +176,9 @@ namespace TaskPilot.Services
                 
                 await _sessionStore.SaveAsync(session, cancellationToken);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+                if (project.DocumentIds.Count > 0)
+                    _backgroundJobs.Enqueue<ProjectKnowledgePromotionJob>(job => job.ExecuteAsync(project.Id));
                 
                 _logger.LogInformation("Requirement session finalized successfully.\nSessionId: {SessionId}\nProjectId: {ProjectId}\nCompanyId: {CompanyId}\nDocumentIds transferred: {Count}", 
                     sessionId, project.Id, request.CompanyId, project.DocumentIds.Count);
@@ -217,7 +198,8 @@ namespace TaskPilot.Services
                 CompanyId = project.CompanyId,
                 ProjectName = project.NameEn,
                 Status = project.Status.ToString(),
-                RequirementsFinalized = true
+                RequirementsFinalized = true,
+                SetupStatus = ProjectSetupOverallStatus.NeedsTechStack.ToString()
             };
             return Result.Success(response);
         }
