@@ -9,7 +9,7 @@ namespace TaskPilot.Services.Interfaces;
 
 public interface IProjectTeamService
 {
-    Task<Result> AssignEmployeesAsync(
+    Task<Result<AssignEmployeesResultDto>> AssignEmployeesAsync(
         Guid projectId,
         AssignProjectEmployeesRequest request,
         CancellationToken cancellationToken = default);
@@ -18,7 +18,7 @@ public interface IProjectTeamService
         Guid projectId,
         CancellationToken cancellationToken = default);
 
-    Task<Result> RemoveEmployeeAsync(
+    Task<Result<AssignEmployeesResultDto>> RemoveEmployeeAsync(
         Guid projectId,
         Guid employeeId,
         CancellationToken cancellationToken = default);

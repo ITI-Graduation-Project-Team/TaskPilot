@@ -140,7 +140,7 @@ namespace TaskPilot.Presentation.Controllers
         }
 
         [HttpPost("{projectId:guid}/employees")]
-        public async Task<ActionResult> AssignProjectEmployees(
+        public async Task<ActionResult<AssignEmployeesResultDto>> AssignProjectEmployees(
             [FromRoute] Guid projectId,
             [FromBody] AssignProjectEmployeesRequest request,
             CancellationToken cancellationToken)
@@ -150,7 +150,7 @@ namespace TaskPilot.Presentation.Controllers
         }
 
         [HttpDelete("{projectId:guid}/employees/{employeeId:guid}")]
-        public async Task<ActionResult> RemoveProjectEmployee(
+        public async Task<ActionResult<AssignEmployeesResultDto>> RemoveProjectEmployee(
             [FromRoute] Guid projectId,
             [FromRoute] Guid employeeId,
             CancellationToken cancellationToken)

@@ -293,13 +293,25 @@ public class EmployeeController : ApiControllerBase
     }
 
     [Authorize(Roles = "Admin,ProjectManager")]
-    [HttpPost("{employeeId:guid}/reactivate")]
-    public async Task<ActionResult> ReactivateEmployee(
+    [HttpGet("{employeeId:guid}/reactivation-analysis")]
+    public async Task<ActionResult> AnalyzeReactivation( 
         [FromRoute] Guid employeeId,
         [FromServices] IEmployeeDeactivationService deactivationService,
         CancellationToken cancellationToken)
     {
-        var result = await deactivationService.ReactivateEmployeeAsync(employeeId, cancellationToken);
+        var result = await deactivationService.AnalyzeReactivationAsync(employeeId, cancellationToken);
+        return HandleResult(result);
+    }
+
+    [Authorize(Roles = "Admin,ProjectManager")]
+    [HttpPost("{employeeId:guid}/reactivate")]
+    public async Task<ActionResult<TaskPilot.DTOs.Projects.AssignEmployeesResultDto>> ReactivateEmployee(
+        [FromRoute] Guid employeeId,
+        [FromBody] TaskPilot.DTOs.Employees.ReactivateEmployeeRequest request,
+        [FromServices] IEmployeeDeactivationService deactivationService,
+        CancellationToken cancellationToken)
+    {
+        var result = await deactivationService.ReactivateEmployeeAsync(employeeId, request, cancellationToken);
         return HandleResult(result);
     }
 

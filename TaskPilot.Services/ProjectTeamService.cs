@@ -20,6 +20,7 @@ public class ProjectTeamService : IProjectTeamService
     private readonly IRepository<ProjectEmployee> _projectEmployeeRepository;
     private readonly IRepository<Project> _projectRepository;
     private readonly IRepository<Employee> _employeeRepository;
+    private readonly IRepository<Sprint> _sprintRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly INotificationService _notificationService;
 
@@ -27,31 +28,33 @@ public class ProjectTeamService : IProjectTeamService
         IRepository<ProjectEmployee> projectEmployeeRepository,
         IRepository<Project> projectRepository,
         IRepository<Employee> employeeRepository,
+        IRepository<Sprint> sprintRepository,
         IUnitOfWork unitOfWork,
         INotificationService notificationService)
     {
         _projectEmployeeRepository = projectEmployeeRepository;
         _projectRepository = projectRepository;
         _employeeRepository = employeeRepository;
+        _sprintRepository = sprintRepository;
         _unitOfWork = unitOfWork;
         _notificationService = notificationService;
     }
 
-    public async Task<Result> AssignEmployeesAsync(
+    public async Task<Result<AssignEmployeesResultDto>> AssignEmployeesAsync(
         Guid projectId,
         AssignProjectEmployeesRequest request,
         CancellationToken cancellationToken = default)
     {
         var project = await _projectRepository.GetByIdAsync(projectId);
         if (project == null)
-            return Result.Failure(new Error("Project.NotFound", ErrorType.NotFound, "Project not found."));
+            return Result.Failure<AssignEmployeesResultDto>(new Error("ProjectNotFound", ErrorType.Validation, "Project not found."));
 
         if (request.Assignments == null || !request.Assignments.Any())
-            return Result.Success();
+            return Result.Success(new AssignEmployeesResultDto());
 
         // Check for duplicates in request
         if (request.Assignments.GroupBy(x => x.EmployeeId).Any(g => g.Count() > 1))
-            return Result.Failure(new Error("DuplicateAssignment", ErrorType.Validation, "Duplicate assignments are forbidden."));
+            return Result.Failure<AssignEmployeesResultDto>(new Error("DuplicateAssignment", ErrorType.Validation, "Duplicate assignments are forbidden."));
 
         var employeeIds = request.Assignments.Select(a => a.EmployeeId).ToList();
 
@@ -60,20 +63,20 @@ public class ProjectTeamService : IProjectTeamService
             .ToListAsync(cancellationToken);
 
         if (employees.Count != employeeIds.Count)
-            return Result.Failure(new Error("EmployeeNotFound", ErrorType.Validation, "One or more employees not found."));
+            return Result.Failure<AssignEmployeesResultDto>(new Error("EmployeeNotFound", ErrorType.Validation, "One or more employees not found."));
 
         if (employees.Any(e => e.IsDeactivated))
-            return Result.Failure(new Error("EmployeeDeactivated", ErrorType.Validation, "Cannot assign deactivated employees to a project."));
+            return Result.Failure<AssignEmployeesResultDto>(new Error("EmployeeDeactivated", ErrorType.Validation, "Cannot assign deactivated employees to a project."));
 
         if (employees.Any(e => e.CompanyId != project.CompanyId))
-            return Result.Failure(new Error("InvalidCompany", ErrorType.Validation, "Only Employees from the same Company may be assigned."));
+            return Result.Failure<AssignEmployeesResultDto>(new Error("InvalidCompany", ErrorType.Validation, "Only Employees from the same Company may be assigned."));
 
         var existingAssignments = await _projectEmployeeRepository.GetQueryable()
             .Where(pe => pe.ProjectId == projectId && employeeIds.Contains(pe.EmployeeId))
             .ToListAsync(cancellationToken);
 
         if (existingAssignments.Any())
-            return Result.Failure(new Error("AlreadyAssigned", ErrorType.Validation, "One or more employees are already assigned to the project."));
+            return Result.Failure<AssignEmployeesResultDto>(new Error("AlreadyAssigned", ErrorType.Validation, "One or more employees are already assigned to the project."));
 
         var alreadyAssignedToActiveProject = await _projectEmployeeRepository.GetQueryable()
             .AnyAsync(pe => employeeIds.Contains(pe.EmployeeId) && 
@@ -83,7 +86,7 @@ public class ProjectTeamService : IProjectTeamService
                       cancellationToken);
 
         if (alreadyAssignedToActiveProject)
-            return Result.Failure(new Error("EmployeeAlreadyAssignedToAnotherProject", ErrorType.Validation, "One or more employees are already assigned to another active project."));
+            return Result.Failure<AssignEmployeesResultDto>(new Error("EmployeeAlreadyAssignedToAnotherProject", ErrorType.Validation, "One or more employees are already assigned to another active project."));
 
         var newAssignments = request.Assignments.Select(a => new ProjectEmployee
         {
@@ -107,7 +110,17 @@ public class ProjectTeamService : IProjectTeamService
             );
         }
 
-        return Result.Success();
+        var plannedSprints = await _sprintRepository.GetQueryable()
+            .Where(s => s.ProjectId == projectId && s.Status == SprintStatus.Planned)
+            .Select(s => new { s.Id, s.TitleEn })
+            .ToListAsync(cancellationToken);
+
+        return Result.Success(new AssignEmployeesResultDto
+        {
+            HasPlannedSprints = plannedSprints.Any(),
+            PlannedSprintNames = plannedSprints.Select(s => s.TitleEn ?? "").ToList(),
+            PlannedSprintIds = plannedSprints.Select(s => s.Id).ToList()
+        });
     }
 
     public async Task<Result<List<ProjectEmployeeDto>>> GetProjectEmployeesAsync(
@@ -158,7 +171,7 @@ public class ProjectTeamService : IProjectTeamService
         return Result<List<ProjectEmployeeDto>>.Success(dtos);
     }
 
-    public async Task<Result> RemoveEmployeeAsync(
+    public async Task<Result<AssignEmployeesResultDto>> RemoveEmployeeAsync(
         Guid projectId,
         Guid employeeId,
         CancellationToken cancellationToken = default)
@@ -170,10 +183,12 @@ public class ProjectTeamService : IProjectTeamService
             .Include(pe => pe.Employee)
                 .ThenInclude(e => e.AssignedTasks)
                     .ThenInclude(t => t.UserStory)
+            .Include(pe => pe.Project)
+                .ThenInclude(p => p.Sprints)
             .FirstOrDefaultAsync(pe => pe.ProjectId == projectId && pe.EmployeeId == employeeId, cancellationToken);
 
         if (assignment == null)
-            return Result.Failure(new Error("Assignment.NotFound", ErrorType.NotFound, "Employee is not assigned to this project."));
+            return Result<AssignEmployeesResultDto>.Failure(new Error("Assignment.NotFound", ErrorType.NotFound, "Employee is not assigned to this project."));
 
         var hasActiveTasks = assignment.Employee.AssignedTasks.Any(t => 
             t.Sprint != null && 
@@ -181,7 +196,20 @@ public class ProjectTeamService : IProjectTeamService
             t.Sprint.Status == SprintStatus.Active);
 
         if (hasActiveTasks)
-            return Result.Failure(new Error("EmployeeHasActiveTasks", ErrorType.Validation, "Employee still owns active tasks in an ongoing sprint."));
+            return Result<AssignEmployeesResultDto>.Failure(new Error("EmployeeHasActiveTasks", ErrorType.Validation, "Employee still owns active tasks in an ongoing sprint."));
+
+        // Analyze planned sprints before removing
+        var plannedSprints = assignment.Project?.Sprints?.Where(s => s.Status == SprintStatus.Planned).ToList() ?? new List<Sprint>();
+        var affectedSprints = new List<Sprint>();
+
+        foreach (var sprint in plannedSprints)
+        {
+            var employeeHasTasks = assignment.Employee.AssignedTasks.Any(t => t.SprintId == sprint.Id);
+            if (employeeHasTasks || assignment.CreatedAt <= sprint.CreatedAt)
+            {
+                affectedSprints.Add(sprint);
+            }
+        }
 
         // Unassign the employee from any tasks in this project that are NOT in an active sprint
         // (e.g. Backlog tasks or tasks in Pending/Future sprints)
@@ -198,6 +226,11 @@ public class ProjectTeamService : IProjectTeamService
         _projectEmployeeRepository.Delete(assignment);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return Result.Success();
+        return Result<AssignEmployeesResultDto>.Success(new AssignEmployeesResultDto
+        {
+            HasPlannedSprints = affectedSprints.Any(),
+            PlannedSprintNames = affectedSprints.Select(s => s.TitleEn ?? "").ToList(),
+            PlannedSprintIds = affectedSprints.Select(s => s.Id).ToList()
+        });
     }
 }

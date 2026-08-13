@@ -1,5 +1,6 @@
 using TaskPilot.Services.Interfaces;
 using TaskPilot.DTOs.Employees;
+using TaskPilot.DTOs.Projects;
 using TaskPilot.Models.Common.Results;
 using TaskPilot.Data.Repositories;
 using TaskPilot.Models.Entities;
@@ -79,26 +80,49 @@ public class EmployeeDeactivationService : IEmployeeDeactivationService
             result.IsAllowed = false;
         }
 
-        // 3. Check Planned Tasks
-        var plannedTasks = await _taskRepository.GetQueryable()
-            .Include(t => t.Sprint).ThenInclude(s => s.Project)
-            .Where(t => t.EmployeeId == employeeId && t.Sprint != null && t.Sprint.Status == SprintStatus.Planned)
+        // 3. Check Planned Sprints in Projects Employee is assigned to
+        var employeeProjectsWithPlannedSprintsInfo = await _projectRepository.GetQueryable()
+            .Where(p => p.ProjectEmployees.Any(pe => pe.EmployeeId == employeeId) && p.Sprints.Any(s => s.Status == SprintStatus.Planned))
+            .Select(p => new
+            {
+                ProjectId = p.Id,
+                ProjectName = p.NameEn,
+                ProjectEmployeeCreatedAt = p.ProjectEmployees.Where(pe => pe.EmployeeId == employeeId).Select(pe => pe.CreatedAt).FirstOrDefault(),
+                PlannedSprints = p.Sprints.Where(s => s.Status == SprintStatus.Planned).Select(s => new
+                {
+                    SprintId = s.Id,
+                    SprintTitle = s.TitleEn,
+                    SprintCreatedAt = s.CreatedAt,
+                    TotalTaskCount = s.Tasks.Count(),
+                    EmployeeHasTasks = s.Tasks.Any(t => t.EmployeeId == employeeId)
+                }).ToList()
+            })
             .ToListAsync(ct);
 
-        if (plannedTasks.Any())
+        var affectedSprints = new List<AffectedSprintDto>();
+        foreach (var project in employeeProjectsWithPlannedSprintsInfo)
+        {
+            foreach (var sprint in project.PlannedSprints)
+            {
+                // Only alert if they have tasks OR they were in the project when the sprint was planned
+                if (sprint.EmployeeHasTasks || project.ProjectEmployeeCreatedAt <= sprint.SprintCreatedAt)
+                {
+                    affectedSprints.Add(new AffectedSprintDto
+                    {
+                        ProjectId = project.ProjectId,
+                        ProjectName = project.ProjectName,
+                        SprintId = sprint.SprintId,
+                        SprintTitle = sprint.SprintTitle,
+                        TaskCount = sprint.TotalTaskCount
+                    });
+                }
+            }
+        }
+
+        if (affectedSprints.Any())
         {
             result.HasPlannedSprintTasks = true;
-            result.AffectedSprints = plannedTasks
-                .Where(t => t.Sprint != null && t.Sprint.Project != null)
-                .GroupBy(t => t.Sprint)
-                .Select(g => new AffectedSprintDto
-                {
-                    ProjectId = g.Key!.ProjectId,
-                    ProjectName = g.Key.Project.NameEn,
-                    SprintId = g.Key.Id,
-                    SprintTitle = g.Key.TitleEn,
-                    TaskCount = g.Count()
-                }).ToList();
+            result.AffectedSprints = affectedSprints;
         }
 
         return Result<AnalysisResultDto>.Success(result);
@@ -183,16 +207,42 @@ public class EmployeeDeactivationService : IEmployeeDeactivationService
         return Result.Success();
     }
 
-    public async Task<Result> ReactivateEmployeeAsync(Guid employeeId, CancellationToken ct = default)
+    public async Task<Result<ReactivationAnalysisResultDto>> AnalyzeReactivationAsync(Guid employeeId, CancellationToken ct = default)
     {
         var employee = await _employeeRepository.GetQueryable()
             .FirstOrDefaultAsync(e => e.Id == employeeId, ct);
 
         if (employee == null)
-            return Result.Failure(new Error("Employee.NotFound", ErrorType.NotFound, "Employee not found."));
+            return Result.Failure<ReactivationAnalysisResultDto>(new Error("Employee.NotFound", ErrorType.NotFound, "Employee not found."));
+
+        var restorableProjects = await _projectEmployeeRepository.GetQueryable()
+            .Include(pe => pe.Project)
+            .Where(pe => pe.EmployeeId == employeeId 
+                         && !pe.IsActive
+                         && pe.Project.Status != TaskPilot.Models.Enums.ProjectStatus.Completed 
+                         && pe.Project.Status != TaskPilot.Models.Enums.ProjectStatus.Archived)
+            .Select(pe => pe.Project.NameEn)
+            .ToListAsync(ct);
+
+        return Result.Success(new ReactivationAnalysisResultDto
+        {
+            HasRestorableProjects = restorableProjects.Any(),
+            RestorableProjectNames = restorableProjects
+        });
+    }
+
+    public async Task<Result<AssignEmployeesResultDto>> ReactivateEmployeeAsync(Guid employeeId, ReactivateEmployeeRequest request, CancellationToken ct = default)
+    {
+        var employee = await _employeeRepository.GetQueryable()
+            .Include(e => e.AssignedTasks)
+                .ThenInclude(t => t.Sprint)
+            .FirstOrDefaultAsync(e => e.Id == employeeId, ct);
+
+        if (employee == null)
+            return Result<AssignEmployeesResultDto>.Failure(new Error("Employee.NotFound", ErrorType.NotFound, "Employee not found."));
 
         if (!employee.IsDeactivated)
-            return Result.Failure(new Error("Employee.AlreadyActive", ErrorType.Validation, "Employee is already active."));
+            return Result<AssignEmployeesResultDto>.Failure(new Error("Employee.AlreadyActive", ErrorType.Validation, "Employee is already active."));
 
         employee.IsDeactivated = false;
         employee.DeactivationReason = null;
@@ -200,19 +250,58 @@ public class EmployeeDeactivationService : IEmployeeDeactivationService
 
         _employeeRepository.Update(employee);
 
-        var projectEmployees = await _projectEmployeeRepository.GetQueryable()
-            .Where(pe => pe.EmployeeId == employeeId)
-            .ToListAsync(ct);
+        var resultDto = new AssignEmployeesResultDto();
 
-        foreach (var pe in projectEmployees)
+        if (request.RestorePreviousProjects)
         {
-            pe.IsActive = true;
-            _projectEmployeeRepository.Update(pe);
+            var projectEmployees = await _projectEmployeeRepository.GetQueryable()
+                .Include(pe => pe.Project)
+                .Where(pe => pe.EmployeeId == employeeId 
+                             && !pe.IsActive
+                             && pe.Project.Status != TaskPilot.Models.Enums.ProjectStatus.Completed 
+                             && pe.Project.Status != TaskPilot.Models.Enums.ProjectStatus.Archived)
+                .ToListAsync(ct);
+
+            var projectIds = projectEmployees.Select(pe => pe.ProjectId).ToList();
+
+            foreach (var pe in projectEmployees)
+            {
+                pe.IsActive = true;
+                _projectEmployeeRepository.Update(pe);
+            }
+
+            // Check if any of these restored projects have Planned Sprints
+            var affectedSprints = await _projectRepository.GetQueryable()
+                .Where(p => projectIds.Contains(p.Id))
+                .SelectMany(p => p.Sprints)
+                .Where(s => s.Status == SprintStatus.Planned)
+                .Select(s => new { s.Id, s.TitleEn, s.ProjectId })
+                .Distinct()
+                .ToListAsync(ct);
+
+            if (affectedSprints.Any())
+            {
+                resultDto.HasPlannedSprints = true;
+                resultDto.PlannedSprintNames = affectedSprints.Select(s => s.TitleEn ?? "").ToList();
+                resultDto.PlannedSprintIds = affectedSprints.Select(s => s.Id).ToList();
+                resultDto.SprintProjectIds = affectedSprints.Select(s => s.ProjectId).ToList();
+            }
+        }
+        else
+        {
+            var projectEmployees = await _projectEmployeeRepository.GetQueryable()
+                .Where(pe => pe.EmployeeId == employeeId && !pe.IsActive)
+                .ToListAsync(ct);
+
+            foreach (var pe in projectEmployees)
+            {
+                _projectEmployeeRepository.Delete(pe);
+            }
         }
 
         await _unitOfWork.SaveChangesAsync(ct);
 
-        return Result.Success();
+        return Result<AssignEmployeesResultDto>.Success(resultDto);
     }
 
     public async Task<Result> TerminateEmployeeAsync(Guid employeeId, TerminateEmployeeRequest request, CancellationToken ct = default)

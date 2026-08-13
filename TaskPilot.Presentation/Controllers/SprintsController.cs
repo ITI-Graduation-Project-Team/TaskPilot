@@ -128,7 +128,7 @@ namespace TaskPilot.Presentation.Controllers
             }
             return HandleResult(result, SuccessCodes.Sprint.Started);
         }
-        [Authorize(Roles = "ProjectManager")]
+        [Authorize(Roles = "Admin,ProjectManager")]
         [HttpPost("{sprintId:guid}/cancel")]
         public async Task<ActionResult> CancelSprint(Guid projectId, Guid sprintId, CancellationToken cancellationToken)
         {
