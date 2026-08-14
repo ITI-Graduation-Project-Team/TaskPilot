@@ -56,4 +56,16 @@ public class RequirementValidationResultTests
 
         Assert.False(result.HasBlockingIssues(80));
     }
+
+    [Fact]
+    public void HasBlockingIssues_CompleteRequirementsNeverBlockConfirmation()
+    {
+        var result = new RequirementValidationResult
+        {
+            ValidationScore = 60,
+            Issues = ["A validation concern that should remain advisory at 100% completeness."]
+        };
+
+        Assert.False(result.HasBlockingIssues(80, requirementsComplete: true));
+    }
 }

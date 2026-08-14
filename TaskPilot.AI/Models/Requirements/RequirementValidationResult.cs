@@ -10,7 +10,8 @@ namespace TaskPilot.AI.Models.Requirements
         public string BusinessReadiness { get; set; } = string.Empty;
         public int ValidationThresholdUsed { get; set; }
 
-        public bool HasBlockingIssues(int threshold) =>
+        public bool HasBlockingIssues(int threshold, bool requirementsComplete = false) =>
+            !requirementsComplete &&
             ValidationScore < threshold &&
             Issues?.Any(issue => !string.IsNullOrWhiteSpace(issue)) == true;
     }
