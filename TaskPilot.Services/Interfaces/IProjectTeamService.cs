@@ -18,6 +18,10 @@ public interface IProjectTeamService
         Guid projectId,
         CancellationToken cancellationToken = default);
 
+    Task<Result<int>> GetProjectEmployeesCountAsync(
+        Guid projectId,
+        CancellationToken cancellationToken = default);
+
     Task<Result<AssignEmployeesResultDto>> RemoveEmployeeAsync(
         Guid projectId,
         Guid employeeId,
