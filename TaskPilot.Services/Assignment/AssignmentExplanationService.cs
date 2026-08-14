@@ -119,6 +119,8 @@ public class AssignmentExplanationService : IAssignmentExplanationService
                         ExperienceScore = developer.ExperienceScore,
                         SkillGaps = developer.SkillGaps,
                         RemainingHours = developer.RemainingHours,
+                        MaxSprintHours = developer.MaxSprintHours,
+                        CurrentAssignedHours = developer.CurrentAssignedHours,
                         HasSufficientCapacity = developer.HasSufficientCapacity,
                         ReasonEn = !string.IsNullOrEmpty(devReason.ReasonEn) ? devReason.ReasonEn : "Explanation not generated (not in top 3).",
                         ReasonAr = !string.IsNullOrEmpty(devReason.ReasonAr) ? devReason.ReasonAr : "لم يتم إنشاء التفسير (ليس ضمن أفضل 3)."
@@ -153,6 +155,8 @@ public class AssignmentExplanationService : IAssignmentExplanationService
                         ExperienceScore = developer.ExperienceScore,
                         SkillGaps = developer.SkillGaps,
                         RemainingHours = developer.RemainingHours,
+                        MaxSprintHours = developer.MaxSprintHours,
+                        CurrentAssignedHours = developer.CurrentAssignedHours,
                         HasSufficientCapacity = developer.HasSufficientCapacity,
                         ReasonEn = "Explanation generation failed.",
                         ReasonAr = "فشل إنشاء التفسير."
