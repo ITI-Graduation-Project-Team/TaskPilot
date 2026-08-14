@@ -17,6 +17,7 @@ using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Common.Errors;
 using Hangfire;
 using TaskPilot.Services.BackgroundJobs;
+using TaskPilot.AI.Agents.Requirements;
 
 namespace TaskPilot.Services
 {
@@ -30,6 +31,7 @@ namespace TaskPilot.Services
         private readonly ILogger<RequirementFinalizationService> _logger;
         private readonly IRequirementReadinessEvaluator _readinessEvaluator;
         private readonly IBackgroundJobClient _backgroundJobs;
+        private readonly RequirementsBuilderAgent _requirementsBuilder;
 
         public RequirementFinalizationService(
             IRequirementSessionStore sessionStore,
@@ -39,7 +41,8 @@ namespace TaskPilot.Services
             UserManager<User> userManager,
             ILogger<RequirementFinalizationService> logger,
             IRequirementReadinessEvaluator readinessEvaluator,
-            IBackgroundJobClient backgroundJobs)
+            IBackgroundJobClient backgroundJobs,
+            RequirementsBuilderAgent requirementsBuilder)
         {
             _sessionStore = sessionStore;
             _unitOfWork = unitOfWork;
@@ -49,6 +52,7 @@ namespace TaskPilot.Services
             _logger = logger;
             _readinessEvaluator = readinessEvaluator;
             _backgroundJobs = backgroundJobs;
+            _requirementsBuilder = requirementsBuilder;
         }
 
         public async Task<Result<FinalizeRequirementsResponse>> FinalizeRequirementsAsync(Guid sessionId, FinalizeRequirementsRequest request, CancellationToken cancellationToken = default)
@@ -62,6 +66,42 @@ namespace TaskPilot.Services
 
             _logger.LogInformation("Finalizing requirements for SessionId: {SessionId}. Current Status: {Status}, AllQuestionsAnswered: {AllQuestionsAnswered}, QuestionPool Count: {Count}", 
                 sessionId, session.Status, session.AllQuestionsAnswered, session.QuestionPool?.Count ?? 0);
+
+            // 100% deterministic completeness is the product's confirmation gate.
+            // Older sessions may still contain advisory validation questions and
+            // may not yet have a built snapshot, so repair them during finalize.
+            var gateReport = session.RequirementCompletenessReport;
+            if (gateReport == null || gateReport.OverallCompleteness == 0)
+            {
+                gateReport = _readinessEvaluator.Evaluate(session);
+                session.RequirementCompletenessReport = gateReport;
+            }
+
+            if (gateReport.OverallCompleteness >= 100)
+            {
+                gateReport.ReadyForFinalization = true;
+                session.Status = RequirementSessionStatus.Planning;
+
+                if (session.CompletenessReport != null)
+                {
+                    session.CompletenessReport.Score = 1.0f;
+                    session.CompletenessReport.ReadyForPlanning = true;
+                }
+
+                if (session.QuestionPool != null)
+                {
+                    foreach (var question in session.QuestionPool.Where(q => !q.IsAnswered))
+                    {
+                        question.IsAnswered = true;
+                        question.AnsweredAt = DateTime.UtcNow;
+                        question.Answer ??= "Accepted as advisory at 100% requirements completeness.";
+                        question.AnsweredFromSource ??= "System";
+                    }
+                }
+
+                session.FinalRequirements ??= await _requirementsBuilder.BuildAsync(session, cancellationToken);
+                await _sessionStore.SaveAsync(session, cancellationToken);
+            }
 
             if (session.FinalRequirements == null)
             {
@@ -103,13 +143,6 @@ namespace TaskPilot.Services
             // RequirementDiscoveryOrchestrator already stores the authoritative deterministic score
             // on every chat turn. Only recompute if the session has never been through a chat turn
             // (i.e., the report is null or has a zero score).
-            var gateReport = session.RequirementCompletenessReport;
-            if (gateReport == null || gateReport.OverallCompleteness == 0)
-            {
-                gateReport = _readinessEvaluator.Evaluate(session);
-                session.RequirementCompletenessReport = gateReport;
-            }
-
             if (!gateReport.ReadyForFinalization)
             {
                 var blocks = gateReport.BlockingFactors.Any() 

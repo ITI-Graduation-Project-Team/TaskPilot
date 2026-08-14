@@ -638,11 +638,10 @@ namespace TaskPilot.AI.Orchestrators
                 }
                 session.ValidationResult.ValidationThresholdUsed = tenantThreshold;
 
-                // A low advisory score without any critical issue must not leave a
-                // 100%-complete session stuck in RequirementValidation forever.
-                // Warnings remain available in the snapshot, while actual issues
-                // are converted into clarification questions below.
-                if (!session.ValidationResult.HasBlockingIssues(tenantThreshold))
+                // Deterministic 100% completeness is the confirmation gate. At
+                // that point validation findings remain advisory and must not
+                // create new blocking questions after the score reached 100%.
+                if (!session.ValidationResult.HasBlockingIssues(tenantThreshold, isReadyForPlanning))
                 {
                     // Finalization is permitted
                     session.Status = RequirementSessionStatus.Planning;
