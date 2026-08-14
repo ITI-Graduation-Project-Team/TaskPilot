@@ -139,6 +139,15 @@ namespace TaskPilot.Presentation.Controllers
             return HandleResult(result);
         }
 
+        [HttpGet("{projectId:guid}/employees/count")]
+        public async Task<ActionResult> GetProjectEmployeesCount(
+            [FromRoute] Guid projectId,
+            CancellationToken cancellationToken)
+        {
+            var result = await _projectTeamService.GetProjectEmployeesCountAsync(projectId, cancellationToken);
+            return HandleResult(result, "PROJECT_EMPLOYEES_COUNT_RETRIEVED");
+        }
+
         [HttpPost("{projectId:guid}/employees")]
         public async Task<ActionResult<AssignEmployeesResultDto>> AssignProjectEmployees(
             [FromRoute] Guid projectId,

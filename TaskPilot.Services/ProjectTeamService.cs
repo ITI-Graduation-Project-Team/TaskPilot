@@ -131,44 +131,44 @@ public class ProjectTeamService : IProjectTeamService
         if (!projectExists)
             return Result<List<ProjectEmployeeDto>>.Failure(new Error("Project.NotFound", ErrorType.NotFound, "Project not found."));
 
-        var projectEmployees = await _projectEmployeeRepository.GetQueryable()
-            .Include(pe => pe.Employee)
-                .ThenInclude(e => e.UserSkills)
-                    .ThenInclude(us => us.Skill)
-            .Include(pe => pe.Employee)
-                .ThenInclude(e => e.ProjectEmployees)
-                    .ThenInclude(pe2 => pe2.Project)
-            .Include(pe => pe.Employee)
-                .ThenInclude(e => e.AssignedTasks)
-                    .ThenInclude(t => t.Sprint)
+        var dtos = await _projectEmployeeRepository.GetQueryable()
             .Where(pe => pe.ProjectId == projectId)
-            .AsSplitQuery()
-            .ToListAsync(cancellationToken);
-
-        var dtos = projectEmployees.Select(pe => {
-            var activeProjectsCount = pe.Employee.ProjectEmployees.Count(x => x.Project != null && x.Project.Status != ProjectStatus.Completed);
-            return new ProjectEmployeeDto
+            .Select(pe => new ProjectEmployeeDto
             {
                 EmployeeId = pe.EmployeeId,
-                FullName = $"{pe.Employee.FirstNameEn} {pe.Employee.LastNameEn}".Trim(),
+                FullName = (pe.Employee.FirstNameEn + " " + pe.Employee.LastNameEn).Trim(),
                 Role = pe.Role,
                 AllocationPercentage = pe.AllocationPercentage,
                 JobTitle = pe.Employee.JobTitle ?? string.Empty,
                 SeniorityLevel = pe.Employee.SeniorityLevel ?? default,
-                ActiveProjectsCount = activeProjectsCount,
-                CurrentAssignedTasksCount = pe.Employee.AssignedTasks.Count(t => t.SprintId != null && t.Status != TaskItemStatus.Done && (t.Sprint == null || t.Sprint.Status == SprintStatus.Active)),
+                ActiveProjectsCount = pe.Employee.ProjectEmployees.Count(x => x.Project != null && x.Project.Status != TaskPilot.Models.Enums.ProjectStatus.Completed),
+                CurrentAssignedTasksCount = pe.Employee.AssignedTasks.Count(t => t.SprintId != null && t.Status != TaskPilot.Models.Enums.TaskItemStatus.Done && (t.Sprint == null || t.Sprint.Status == TaskPilot.Models.Enums.SprintStatus.Active)),
                 CurrentSprintHours = (int)pe.Employee.AssignedTasks
-                    .Where(t => t.Sprint != null && t.Sprint.ProjectId == projectId && t.Sprint.Status == SprintStatus.Active)
+                    .Where(t => t.Sprint != null && t.Sprint.ProjectId == projectId && t.Sprint.Status == TaskPilot.Models.Enums.SprintStatus.Active)
                     .Sum(t => t.EstimatedHours),
-                AvailabilityStatus = EmployeeAvailabilityHelper.ComputeAvailabilityStatus(activeProjectsCount),
                 Skills = pe.Employee.UserSkills.Select(us => us.Skill.Name).ToList(),
                 IsDeactivated = pe.Employee.IsDeactivated,
                 DeactivationReason = pe.Employee.DeactivationReason,
                 DeactivatedAt = pe.Employee.DeactivatedAt
-            };
-        }).ToList();
+            })
+            .ToListAsync(cancellationToken);
+
+        foreach (var dto in dtos)
+        {
+            dto.AvailabilityStatus = EmployeeAvailabilityHelper.ComputeAvailabilityStatus(dto.ActiveProjectsCount);
+        }
 
         return Result<List<ProjectEmployeeDto>>.Success(dtos);
+    }
+
+    public async Task<Result<int>> GetProjectEmployeesCountAsync(
+        Guid projectId,
+        CancellationToken cancellationToken = default)
+    {
+        var count = await _projectEmployeeRepository.GetQueryable()
+            .CountAsync(pe => pe.ProjectId == projectId, cancellationToken);
+            
+        return Result<int>.Success(count);
     }
 
     public async Task<Result<AssignEmployeesResultDto>> RemoveEmployeeAsync(
