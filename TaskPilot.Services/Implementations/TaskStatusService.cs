@@ -24,6 +24,7 @@ namespace TaskPilot.Services.Implementations
         private readonly INotificationService _notificationService;
         private readonly ILogger<TaskStatusService> _logger;
         private readonly IRepository<Project> _projectRepository;
+        private readonly IRepository<Company> _companyRepository;
 
         public TaskStatusService(
             ITaskRepository taskRepository,
@@ -31,7 +32,8 @@ namespace TaskPilot.Services.Implementations
             IProjectEmployeeRepository projectEmployeeRepository,
             INotificationService notificationService,
             ILogger<TaskStatusService> logger,
-            IRepository<Project> projectRepository)
+            IRepository<Project> projectRepository,
+            IRepository<Company> companyRepository)
         {
             _taskRepository = taskRepository;
             _sprintRepository = sprintRepository;
@@ -39,6 +41,7 @@ namespace TaskPilot.Services.Implementations
             _notificationService = notificationService;
             _logger = logger;
             _projectRepository = projectRepository;
+            _companyRepository = companyRepository;
         }
 
         public async Task<Result<MyTasksSummaryDto>> GetMyTasksAsync(
@@ -152,7 +155,33 @@ namespace TaskPilot.Services.Implementations
             {
                 if (task.InProgressAt.HasValue)
                 {
-                    task.ActualHours += CalculateWorkingHours(task.InProgressAt.Value, DateTime.UtcNow);
+                    decimal hoursPerDay = 8.0m;
+                    int workingDaysMask = 62; // Default Mon-Fri
+                    decimal allocationPercentage = 100m;
+
+                    var project = await _projectRepository.GetByIdAsync(task.Sprint.ProjectId);
+                    if (project != null)
+                    {
+                        var company = await _companyRepository.GetByIdAsync(project.CompanyId);
+                        if (company != null)
+                        {
+                            hoursPerDay = company.WorkingHoursPerDay;
+                            workingDaysMask = company.WorkingDaysMask;
+                        }
+                    }
+
+                    if (task.EmployeeId.HasValue)
+                    {
+                        var projectEmployees = await _projectEmployeeRepository.GetActiveByProjectIdAsync(task.Sprint.ProjectId, cancellationToken);
+                        var projectEmployee = projectEmployees.FirstOrDefault(pe => pe.EmployeeId == task.EmployeeId.Value);
+                        if (projectEmployee != null)
+                        {
+                            allocationPercentage = projectEmployee.AllocationPercentage;
+                        }
+                    }
+
+                    var rawHours = CalculateWorkingHours(task.InProgressAt.Value, DateTime.UtcNow, workingDaysMask, hoursPerDay);
+                    task.ActualHours += Math.Round(rawHours * (allocationPercentage / 100m), 2);
                     task.InProgressAt = null;
                 }
             }
@@ -461,36 +490,90 @@ namespace TaskPilot.Services.Implementations
         };
         */
 
-        private decimal CalculateWorkingHours(DateTime start, DateTime end)
+        private decimal CalculateWorkingHours(DateTime start, DateTime end, int workingDaysMask, decimal hoursPerDay)
         {
             if (start >= end)
             {
                 return 0;
             }
 
-            const int startHour = 9;
-            const int endHour = 17;
+            // Default standard start time
+            int startHour = 9;
+            DateTime firstDay = start.Date;
+            DateTime lastDay = end.Date;
+
+            if (firstDay == lastDay)
+            {
+                if (IsWorkingDay(firstDay.DayOfWeek, workingDaysMask))
+                {
+                    return CalculateSingleDayHours(start, end, startHour, hoursPerDay);
+                }
+                return 0;
+            }
 
             decimal totalHours = 0;
-            DateTime current = start;
 
-            while (current.Date <= end.Date)
+            if (IsWorkingDay(firstDay.DayOfWeek, workingDaysMask))
             {
-                DateTime dayStart = current.Date.AddHours(startHour);
-                DateTime dayEnd = current.Date.AddHours(endHour);
+                totalHours += CalculateSingleDayHours(start, firstDay.AddHours(startHour + (double)hoursPerDay), startHour, hoursPerDay);
+            }
 
-                DateTime actualStart = (current > dayStart) ? current : dayStart;
-                DateTime actualEnd = (end < dayEnd) ? end : dayEnd;
-
-                if (actualStart < actualEnd)
+            int totalIntermediateDays = (lastDay - firstDay).Days - 1;
+            if (totalIntermediateDays > 0)
+            {
+                int fullWeeks = totalIntermediateDays / 7;
+                int remainingDays = totalIntermediateDays % 7;
+                
+                int workingDaysInWeek = CountWorkingDaysInWeek(workingDaysMask);
+                int fullWorkingDaysCount = fullWeeks * workingDaysInWeek;
+                
+                DateTime currentDay = firstDay.AddDays(1);
+                for (int i = 0; i < remainingDays; i++)
                 {
-                    totalHours += (decimal)(actualEnd - actualStart).TotalHours;
+                    if (IsWorkingDay(currentDay.DayOfWeek, workingDaysMask))
+                    {
+                        fullWorkingDaysCount++;
+                    }
+                    currentDay = currentDay.AddDays(1);
                 }
-                current = current.Date.AddDays(1).AddHours(startHour);
+                
+                totalHours += fullWorkingDaysCount * hoursPerDay;
+            }
+
+            if (IsWorkingDay(lastDay.DayOfWeek, workingDaysMask))
+            {
+                totalHours += CalculateSingleDayHours(lastDay.AddHours(startHour), end, startHour, hoursPerDay);
             }
 
             return Math.Round(totalHours, 2);
         }
+
+        private bool IsWorkingDay(DayOfWeek day, int mask)
+        {
+            return (mask & (1 << (int)day)) != 0;
+        }
+
+        private int CountWorkingDaysInWeek(int mask)
+        {
+            int count = 0;
+            for (int i = 0; i < 7; i++)
+            {
+                if ((mask & (1 << i)) != 0) count++;
+            }
+            return count;
+        }
+
+        private decimal CalculateSingleDayHours(DateTime dayStart, DateTime dayEnd, int startHour, decimal hoursPerDay)
+        {
+            DateTime workStart = dayStart.Date.AddHours(startHour);
+            DateTime workEnd = dayStart.Date.AddHours(startHour + (double)hoursPerDay);
+
+            DateTime actualStart = dayStart > workStart ? dayStart : workStart;
+            DateTime actualEnd = dayEnd < workEnd ? dayEnd : workEnd;
+
+            return actualStart < actualEnd ? (decimal)(actualEnd - actualStart).TotalHours : 0;
+        }
+
 
         private Result ValidateStatusTransition(TaskItemStatus current, TaskItemStatus requested, bool isProjectManager)
         {
