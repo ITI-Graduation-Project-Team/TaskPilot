@@ -67,9 +67,9 @@ namespace TaskPilot.Services
             _logger.LogInformation("Finalizing requirements for SessionId: {SessionId}. Current Status: {Status}, AllQuestionsAnswered: {AllQuestionsAnswered}, QuestionPool Count: {Count}", 
                 sessionId, session.Status, session.AllQuestionsAnswered, session.QuestionPool?.Count ?? 0);
 
-            // 100% deterministic completeness is the product's confirmation gate.
-            // Older sessions may still contain advisory validation questions and
-            // may not yet have a built snapshot, so repair them during finalize.
+            // Preserve the original confirmation threshold used by the UI.
+            // Finalize is also responsible for building a missing requirements
+            // snapshot, including for sessions created before async setup existed.
             var gateReport = session.RequirementCompletenessReport;
             if (gateReport == null || gateReport.OverallCompleteness == 0)
             {
@@ -77,14 +77,13 @@ namespace TaskPilot.Services
                 session.RequirementCompletenessReport = gateReport;
             }
 
-            if (gateReport.OverallCompleteness >= 100)
+            if (gateReport.MeetsConfirmationThreshold())
             {
                 gateReport.ReadyForFinalization = true;
                 session.Status = RequirementSessionStatus.Planning;
 
                 if (session.CompletenessReport != null)
                 {
-                    session.CompletenessReport.Score = 1.0f;
                     session.CompletenessReport.ReadyForPlanning = true;
                 }
 
@@ -94,14 +93,15 @@ namespace TaskPilot.Services
                     {
                         question.IsAnswered = true;
                         question.AnsweredAt = DateTime.UtcNow;
-                        question.Answer ??= "Accepted as advisory at 100% requirements completeness.";
+                        question.Answer ??= "Accepted during requirements finalization.";
                         question.AnsweredFromSource ??= "System";
                     }
                 }
-
-                session.FinalRequirements ??= await _requirementsBuilder.BuildAsync(session, cancellationToken);
-                await _sessionStore.SaveAsync(session, cancellationToken);
             }
+
+            // This is the legacy behavior: pressing Confirm prepares the final
+            // snapshot on demand instead of returning REQUIREMENTS_NOT_READY.
+            session.FinalRequirements ??= await _requirementsBuilder.BuildAsync(session, cancellationToken);
 
             if (session.FinalRequirements == null)
             {

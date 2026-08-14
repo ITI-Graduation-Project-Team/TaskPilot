@@ -4,6 +4,8 @@ namespace TaskPilot.AI.Models.Requirements
 {
     public class RequirementCompletenessReport
     {
+        public const int ConfirmationThreshold = 85;
+
         public int OverallCompleteness { get; set; }
         
         public string Readiness { get; set; } = string.Empty;
@@ -25,5 +27,8 @@ namespace TaskPilot.AI.Models.Requirements
         public int EstimatedCompletenessAfterPendingQuestions { get; set; }
         
         public bool ReadyForFinalization { get; set; }
+
+        public bool MeetsConfirmationThreshold() =>
+            OverallCompleteness >= ConfirmationThreshold;
     }
 }
