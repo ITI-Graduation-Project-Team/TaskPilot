@@ -20,6 +20,7 @@ public class TeamSnapshotService : ITeamSnapshotService
     private readonly IRepository<UserSkill> _userSkillRepository;
     private readonly IRepository<TaskItem> _taskRepository;
     private readonly IRepository<SkillAlias> _skillAliasRepository;
+    private readonly IRepository<Company> _companyRepository;
     private readonly ILogger<TeamSnapshotService> _logger;
 
     public TeamSnapshotService(
@@ -29,6 +30,7 @@ public class TeamSnapshotService : ITeamSnapshotService
         IRepository<UserSkill> userSkillRepository,
         IRepository<TaskItem> taskRepository,
         IRepository<SkillAlias> skillAliasRepository,
+        IRepository<Company> companyRepository,
         ILogger<TeamSnapshotService> logger)
     {
         _projectRepository = projectRepository;
@@ -37,6 +39,7 @@ public class TeamSnapshotService : ITeamSnapshotService
         _userSkillRepository = userSkillRepository;
         _taskRepository = taskRepository;
         _skillAliasRepository = skillAliasRepository;
+        _companyRepository = companyRepository;
         _logger = logger;
     }
 
@@ -49,6 +52,10 @@ public class TeamSnapshotService : ITeamSnapshotService
         var sprint = await _sprintRepository.GetByIdAsync(sprintId);
         if (sprint == null)
             return Result<SprintAssignmentSnapshotDto>.Failure(AssignmentErrors.SprintNotFound);
+
+        var company = await _companyRepository.GetByIdAsync(project.CompanyId);
+        if (company == null)
+            return Result<SprintAssignmentSnapshotDto>.Failure(CommonErrors.NotFound("Company"));
 
         if (sprint.ProjectId != projectId)
             return Result<SprintAssignmentSnapshotDto>.Failure(AssignmentErrors.SprintDoesNotBelongToProject);
@@ -149,7 +156,8 @@ public class TeamSnapshotService : ITeamSnapshotService
                     IsPrimary = us.IsPrimary
                 }).ToList();
 
-            var maxSprintHours = project.SprintDurationInDays * 6.0;
+            int sprintWorkingDays = CalculateWorkingDays(sprint.StartDate, sprint.EndDate, company.WorkingDaysMask);
+            var maxSprintHours = (double)(company.WorkingHoursPerDay * sprintWorkingDays * (pe.AllocationPercentage / 100m) * (decimal)company.DefaultCapacityBufferPercentage);
 
             var currentAssignedHours = (double)allAssignedTasks
                 .Where(t => t.EmployeeId == empId && t.SprintId == sprintId)
@@ -239,5 +247,50 @@ public class TeamSnapshotService : ITeamSnapshotService
         if (workloadPercentage <= 70) return EmployeeAvailabilityStatus.PartiallyBusy;
         if (workloadPercentage <= 90) return EmployeeAvailabilityStatus.Busy;
         return EmployeeAvailabilityStatus.Overloaded;
+    }
+
+    private int CalculateWorkingDays(DateTime start, DateTime end, int workingDaysMask)
+    {
+        if (start > end) return 0;
+        
+        DateTime firstDay = start.Date;
+        DateTime lastDay = end.Date;
+        
+        int totalIntermediateDays = (lastDay - firstDay).Days - 1;
+        int workingDays = 0;
+
+        if (IsWorkingDay(firstDay.DayOfWeek, workingDaysMask)) workingDays++;
+        if (firstDay != lastDay && IsWorkingDay(lastDay.DayOfWeek, workingDaysMask)) workingDays++;
+
+        if (totalIntermediateDays > 0)
+        {
+            int fullWeeks = totalIntermediateDays / 7;
+            int remainingDays = totalIntermediateDays % 7;
+            
+            int workingDaysInWeek = 0;
+            for (int i = 0; i < 7; i++)
+            {
+                if ((workingDaysMask & (1 << i)) != 0) workingDaysInWeek++;
+            }
+            
+            workingDays += fullWeeks * workingDaysInWeek;
+            
+            DateTime currentDay = firstDay.AddDays(1);
+            for (int i = 0; i < remainingDays; i++)
+            {
+                if (IsWorkingDay(currentDay.DayOfWeek, workingDaysMask))
+                {
+                    workingDays++;
+                }
+                currentDay = currentDay.AddDays(1);
+            }
+        }
+        
+        return workingDays;
+    }
+
+    private bool IsWorkingDay(DayOfWeek day, int mask)
+    {
+        return (mask & (1 << (int)day)) != 0;
     }
 }

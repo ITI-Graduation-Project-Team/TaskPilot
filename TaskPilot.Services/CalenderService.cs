@@ -20,8 +20,7 @@ namespace TaskPilot.Services
         private readonly ILocalizationService _localizationService;
 
         private static readonly TimeSpan WorkDayStart = new TimeSpan(9, 0, 0);
-        private static readonly TimeSpan WorkDayEnd = new TimeSpan(17, 0, 0);
-        private static readonly int WorkMinutesPerDay = (int)(WorkDayEnd - WorkDayStart).TotalMinutes;
+        private const int WorkMinutesPerDay = 480;
 
         public CalenderService(ApplicationDbContext context, ILocalizationService localizationService)
         {
@@ -30,23 +29,50 @@ namespace TaskPilot.Services
         }
         public async Task<Result> GenerateEventsForAssignedTaskAsync(TaskItem task, Guid employeeId, DateTime startDate)// start date is datetime.now of the assignment
         {
+            var companyConfigs = await _context.TaskItems
+                .Include(t => t.Sprint)
+                .ThenInclude(s => s.Project)
+                .ThenInclude(p => p.Company)
+                .Where(t => t.Id == task.Id)
+                .Select(t => new { t.Sprint.Project.Company.WorkingDaysMask, t.Sprint.Project.Company.WorkingHoursPerDay, t.Sprint.ProjectId })
+                .FirstOrDefaultAsync();
+
+            int workingDaysMask = 62;
+            decimal hoursPerDay = 8.0m;
+            decimal allocationPercentage = 100m;
+
+            if (companyConfigs != null)
+            {
+                workingDaysMask = companyConfigs.WorkingDaysMask;
+                hoursPerDay = companyConfigs.WorkingHoursPerDay;
+
+                var projectEmployee = await _context.ProjectEmployees
+                    .FirstOrDefaultAsync(pe => pe.ProjectId == companyConfigs.ProjectId && pe.EmployeeId == employeeId);
+                
+                if (projectEmployee != null)
+                {
+                    allocationPercentage = projectEmployee.AllocationPercentage;
+                }
+            }
+
+            double maxMinutesPerDay = (double)hoursPerDay * (double)(allocationPercentage / 100m) * 60;
+            if (maxMinutesPerDay <= 0) maxMinutesPerDay = 480; // fallback just in case
 
             double remainingMinutes = (double)task.EstimatedHours * 60;
             DateTime currentDay = startDate.Date;
 
             // if task is assigned on weekend 
-            while (currentDay.DayOfWeek == DayOfWeek.Friday)
+            while (!IsWorkingDay(currentDay.DayOfWeek, workingDaysMask))
             {
                 currentDay = currentDay.AddDays(1);
             }
 
             while (remainingMinutes > 0)
             {
-
                 DateTime workStart = currentDay.Add(WorkDayStart);
 
-                // Schedule either the remaining minutes or the full work day (8 hours)  if >8 only schedule 8 if less than 8 schedule only taskhours
-                double minutesToSchedule = Math.Min(remainingMinutes, WorkMinutesPerDay);
+                // Schedule either the remaining minutes or the full work day
+                double minutesToSchedule = Math.Min(remainingMinutes, maxMinutesPerDay);
                 DateTime slotEnd = workStart.AddMinutes(minutesToSchedule);
 
                 await CreateEventRecord(task, employeeId, workStart, slotEnd);
@@ -55,8 +81,7 @@ namespace TaskPilot.Services
 
                 currentDay = currentDay.AddDays(1);
 
-
-                while (currentDay.DayOfWeek == DayOfWeek.Friday)
+                while (!IsWorkingDay(currentDay.DayOfWeek, workingDaysMask))
                 {
                     currentDay = currentDay.AddDays(1);
                 }
@@ -64,6 +89,11 @@ namespace TaskPilot.Services
 
             await _context.SaveChangesAsync();
             return Result.Success();
+        }
+
+        private bool IsWorkingDay(DayOfWeek day, int mask)
+        {
+            return (mask & (1 << (int)day)) != 0;
         }
 
         private async Task CreateEventRecord(TaskItem task, Guid employeeId, DateTime start, DateTime end)
