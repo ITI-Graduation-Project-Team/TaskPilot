@@ -360,21 +360,30 @@ namespace TaskPilot.Services
             var totalItems = await query.CountAsync(cancellationToken);
             var totalPages = totalItems == 0 ? 0 : (int)Math.Ceiling(totalItems / (double)pageSize);
 
-            var employees = await query
-                .Include(e => e.UserSkills)
-                    .ThenInclude(us => us.Skill)
-                .Include(e => e.ProjectEmployees)
-                    .ThenInclude(pe => pe.Project)
-                .Include(e => e.AssignedTasks)
-                    .ThenInclude(t => t.Sprint)
-                .AsSplitQuery()
+            var projectedEmployees = await query
                 .OrderBy(e => e.CreatedAt)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
+                .Select(e => new
+                {
+                    e.Id,
+                    e.FirstNameEn,
+                    e.LastNameEn,
+                    e.Email,
+                    e.AvatarUrl,
+                    e.JobTitle,
+                    e.SeniorityLevel,
+                    e.IsDeactivated,
+                    e.DeactivationReason,
+                    e.DeactivatedAt,
+                    ActiveProjectsCount = e.ProjectEmployees.Count(pe => pe.Project != null && pe.Project.Status != ProjectStatus.Completed),
+                    CurrentAssignedTasksCount = e.AssignedTasks.Count(t => t.SprintId != null && t.Status != TaskItemStatus.Done && (t.Sprint == null || t.Sprint.Status == SprintStatus.Active)),
+                    Skills = e.UserSkills.Select(us => us.Skill.Name).ToList()
+                })
+                .AsSplitQuery()
                 .ToListAsync(cancellationToken);
 
-            var dtos = employees.Select(e => {
-                var activeProjectsCount = e.ProjectEmployees.Count(pe => pe.Project != null && pe.Project.Status != ProjectStatus.Completed);
+            var dtos = projectedEmployees.Select(e => {
                 var fullName = $"{e.FirstNameEn} {e.LastNameEn}".Trim();
                 if (string.IsNullOrEmpty(fullName))
                 {
@@ -388,10 +397,10 @@ namespace TaskPilot.Services
                     AvatarUrl = e.AvatarUrl,
                     JobTitle = e.JobTitle ?? string.Empty,
                     SeniorityLevel = e.SeniorityLevel?.ToString() ?? string.Empty,
-                    ActiveProjectsCount = activeProjectsCount,
-                    CurrentAssignedTasksCount = e.AssignedTasks.Count(t => t.SprintId != null && t.Status != TaskItemStatus.Done && (t.Sprint == null || t.Sprint.Status == SprintStatus.Active)),
-                    AvailabilityStatus = EmployeeAvailabilityHelper.ComputeAvailabilityStatus(activeProjectsCount),
-                    Skills = e.UserSkills.Select(us => us.Skill.Name).ToList(),
+                    ActiveProjectsCount = e.ActiveProjectsCount,
+                    CurrentAssignedTasksCount = e.CurrentAssignedTasksCount,
+                    AvailabilityStatus = EmployeeAvailabilityHelper.ComputeAvailabilityStatus(e.ActiveProjectsCount),
+                    Skills = e.Skills,
                     IsDeactivated = e.IsDeactivated,
                     DeactivationReason = e.DeactivationReason,
                     DeactivatedAt = e.DeactivatedAt
@@ -707,6 +716,46 @@ namespace TaskPilot.Services
             };
 
             return Result<CompanyEmployeeDto>.Success(dto);
+        }
+
+        public async Task<Result<EmployeeStatisticsDto>> GetEmployeeStatisticsAsync(
+    Guid companyId,
+    CancellationToken cancellationToken = default)
+        {
+            var query = _employeeRepository
+                .GetQueryable()
+                .AsNoTracking()
+                .Where(e => e.CompanyId == companyId);
+
+            var stats = await query
+                .GroupBy(_ => 1)
+                .Select(g => new EmployeeStatisticsDto
+                {
+                    TotalEmployees = g.Count(),
+
+                    ActiveEmployees = g.Count(e => !e.IsDeactivated),
+
+                    DeactivatedEmployees = g.Count(e => e.IsDeactivated),
+
+                    EmployeesInProjects = g.Count(e =>
+                        e.ProjectEmployees.Any(pe =>
+                            pe.IsActive &&
+                            pe.Project != null &&
+                            pe.Project.Status != ProjectStatus.Completed &&
+                            pe.Project.Status != ProjectStatus.Archived)),
+
+                    AvailableEmployees = g.Count(e =>
+                        !e.IsDeactivated &&
+                        !e.ProjectEmployees.Any(pe =>
+                            pe.IsActive &&
+                            pe.Project != null &&
+                            pe.Project.Status != ProjectStatus.Completed &&
+                            pe.Project.Status != ProjectStatus.Archived))
+                })
+                .SingleOrDefaultAsync(cancellationToken);
+
+            return Result<EmployeeStatisticsDto>.Success(
+                stats ?? new EmployeeStatisticsDto());
         }
 
         public async Task<Result<CompanyResponse>> UpdateCompanyAsync(
