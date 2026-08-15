@@ -55,12 +55,21 @@ namespace TaskPilot.Tests.Services
         [Fact]
         public void ToDto_NormalizesStoredPascalCaseSuggestionToCamelCase()
         {
-            var project = new Project { NameEn = "Test" };
+            var project = new Project
+            {
+                NameEn = "Test",
+                ProjectEmployees =
+                [
+                    new ProjectEmployee { IsActive = true, Employee = new Employee { UserSkills = [new UserSkill()] } },
+                    new ProjectEmployee { IsActive = false, Employee = new Employee { UserSkills = [new UserSkill()] } },
+                    new ProjectEmployee { IsActive = true, Employee = new Employee { IsDeactivated = true, UserSkills = [new UserSkill()] } }
+                ]
+            };
             var state = new ProjectSetupState
             {
                 TechStackStatus = TechStackSetupStatus.Suggested,
                 TechStackSuggestionJson = """
-                    {"PrimaryStack":{"Description":"Primary","TechStack":["Angular"],"Reasoning":"Team fit"},"IdealStack":{"Description":"Ideal","TechStack":["Angular","Redis"],"Reasoning":"Best fit"},"GapAnalysis":[],"PlatformTargets":["Web"],"ProjectType":"SaaS"}
+                    {"PrimaryStack":{"Description":"Primary","TechStack":["Angular"],"Reasoning":"Team fit"},"IdealStack":{"Description":"Ideal","TechStack":["Angular","Redis"],"Reasoning":"Best fit"},"GapAnalysis":["Redis capacity"],"PlatformTargets":["Web"],"ProjectType":"SaaS"}
                     """
             };
 
@@ -70,6 +79,12 @@ namespace TaskPilot.Tests.Services
             Assert.True(suggestion.TryGetProperty("primaryStack", out var primary));
             Assert.Equal("Team fit", primary.GetProperty("reasoning").GetString());
             Assert.False(suggestion.TryGetProperty("PrimaryStack", out _));
+            var gap = suggestion.GetProperty("gapAnalysis")[0];
+            Assert.Equal("Unclassified", gap.GetProperty("gapType").GetString());
+            Assert.Equal("Redis capacity", gap.GetProperty("summary").GetString());
+            Assert.Equal(1, dto.TeamContext.ActiveMemberCount);
+            Assert.Equal(1, dto.TeamContext.MembersWithSkillsCount);
+            Assert.True(dto.TeamContext.TeamStackAvailable);
         }
     }
 }
