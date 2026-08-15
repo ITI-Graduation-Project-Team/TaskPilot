@@ -95,73 +95,83 @@ public class AssignmentConfirmationService : IAssignmentConfirmationService
                 result.Warnings.Add(string.Format(warningTpl, assignment.TaskId, sprintId));                continue;
             }
 
-            if (!validEmployeeIds.Contains(assignment.EmployeeId))
+            if (assignment.EmployeeId.HasValue && !validEmployeeIds.Contains(assignment.EmployeeId.Value))
             {
                 result.Skipped++;
                 var warningTpl = _localizationService.GetString("assignment.warnings.employeeNotInProject");
-                result.Warnings.Add(string.Format(warningTpl, assignment.EmployeeId));      
+                result.Warnings.Add(string.Format(warningTpl, assignment.EmployeeId.Value));      
                 continue;
             }
 
-            if (task.EmployeeId.HasValue && task.EmployeeId != assignment.EmployeeId)
+            if (task.EmployeeId != assignment.EmployeeId)
             {
-                result.OverridesApplied++;
-            }
-
-            //.........................................................................
-            // Capacity warning — not a block
-            if (provisionalRemaining.ContainsKey(assignment.EmployeeId))
-            {
-                provisionalRemaining[assignment.EmployeeId] -= (double)task.EstimatedHours;
-
-                if (provisionalRemaining[assignment.EmployeeId] < 0)
+                if (task.EmployeeId.HasValue)
                 {
-                    // Using invariant English string as default if localization not set
-                    var warnEn = $"Developer over capacity. Sprint capacity: {totalCapacities[assignment.EmployeeId]:F0}h, Assigned: {(totalCapacities[assignment.EmployeeId] - provisionalRemaining[assignment.EmployeeId]):F0}h.";
-                    var warningTpl = _localizationService.GetString("assignment.warnings.insufficientCapacity") ?? warnEn;
-                    
-                    if (warningTpl.Contains("{0}"))
+                    result.OverridesApplied++;
+                    if (provisionalRemaining.ContainsKey(task.EmployeeId.Value))
                     {
-                        result.Warnings.Add(string.Format(warningTpl, task.TitleEn, provisionalRemaining[assignment.EmployeeId].ToString("F0"), task.EstimatedHours));
+                        provisionalRemaining[task.EmployeeId.Value] += (double)task.EstimatedHours;
                     }
-                    else
+                }
+
+                //.........................................................................
+                // Capacity warning — not a block
+                if (assignment.EmployeeId.HasValue && provisionalRemaining.ContainsKey(assignment.EmployeeId.Value))
+                {
+                    provisionalRemaining[assignment.EmployeeId.Value] -= (double)task.EstimatedHours;
+
+                    if (provisionalRemaining[assignment.EmployeeId.Value] < 0)
                     {
-                        result.Warnings.Add(warnEn);
+                        // Using invariant English string as default if localization not set
+                        var warnEn = $"Developer over capacity. Sprint capacity: {totalCapacities[assignment.EmployeeId.Value]:F0}h, Assigned: {(totalCapacities[assignment.EmployeeId.Value] - provisionalRemaining[assignment.EmployeeId.Value]):F0}h.";
+                        var warningTpl = _localizationService.GetString("assignment.warnings.insufficientCapacity") ?? warnEn;
+                        
+                        if (warningTpl.Contains("{0}"))
+                        {
+                            result.Warnings.Add(string.Format(warningTpl, task.TitleEn, provisionalRemaining[assignment.EmployeeId.Value].ToString("F0"), task.EstimatedHours));
+                        }
+                        else
+                        {
+                            result.Warnings.Add(warnEn);
+                        }
                     }
                 }
             }
 
                 //.....................................................................................
 
-                // هنا يتم تعيين المهمة للموظف
-                task.EmployeeId = assignment.EmployeeId;
+            task.EmployeeId = assignment.EmployeeId;
+            // Task status is typically ToDo when planned in a sprint, regardless of assignee
             task.Status = TaskItemStatus.ToDo;
             result.AssignmentsConfirmed++;
 
-            try
+            if (assignment.EmployeeId.HasValue)
             {
-                var eventTitle = $" TaskPilot: {task.TitleEn}";
-                var eventDescription = $"You have a new task assigned.\nTitle: {task.TitleEn}\nEstimated Hours: {task.EstimatedHours}";
+                try
+                {
+                    var eventTitle = $" TaskPilot: {task.TitleEn}";
+                    var eventDescription = $"You have a new task assigned.\nTitle: {task.TitleEn}\nEstimated Hours: {task.EstimatedHours}";
 
-                var startTime = DateTime.UtcNow;
-                var endTime = DateTime.UtcNow.AddHours(Math.Max(1, (double)task.EstimatedHours));
+                    var startTime = DateTime.UtcNow;
+                    var endTime = DateTime.UtcNow.AddHours(Math.Max(1, (double)task.EstimatedHours));
 
-                await _googleCalendarService.AddEventToCalendarAsync(
-                    assignment.EmployeeId,
-                    eventTitle,
-                    eventDescription,
-                    startTime,
-                    endTime
-                );
-            }
-            catch (Exception ex)
-            {
-                // The assignment itself succeeds regardless of Google Calendar status.
-                // This warning will appear in server logs to help diagnose Calendar issues.
-                _logger.LogWarning(ex,
-                    "Google Calendar event creation failed for employee {EmployeeId} on task '{TaskTitle}'. " +
-                    "The employee may not have linked their Google Calendar yet.",
-                    assignment.EmployeeId, task.TitleEn);
+                    await _googleCalendarService.AddEventToCalendarAsync(
+                        assignment.EmployeeId.Value,
+                        eventTitle,
+                        eventDescription,
+                        startTime,
+                        endTime
+                    );
+                }
+                catch (Exception ex)
+                {
+                    // The assignment itself succeeds regardless of Google Calendar status.
+                    // This warning will appear in server logs to help diagnose Calendar issues.
+                    _logger.LogWarning(ex,
+                        "Google Calendar event creation failed for employee {EmployeeId} on task '{TaskTitle}'. " +
+                        "The employee may not have linked their Google Calendar yet.",
+                        assignment.EmployeeId.Value, task.TitleEn);
+                }
             }
         }
 

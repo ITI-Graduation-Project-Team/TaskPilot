@@ -68,11 +68,11 @@ public class CapacityValidationService : ICapacityValidationService
             result.CapacityUtilizationPercentage = Math.Round((result.RequiredHours / result.TeamCapacityHours) * 100, 2);
         }
 
-        // 4. Hard Validation Rules (Blockers)
+        // 4. Hard Validation Rules (Blockers) -> MOVED TO WARNINGS
         // Rule 1: No Project Team
         if (snapshot.Team.Developers.Count == 0)
         {
-            result.Blockers.Add(new CapacityBlockerDto
+            result.Warnings.Add(new CapacityWarningDto
             {
                 Code = "NO_PROJECT_TEAM",
                 ActualValue = 0,
@@ -83,7 +83,7 @@ public class CapacityValidationService : ICapacityValidationService
         // Rule 2: No Unassigned Tasks
         if (snapshot.UnassignedTasks.Count == 0)
         {
-            result.Blockers.Add(new CapacityBlockerDto
+            result.Warnings.Add(new CapacityWarningDto
             {
                 Code = "NO_UNASSIGNED_TASKS",
                 ActualValue = 0,
@@ -91,16 +91,7 @@ public class CapacityValidationService : ICapacityValidationService
             });
         }
 
-        // Rule 3: Capacity Exceeded
-        if (result.RequiredHours > result.TeamCapacityHours)
-        {
-            result.Blockers.Add(new CapacityBlockerDto
-            {
-                Code = "HOURS_EXCEEDED",
-                ActualValue = result.RequiredHours,
-                LimitValue = result.TeamCapacityHours
-            });
-        }
+        // Rule 3 removed from blockers (now a warning)
 
         // 5. Warning Rules
         // Warning 1: High Utilization
@@ -112,6 +103,17 @@ public class CapacityValidationService : ICapacityValidationService
                 Code = "HIGH_UTILIZATION",
                 ActualValue = result.CapacityUtilizationPercentage,
                 LimitValue = options.HighUtilizationThreshold
+            });
+        }
+
+        // Warning 3: Capacity Exceeded
+        if (result.RequiredHours > result.TeamCapacityHours)
+        {
+            result.Warnings.Add(new CapacityWarningDto
+            {
+                Code = "HOURS_EXCEEDED",
+                ActualValue = result.RequiredHours,
+                LimitValue = result.TeamCapacityHours
             });
         }
 
@@ -130,18 +132,9 @@ public class CapacityValidationService : ICapacityValidationService
             }
         }
 
-        // 6. Blocker Priority Sorting
-        // Priority: 1. NO_PROJECT_TEAM, 2. NO_UNASSIGNED_TASKS, 3. HOURS_EXCEEDED
-        var priorityMap = new System.Collections.Generic.Dictionary<string, int>
-        {
-            { "NO_PROJECT_TEAM", 1 },
-            { "NO_UNASSIGNED_TASKS", 2 },
-            { "HOURS_EXCEEDED", 3 }
-        };
-
-        result.Blockers = result.Blockers
-            .OrderBy(b => priorityMap.TryGetValue(b.Code, out int p) ? p : int.MaxValue)
-            .ToList();
+        // No blockers logic anymore.
+        
+        result.Blockers = new System.Collections.Generic.List<CapacityBlockerDto>();
 
         // 7. Final Decision
         result.CanProceed = result.Blockers.Count == 0;

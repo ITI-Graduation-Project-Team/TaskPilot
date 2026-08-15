@@ -100,13 +100,20 @@ public class AssignmentScoringService : IAssignmentScoringService
             foreach (var developer in snapshot.Team.Developers)
             {
                 var currentRemaining = provisionalRemaining[developer.EmployeeId];
-                if (currentRemaining <= 0.01)
+                
+                var effectiveRemaining = currentRemaining;
+                if (task.AssigneeId.HasValue && task.AssigneeId == developer.EmployeeId)
+                {
+                    effectiveRemaining += (double)task.EstimatedHours;
+                }
+
+                if (effectiveRemaining <= 0.01)
                 {
                     continue; // Hard exclusion
                 }
 
                 // Update the snapshot object so calculators receive the current capacity
-                developer.RemainingHours = currentRemaining;
+                developer.RemainingHours = effectiveRemaining;
 
                 var skillScore = skillCalculator?.Calculate(task, developer) ?? 0;
                 var availabilityScore = availabilityCalculator?.Calculate(task, developer) ?? 0;
@@ -153,10 +160,10 @@ public class AssignmentScoringService : IAssignmentScoringService
                     ExperienceScore = experienceScore,
                     FinalScore = finalScore,
                     SkillGaps = skillGaps,
-                    RemainingHours = currentRemaining,
+                    RemainingHours = effectiveRemaining,
                     MaxSprintHours = developer.MaxSprintHours,
                     CurrentAssignedHours = developer.CurrentAssignedHours,
-                    HasSufficientCapacity = currentRemaining >= (double)task.EstimatedHours
+                    HasSufficientCapacity = effectiveRemaining >= (double)task.EstimatedHours
                 });
             }
 
@@ -172,11 +179,25 @@ public class AssignmentScoringService : IAssignmentScoringService
             var topDeveloper = taskScoringResult.RankedDevelopers.FirstOrDefault();
             if (topDeveloper != null)
             {
-                provisionalRemaining[topDeveloper.EmployeeId] -= (double)task.EstimatedHours;
+                if (topDeveloper.EmployeeId != task.AssigneeId)
+                {
+                    // New developer takes the task: deduct hours from them
+                    provisionalRemaining[topDeveloper.EmployeeId] -= (double)task.EstimatedHours;
+
+                    // Old assignee (if any) gets their hours back in the simulation
+                    if (task.AssigneeId.HasValue && provisionalRemaining.ContainsKey(task.AssigneeId.Value))
+                    {
+                        provisionalRemaining[task.AssigneeId.Value] += (double)task.EstimatedHours;
+                    }
+                }
             }
             else
             {
                 taskScoringResult.IsUnassignable = true;
+                if (task.AssigneeId.HasValue && provisionalRemaining.ContainsKey(task.AssigneeId.Value))
+                {
+                    provisionalRemaining[task.AssigneeId.Value] += (double)task.EstimatedHours;
+                }
             }
 
             scoredAssignment.TaskScores.Add(taskScoringResult);
