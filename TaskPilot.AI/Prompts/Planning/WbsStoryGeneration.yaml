@@ -22,8 +22,14 @@ input_variables:
     description: Required integrations
   - name: scaleRequirements
     description: Scale and performance requirements
+  - name: techStack
+    description: Confirmed technology stack
+  - name: platformTargets
+    description: Target delivery platforms detected from the project requirements
   - name: projectType
     description: Project classification
+  - name: availableSkills
+    description: Skills available within the assigned project team only
   - name: brdContext
     description: Content extracted from uploaded Business Requirement Documents (BRD).
 
@@ -67,8 +73,24 @@ template: |
   Scale Requirements:
   {{$scaleRequirements}}
 
+  Confirmed Tech Stack:
+  {{$techStack}}
+
+  Target Platforms:
+  {{$platformTargets}}
+
   Project Type:
   {{$projectType}}
+
+  Assigned Team Skills:
+  {{$availableSkills}}
+
+  PLATFORM AND ARCHITECTURE GUARDRAILS:
+  - Business requirements and BRD context remain the only sources of feature scope.
+  - Use target platforms only to tailor delivery channels and acceptance criteria for features already required.
+  - Do not invent mobile, desktop, web, or API features merely because a platform appears in the context.
+  - Use the confirmed tech stack to keep technical constraints coherent; implementation tasks are generated later.
+  - Do not turn framework, infrastructure, or tooling choices into standalone business User Stories.
 
   --------------------------------------------------------
   USER STORY FORMAT RULES

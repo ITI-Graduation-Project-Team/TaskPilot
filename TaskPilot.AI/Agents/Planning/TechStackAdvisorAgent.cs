@@ -43,7 +43,9 @@ namespace TaskPilot.AI.Agents.Planning
                 ? string.Join("\n", availableSkills
                     .Select(s =>
                         $"- {s.SkillName}: {s.EmployeeCount} developer(s), " +
-                        $"max level: {s.MaxLevel}"))
+                        $"{s.AvailableFte:0.##} FTE, max level: {s.MaxLevel}, " +
+                        $"levels [Beginner: {s.BeginnerCount}, Intermediate: {s.IntermediateCount}, " +
+                        $"Advanced: {s.AdvancedCount}, Expert: {s.ExpertCount}]"))
                 : "No employee skill data available.";
 
             var result = await kernel.InvokeAsync(
@@ -76,6 +78,7 @@ namespace TaskPilot.AI.Agents.Planning
                     throw new TechStackAdvisorException(
                         "Tech stack suggestion returned null.", raw);
 
+                ValidateSuggestion(suggestion, raw);
                 return suggestion;
             }
             catch (JsonException ex)
@@ -84,6 +87,27 @@ namespace TaskPilot.AI.Agents.Planning
                     $"Tech stack suggestion returned invalid JSON: {ex.Message}",
                     raw);
             }
+        }
+
+        private static void ValidateSuggestion(TechStackSuggestion suggestion, string raw)
+        {
+            var allowedPlatforms = new HashSet<string>(new[] { "Web", "Mobile", "Desktop", "API" }, System.StringComparer.OrdinalIgnoreCase);
+            var allowedProjectTypes = new HashSet<string>(new[] { "ERP", "SaaS", "MobileApp", "API", "Portal", "Other" }, System.StringComparer.OrdinalIgnoreCase);
+            var allowedGapTypes = new HashSet<string>(new[] { "MissingSkill", "ProficiencyGap", "CapacityGap", "Unclassified" }, System.StringComparer.OrdinalIgnoreCase);
+            var allowedSeverities = new HashSet<string>(new[] { "Low", "Medium", "High" }, System.StringComparer.OrdinalIgnoreCase);
+
+            var valid = suggestion.PrimaryStack.TechStack.Count > 0
+                && suggestion.IdealStack.TechStack.Count > 0
+                && suggestion.PlatformTargets.Count > 0
+                && suggestion.PlatformTargets.All(allowedPlatforms.Contains)
+                && allowedProjectTypes.Contains(suggestion.ProjectType)
+                && suggestion.GapAnalysis.All(gap =>
+                    !string.IsNullOrWhiteSpace(gap.Summary)
+                    && allowedGapTypes.Contains(gap.GapType)
+                    && allowedSeverities.Contains(gap.Severity));
+
+            if (!valid)
+                throw new TechStackAdvisorException("Tech stack suggestion did not match the required contract.", raw);
         }
     }
 }

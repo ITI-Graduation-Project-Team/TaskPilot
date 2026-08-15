@@ -8,9 +8,17 @@ namespace TaskPilot.DTOs.Projects
         public Guid ProjectId { get; set; }
         public string ProjectName { get; set; } = string.Empty;
         public ProjectSetupOverallStatus OverallStatus { get; set; }
+        public TeamContextDto TeamContext { get; set; } = new();
         public TechStackSetupDto TechStack { get; set; } = new();
         public SetupJobDto Wbs { get; set; } = new();
         public SetupJobDto Skills { get; set; } = new();
+    }
+
+    public sealed class TeamContextDto
+    {
+        public int ActiveMemberCount { get; set; }
+        public int MembersWithSkillsCount { get; set; }
+        public bool TeamStackAvailable => ActiveMemberCount > 0 && MembersWithSkillsCount > 0;
     }
 
     public sealed class TechStackSetupDto

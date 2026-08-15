@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Hangfire;
 using Microsoft.EntityFrameworkCore;
 using TaskPilot.Data.Context;
@@ -9,6 +10,7 @@ using TaskPilot.Models.Entities;
 using TaskPilot.Models.Enums;
 using TaskPilot.Services.BackgroundJobs;
 using TaskPilot.Services.Interfaces;
+using TaskPilot.AI.Models.Planning;
 
 namespace TaskPilot.Services
 {
@@ -91,15 +93,21 @@ namespace TaskPilot.Services
             var project = loaded.Project!;
             var state = loaded.State!;
 
-            if (request.TechStack.Count == 0 || request.PlatformTargets.Count == 0 || string.IsNullOrWhiteSpace(request.ProjectType))
-                return Result.Failure<ProjectSetupDto>(CommonErrors.InvalidInput("Choose at least one technology, one platform, and a project type."));
+            if (request.TechStack.Count == 0)
+                return Result.Failure<ProjectSetupDto>(CommonErrors.InvalidInput("Choose at least one technology."));
 
             if (state.WbsStatus is BackgroundSetupStatus.Queued or BackgroundSetupStatus.Running or BackgroundSetupStatus.Succeeded)
                 return Result.Failure<ProjectSetupDto>(CommonErrors.Conflict("TECH_STACK_LOCKED", "The tech stack cannot be changed after WBS generation starts."));
 
+            var suggestion = DeserializeStoredSuggestion(state.TechStackSuggestionJson);
+            if (suggestion == null || suggestion.PlatformTargets.Count == 0 || string.IsNullOrWhiteSpace(suggestion.ProjectType))
+                return Result.Failure<ProjectSetupDto>(CommonErrors.Conflict(
+                    "TECH_STACK_SUGGESTION_INCOMPLETE",
+                    "Regenerate the architecture recommendation before confirming it."));
+
             project.TechStack = request.TechStack.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-            project.PlatformTargets = request.PlatformTargets.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-            project.ProjectType = request.ProjectType.Trim();
+            project.PlatformTargets = suggestion.PlatformTargets.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            project.ProjectType = suggestion.ProjectType.Trim();
             state.TechStackStatus = TechStackSetupStatus.Confirmed;
             state.TechStackError = null;
             await _context.SaveChangesAsync(cancellationToken);
@@ -197,6 +205,9 @@ namespace TaskPilot.Services
 
             var project = await _context.Projects
                 .Include(x => x.SetupState)
+                .Include(x => x.ProjectEmployees)
+                    .ThenInclude(pe => pe.Employee)
+                        .ThenInclude(employee => employee.UserSkills)
                 .FirstOrDefaultAsync(x => x.Id == projectId && !x.IsDeleted, cancellationToken);
             if (project == null) return (null, null, CommonErrors.NotFound("Project"));
             if (project.ManagerId != userId.Value) return (null, null, CommonErrors.Forbidden("Only the project manager can manage project setup."));
@@ -229,18 +240,25 @@ namespace TaskPilot.Services
                 // JsonElement preserves the original property names verbatim. Older
                 // rows were stored with C# PascalCase, so normalize the typed value
                 // before exposing it through the camelCase HTTP contract.
-                var typedSuggestion = JsonSerializer.Deserialize<TaskPilot.AI.Models.Planning.TechStackSuggestion>(
-                    state.TechStackSuggestionJson,
-                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                var typedSuggestion = DeserializeStoredSuggestion(state.TechStackSuggestionJson);
                 if (typedSuggestion != null)
                     suggestion = JsonSerializer.SerializeToElement(typedSuggestion, JsonSerializerOptions.Web);
             }
+
+            var activeMembers = project.ProjectEmployees
+                .Where(pe => pe.IsActive && pe.Employee != null && !pe.Employee.IsDeactivated)
+                .ToList();
 
             return new ProjectSetupDto
             {
                 ProjectId = project.Id,
                 ProjectName = project.NameEn,
                 OverallStatus = GetOverallStatus(state),
+                TeamContext = new TeamContextDto
+                {
+                    ActiveMemberCount = activeMembers.Count,
+                    MembersWithSkillsCount = activeMembers.Count(pe => pe.Employee.UserSkills.Count > 0)
+                },
                 TechStack = new TechStackSetupDto
                 {
                     Status = state.TechStackStatus,
@@ -274,6 +292,38 @@ namespace TaskPilot.Services
                     Error = state.SkillsError
                 }
             };
+        }
+
+        private static TechStackSuggestion? DeserializeStoredSuggestion(string? json)
+        {
+            if (string.IsNullOrWhiteSpace(json)) return null;
+
+            var root = JsonNode.Parse(json) as JsonObject;
+            if (root == null) return null;
+
+            var gapProperty = root.FirstOrDefault(property =>
+                string.Equals(property.Key, "gapAnalysis", StringComparison.OrdinalIgnoreCase));
+
+            if (gapProperty.Value is JsonArray gaps)
+            {
+                for (var index = 0; index < gaps.Count; index++)
+                {
+                    if (gaps[index] is JsonValue legacyValue && legacyValue.TryGetValue<string>(out var summary))
+                    {
+                        gaps[index] = JsonSerializer.SerializeToNode(new SkillGap
+                        {
+                            GapType = "Unclassified",
+                            Severity = "Medium",
+                            Summary = summary,
+                            Recommendation = summary
+                        }, JsonSerializerOptions.Web);
+                    }
+                }
+            }
+
+            return JsonSerializer.Deserialize<TechStackSuggestion>(
+                root.ToJsonString(),
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
         }
 
         public static ProjectSetupOverallStatus GetOverallStatus(ProjectSetupState state)

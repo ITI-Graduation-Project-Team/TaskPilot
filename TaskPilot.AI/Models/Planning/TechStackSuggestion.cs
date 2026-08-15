@@ -15,11 +15,10 @@ namespace TaskPilot.AI.Models.Planning
         public RecommendedStack IdealStack { get; set; } = new();
 
         /// <summary>
-        /// Skills/technologies required by the ideal stack but missing
-        /// from the current team.
-        /// Example: ["Flutter developer needed", "Redis expertise missing"]
+        /// Structured capabilities required by the ideal stack but missing
+        /// or under-covered by the current project team.
         /// </summary>
-        public System.Collections.Generic.List<string> GapAnalysis { get; set; } = new();
+        public System.Collections.Generic.List<SkillGap> GapAnalysis { get; set; } = new();
 
         /// <summary>
         /// Target platforms detected from requirements.
@@ -39,5 +38,20 @@ namespace TaskPilot.AI.Models.Planning
         public string Description { get; set; } = string.Empty;
         public System.Collections.Generic.List<string> TechStack { get; set; } = new();
         public string Reasoning { get; set; } = string.Empty;
+    }
+
+    public class SkillGap
+    {
+        public string Skill { get; set; } = string.Empty;
+        public string Technology { get; set; } = string.Empty;
+        public string GapType { get; set; } = "Unclassified";
+        public string Severity { get; set; } = "Medium";
+        public string? RequiredLevel { get; set; }
+        public string? AvailableLevel { get; set; }
+        public int? RequiredCount { get; set; }
+        public int AvailableCount { get; set; }
+        public decimal AvailableFte { get; set; }
+        public string Summary { get; set; } = string.Empty;
+        public string Recommendation { get; set; } = string.Empty;
     }
 }

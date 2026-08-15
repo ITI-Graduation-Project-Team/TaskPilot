@@ -21,7 +21,7 @@ namespace TaskPilot.Services
         private readonly IUserStoryRepository _userStoryRepository;
         private readonly IRepository<TaskItem> _taskRepository;
         private readonly IRepository<UserStory> _userStoryGenericRepository;
-        private readonly IRepository<Skill> _skillRepository;
+        private readonly ISkillRepository _skillRepository;
         private readonly IRepository<CalenderEvent> _calenderEventRepository;
         private readonly IRepository<SprintRiskAlert> _sprintRiskAlertRepository;
         private readonly IUnitOfWork _unitOfWork;
@@ -34,7 +34,7 @@ namespace TaskPilot.Services
             IUserStoryRepository userStoryRepository,
             IRepository<TaskItem> taskRepository,
             IRepository<UserStory> userStoryGenericRepository,
-            IRepository<Skill> skillRepository,
+            ISkillRepository skillRepository,
             IRepository<CalenderEvent> calenderEventRepository,
             IRepository<SprintRiskAlert> sprintRiskAlertRepository,
             IUnitOfWork unitOfWork,
@@ -120,8 +120,8 @@ namespace TaskPilot.Services
                 // so persistence service doesn't face conflicts or duplicate tracking.
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-                var skills = await _skillRepository.GetAllAsync();
-                var availableSkills = System.Linq.Enumerable.Select(skills, s => s.Name).ToList();
+                var skills = await _skillRepository.GetProjectSkillSummaryAsync(projectId, cancellationToken);
+                var availableSkills = skills.Select(skill => skill.SkillName).ToList();
 
                 // Step 4: Invoke WBSGenerationAgent
                 var generatedWbs = await _wbsGenerationAgent.GenerateAsync(

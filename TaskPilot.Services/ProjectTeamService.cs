@@ -21,6 +21,7 @@ public class ProjectTeamService : IProjectTeamService
     private readonly IRepository<Project> _projectRepository;
     private readonly IRepository<Employee> _employeeRepository;
     private readonly IRepository<Sprint> _sprintRepository;
+    private readonly IRepository<ProjectSetupState> _projectSetupStateRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly INotificationService _notificationService;
 
@@ -29,6 +30,7 @@ public class ProjectTeamService : IProjectTeamService
         IRepository<Project> projectRepository,
         IRepository<Employee> employeeRepository,
         IRepository<Sprint> sprintRepository,
+        IRepository<ProjectSetupState> projectSetupStateRepository,
         IUnitOfWork unitOfWork,
         INotificationService notificationService)
     {
@@ -36,6 +38,7 @@ public class ProjectTeamService : IProjectTeamService
         _projectRepository = projectRepository;
         _employeeRepository = employeeRepository;
         _sprintRepository = sprintRepository;
+        _projectSetupStateRepository = projectSetupStateRepository;
         _unitOfWork = unitOfWork;
         _notificationService = notificationService;
     }
@@ -97,6 +100,7 @@ public class ProjectTeamService : IProjectTeamService
         }).ToList();
 
         await _projectEmployeeRepository.AddRangeAsync(newAssignments);
+        await InvalidateUnconfirmedTechStackSuggestionAsync(projectId, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         foreach (var employeeId in employeeIds)
@@ -224,6 +228,7 @@ public class ProjectTeamService : IProjectTeamService
         }
 
         _projectEmployeeRepository.Delete(assignment);
+        await InvalidateUnconfirmedTechStackSuggestionAsync(projectId, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result<AssignEmployeesResultDto>.Success(new AssignEmployeesResultDto
@@ -232,5 +237,22 @@ public class ProjectTeamService : IProjectTeamService
             PlannedSprintNames = affectedSprints.Select(s => s.TitleEn ?? "").ToList(),
             PlannedSprintIds = affectedSprints.Select(s => s.Id).ToList()
         });
+    }
+
+    private async Task InvalidateUnconfirmedTechStackSuggestionAsync(
+        Guid projectId,
+        CancellationToken cancellationToken)
+    {
+        var setupState = await _projectSetupStateRepository.GetQueryable()
+            .FirstOrDefaultAsync(state => state.ProjectId == projectId, cancellationToken);
+
+        if (setupState?.TechStackStatus != TechStackSetupStatus.Suggested
+            || setupState.WbsStatus != BackgroundSetupStatus.NotStarted)
+            return;
+
+        setupState.TechStackSuggestionJson = null;
+        setupState.TechStackError = null;
+        setupState.TechStackStatus = TechStackSetupStatus.NotStarted;
+        _projectSetupStateRepository.Update(setupState);
     }
 }

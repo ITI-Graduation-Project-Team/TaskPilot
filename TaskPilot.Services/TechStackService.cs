@@ -67,9 +67,10 @@ namespace TaskPilot.Services
                 return Result.Failure<TechStackSuggestion>(
                     CommonErrors.InvalidInput("RequirementsSnapshot is missing."));
 
-            // Fetch company-wide skill summary since project is in draft stage and has no team members yet
+            // A team-ready recommendation must reflect only active employees assigned
+            // to this project. The advisor still returns an ideal stack when this list is empty.
             var skills = await _skillRepository
-                .GetCompanySkillSummaryAsync(project.CompanyId, cancellationToken);
+                .GetProjectSkillSummaryAsync(projectId, cancellationToken);
 
             var suggestion = await _techStackAdvisorAgent.SuggestAsync(
                 project.RequirementsSnapshot,
@@ -89,9 +90,6 @@ namespace TaskPilot.Services
                 return Result.Failure(CommonErrors.NotFound("Project"));
 
             project.TechStack = request.TechStack;
-            project.PlatformTargets = request.PlatformTargets;
-            project.ProjectType = request.ProjectType;
-
             _projectRepository.Update(project);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 

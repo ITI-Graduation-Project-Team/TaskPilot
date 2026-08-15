@@ -43,22 +43,34 @@ namespace TaskPilot.Services.Repositories
              Guid projectId,
              CancellationToken cancellationToken = default)
         {
-            return await _context.UserSkills
-                .Include(us => us.Skill)
-                .Include(us => us.User)
-                .Where(us =>
-                    us.User is Employee &&
-                    _context.ProjectEmployees.Any(pe =>
-                        pe.ProjectId == projectId &&
-                        pe.EmployeeId == us.UserId))
-                .GroupBy(us => us.Skill.Name)
-                .Select(g => new EmployeeSkillSummary
+            var rows = await _context.ProjectEmployees
+                .Where(pe => pe.ProjectId == projectId && pe.IsActive && !pe.Employee.IsDeactivated)
+                .SelectMany(pe => pe.Employee.UserSkills.Select(us => new
                 {
-                    SkillName = g.Key,
-                    EmployeeCount = g.Select(x => x.UserId).Distinct().Count(),
-                    MaxLevel = g.Max(x => x.Level).ToString()
-                })
+                    pe.EmployeeId,
+                    pe.AllocationPercentage,
+                    SkillName = us.Skill.Name,
+                    us.Level
+                }))
                 .ToListAsync(cancellationToken);
+
+            return rows
+                .GroupBy(row => row.SkillName, StringComparer.OrdinalIgnoreCase)
+                .Select(group => new EmployeeSkillSummary
+                {
+                    SkillName = group.Key,
+                    EmployeeCount = group.Select(row => row.EmployeeId).Distinct().Count(),
+                    AvailableFte = group
+                        .GroupBy(row => row.EmployeeId)
+                        .Sum(employee => employee.First().AllocationPercentage) / 100m,
+                    BeginnerCount = group.Count(row => row.Level == TaskPilot.Models.Enums.SkillLevel.Beginner),
+                    IntermediateCount = group.Count(row => row.Level == TaskPilot.Models.Enums.SkillLevel.Intermediate),
+                    AdvancedCount = group.Count(row => row.Level == TaskPilot.Models.Enums.SkillLevel.Advanced),
+                    ExpertCount = group.Count(row => row.Level == TaskPilot.Models.Enums.SkillLevel.Expert),
+                    MaxLevel = group.Max(row => row.Level).ToString()
+                })
+                .OrderBy(summary => summary.SkillName)
+                .ToList();
         }
     }
 }
