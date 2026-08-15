@@ -32,6 +32,7 @@ public class AssignmentExplanationService : IAssignmentExplanationService
     public async Task<Result<ExplainedAssignmentDto>> GenerateAsync(
         Guid projectId,
         Guid sprintId,
+        string language,
         CancellationToken cancellationToken)
     {
         var scoringResult = await _scoringService.ScoreAsync(projectId, sprintId, cancellationToken);
@@ -87,7 +88,8 @@ public class AssignmentExplanationService : IAssignmentExplanationService
                         RemainingHours = d.RemainingHours,
                         HasSufficientCapacity = d.HasSufficientCapacity,
                         SkillGaps = d.SkillGaps
-                    }).ToList()
+                    }).ToList(),
+                    Language = language
                 };
 
                 List<(string EmployeeId, string ReasonEn, string ReasonAr)> reasons = new();

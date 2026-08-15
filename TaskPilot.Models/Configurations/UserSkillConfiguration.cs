@@ -33,8 +33,7 @@ public class UserSkillConfiguration
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.Property(us => us.Level)
-            .HasConversion<string>()
-            .HasDefaultValue(SkillLevel.Intermediate);
+            .HasConversion<string>();
 
         builder.Property(us => us.IsPrimary)
             .HasDefaultValue(false);

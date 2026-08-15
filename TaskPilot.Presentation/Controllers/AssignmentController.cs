@@ -70,7 +70,10 @@ public class AssignmentController : ApiControllerBase
                 return HandleResult(Result.Failure(CommonErrors.Forbidden()));
         }
 
-        var result = await _assignmentExplanationService.GenerateAsync(projectId, sprintId, cancellationToken);
+        var lang = Request.Headers["lang"].ToString();
+        if (string.IsNullOrEmpty(lang)) lang = "en";
+
+        var result = await _assignmentExplanationService.GenerateAsync(projectId, sprintId, lang, cancellationToken);
         
         // Sprint 8c is READ ONLY.
         // Therefore NO _unitOfWork.SaveChangesAsync(); must exist inside this controller.
