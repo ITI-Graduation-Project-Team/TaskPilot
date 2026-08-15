@@ -105,10 +105,13 @@ template: |
   --------------------------------------------------------
 
   - Compare the Ideal Stack against available employee skills.
-  - Every missing capability must produce one actionable sentence.
-  - Examples:
-      "Flutter developer needed — no mobile developers available."
-      "Redis expertise missing — only one beginner-level developer."
+  - Return structured gaps. gapType must be MissingSkill, ProficiencyGap, or CapacityGap.
+  - MissingSkill: nobody in the project team has the required capability.
+  - ProficiencyGap: the skill exists, but the highest available level is below the required level.
+  - CapacityGap: the skill and level exist, but employee count or available FTE is insufficient.
+  - severity must be Low, Medium, or High and reflect delivery impact.
+  - Use the supplied counts, level distribution, and FTE exactly; do not invent available capacity.
+  - summary must explain the evidence. recommendation must provide a concrete next action.
   - If there are no missing capabilities:
       Return an empty array.
   --------------------------------------------------------
@@ -218,7 +221,19 @@ template: |
     },
 
     "gapAnalysis":[
-      "string"
+      {
+        "skill":"string",
+        "technology":"string",
+        "gapType":"MissingSkill | ProficiencyGap | CapacityGap",
+        "severity":"Low | Medium | High",
+        "requiredLevel":"Beginner | Intermediate | Advanced | Expert | null",
+        "availableLevel":"Beginner | Intermediate | Advanced | Expert | null",
+        "requiredCount":0,
+        "availableCount":0,
+        "availableFte":0,
+        "summary":"string",
+        "recommendation":"string"
+      }
     ],
 
     "platformTargets":[
