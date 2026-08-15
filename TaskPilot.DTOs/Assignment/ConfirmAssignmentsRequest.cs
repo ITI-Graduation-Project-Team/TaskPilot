@@ -20,5 +20,5 @@ public class TaskAssignmentDto
     /// <summary>
     /// The developer the PM chose — may or may not be the AI top suggestion.
     /// </summary>
-    public Guid EmployeeId { get; set; }
+    public Guid? EmployeeId { get; set; }
 }

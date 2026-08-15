@@ -68,9 +68,8 @@ public class TeamSnapshotService : ITeamSnapshotService
             .Where(pe => pe.ProjectId == projectId && !pe.Employee.IsDeactivated)
             .ToListAsync(cancellationToken);
 
-        if (!projectEmployees.Any())
-            return Result<SprintAssignmentSnapshotDto>.Failure(AssignmentErrors.NoProjectTeam);
-
+        // We no longer fail here if the project has no team.
+        // It will be handled gracefully by the capacity validation (as a warning) and the UI will show 0 developers.
         var sprintTasks = await _taskRepository.GetQueryable()
             .Include(t => t.RequiredSkills)
                 .ThenInclude(rs => rs.Skill)
@@ -167,9 +166,10 @@ public class TeamSnapshotService : ITeamSnapshotService
 
             var workloadPercentage = maxSprintHours > 0 ? (currentAssignedHours / maxSprintHours) * 100 : 0;
 
-            if (remainingHours < 0 || workloadPercentage < 0 || workloadPercentage > 100)
+            if (workloadPercentage < 0)
             {
-                return Result<SprintAssignmentSnapshotDto>.Failure(AssignmentErrors.InvalidAvailabilityState);
+                _logger.LogWarning("Negative workload percentage detected for employee {EmployeeId} in sprint {SprintId}: {WorkloadPercentage}%. Clamping to 0.", empId, sprintId, workloadPercentage);
+                workloadPercentage = 0;
             }
 
             var availabilityStatus = ComputeAvailabilityStatus(workloadPercentage);
