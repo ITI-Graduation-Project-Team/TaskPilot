@@ -5,6 +5,7 @@ using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Entities;
 using TaskPilot.Models.Enums;
 using TaskPilot.Services.Helpers;
+using Microsoft.EntityFrameworkCore;
 using TaskPilot.Services.Interfaces.CVExtractorInterfaces;
 
 namespace TaskPilot.Services
@@ -103,8 +104,11 @@ namespace TaskPilot.Services
 
             var normalizedNames = normalizedSkills.Select(x => x.NormalizedName).ToList();
 
-            var existingSkills = await _skillRepository.FindAsync(s => normalizedNames.Contains(s.NormalizedName));
-            var skillDictionary = existingSkills.ToDictionary(s => s.NormalizedName);
+            var existingSkills = await _skillRepository.GetQueryable()
+                .IgnoreQueryFilters()
+                .Where(s => normalizedNames.Contains(s.NormalizedName))
+                .ToListAsync();
+            var skillDictionary = existingSkills.ToDictionary(s => s.NormalizedName, StringComparer.OrdinalIgnoreCase);
 
             var existingUserSkills = await _userSkillRepository.FindAsync(us => us.UserId == userId);
             _userSkillRepository.DeleteRange(existingUserSkills);
@@ -121,6 +125,11 @@ namespace TaskPilot.Services
 
                     await _skillRepository.AddAsync(skill);
                     skillDictionary[item.NormalizedName] = skill;
+                }
+                else if (skill.IsDeleted)
+                {
+                    skill.IsDeleted = false;
+                    _skillRepository.Update(skill);
                 }
 
                 await _userSkillRepository.AddAsync(new UserSkill

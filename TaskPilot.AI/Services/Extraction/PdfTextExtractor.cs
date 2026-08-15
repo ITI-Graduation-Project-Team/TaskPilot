@@ -19,7 +19,8 @@ namespace TaskPilot.AI.Services.Extraction
         public Task<string> ExtractTextAsync(Stream fileStream, CancellationToken cancellationToken = default)
         {
             using var doc = PdfDocument.Open(fileStream);
-            var text = string.Join(" ", doc.GetPages().Select(p => p.Text));
+            var rawText = string.Join(" ", doc.GetPages().Select(p => p.Text));
+            var text = System.Text.RegularExpressions.Regex.Replace(rawText, "([a-z])([A-Z])", "$1 $2");
 
             if (string.IsNullOrWhiteSpace(text))
             {

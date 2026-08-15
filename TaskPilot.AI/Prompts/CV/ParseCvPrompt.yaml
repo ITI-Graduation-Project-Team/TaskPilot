@@ -28,10 +28,14 @@ template: |
 
   Rules:
 
-  - Return ONLY technical skills.
-  - Ignore soft skills.
-  - Ignore languages unless they are programming languages.
-  - Never explain your reasoning.
+  - Extract EVERY SINGLE technical skill, programming language, framework, database, tool, architecture pattern, and cloud platform mentioned in the CV.
+  - The CV text may have formatting issues where words are merged together without spaces (e.g. "SQLFrameworks" means "SQL" and "Frameworks" are two separate items). Carefully split such merged words based on known technology names.
+  - Extract skills from ALL sections of the CV, not only the most clearly formatted ones — especially check any section literally titled "Skills" and its subcategories.
+  - Be exhaustive: do not stop after finding a partial list, continue scanning the entire text.
+  - Return ONLY technical skills. Ignore soft skills.
+  - Treat "SQL" (as a query language) and "SQL Server" (as a database product) as two
+  SEPARATE skills if both are mentioned, even if one implies the other. Do not merge them
+  into a single entry.
   - Never wrap JSON inside markdown.
   - Never return code fences.
   - Return ONLY valid JSON.

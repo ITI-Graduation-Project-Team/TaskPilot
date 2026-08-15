@@ -49,7 +49,8 @@ public class AssignmentExplanationAgent : IAssignmentExplanationAgent
                 ["TaskTitle"] = context.TaskTitle,
                 ["TaskEstimatedHours"] = context.TaskEstimatedHours.ToString(),
                 ["RequiredSkills"] = JsonSerializer.Serialize(context.RequiredSkills),
-                ["Developers"] = JsonSerializer.Serialize(context.TopDevelopers)
+                ["Developers"] = JsonSerializer.Serialize(context.TopDevelopers),
+                ["Language"] = context.Language
             };
 
             var response = await kernel.InvokeAsync(function, arguments);
@@ -78,7 +79,11 @@ public class AssignmentExplanationAgent : IAssignmentExplanationAgent
                 return Result.Success(fallbackReasons);
             }
 
-            return Result.Success(explanations.Select(e => (e.EmployeeId, e.ReasonEn, e.ReasonAr)).ToList());
+            return Result.Success(explanations.Select(e => (
+                e.EmployeeId, 
+                context.Language == "en" ? e.Reason : string.Empty, 
+                context.Language == "ar" ? e.Reason : string.Empty
+            )).ToList());
         }
         catch (JsonException)
         {
@@ -93,7 +98,6 @@ public class AssignmentExplanationAgent : IAssignmentExplanationAgent
     private class ExplanationResponse
     {
         public string EmployeeId { get; set; } = string.Empty;
-        public string ReasonEn { get; set; } = string.Empty;
-        public string ReasonAr { get; set; } = string.Empty;
+        public string Reason { get; set; } = string.Empty;
     }
 }

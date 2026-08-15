@@ -154,6 +154,8 @@ public class AssignmentScoringService : IAssignmentScoringService
                     FinalScore = finalScore,
                     SkillGaps = skillGaps,
                     RemainingHours = currentRemaining,
+                    MaxSprintHours = developer.MaxSprintHours,
+                    CurrentAssignedHours = developer.CurrentAssignedHours,
                     HasSufficientCapacity = currentRemaining >= (double)task.EstimatedHours
                 });
             }

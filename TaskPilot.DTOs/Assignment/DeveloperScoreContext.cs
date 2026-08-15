@@ -21,4 +21,5 @@ public class ExplanationContextDto
     public decimal TaskEstimatedHours { get; set; }
     public List<TaskRequiredSkillDto> RequiredSkills { get; set; } = new();
     public List<DeveloperScoreContext> TopDevelopers { get; set; } = new();
+    public string Language { get; set; } = "en";
 }
