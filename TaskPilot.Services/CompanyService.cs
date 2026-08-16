@@ -415,9 +415,10 @@ namespace TaskPilot.Services
                     CurrentAssignedTasksCount = e.AssignedTasks.Count(t => t.SprintId != null && t.Status != TaskItemStatus.Done && (t.Sprint == null || t.Sprint.Status == SprintStatus.Active)),
                     Skills = e.UserSkills.Select(us => us.Skill.Name).ToList()
                 })
+                .AsSplitQuery()
                 .ToListAsync(cancellationToken);
 
-            var dtos = employeeProjections.Select(e => {
+            var dtos = projectedEmployees.Select(e => {
                 var fullName = $"{e.FirstNameEn} {e.LastNameEn}".Trim();
                 if (string.IsNullOrEmpty(fullName))
                 {
@@ -752,6 +753,46 @@ namespace TaskPilot.Services
             return Result<CompanyEmployeeDto>.Success(dto);
         }
 
+        public async Task<Result<EmployeeStatisticsDto>> GetEmployeeStatisticsAsync(
+    Guid companyId,
+    CancellationToken cancellationToken = default)
+        {
+            var query = _employeeRepository
+                .GetQueryable()
+                .AsNoTracking()
+                .Where(e => e.CompanyId == companyId);
+
+            var stats = await query
+                .GroupBy(_ => 1)
+                .Select(g => new EmployeeStatisticsDto
+                {
+                    TotalEmployees = g.Count(),
+
+                    ActiveEmployees = g.Count(e => !e.IsDeactivated),
+
+                    DeactivatedEmployees = g.Count(e => e.IsDeactivated),
+
+                    EmployeesInProjects = g.Count(e =>
+                        e.ProjectEmployees.Any(pe =>
+                            pe.IsActive &&
+                            pe.Project != null &&
+                            pe.Project.Status != ProjectStatus.Completed &&
+                            pe.Project.Status != ProjectStatus.Archived)),
+
+                    AvailableEmployees = g.Count(e =>
+                        !e.IsDeactivated &&
+                        !e.ProjectEmployees.Any(pe =>
+                            pe.IsActive &&
+                            pe.Project != null &&
+                            pe.Project.Status != ProjectStatus.Completed &&
+                            pe.Project.Status != ProjectStatus.Archived))
+                })
+                .SingleOrDefaultAsync(cancellationToken);
+
+            return Result<EmployeeStatisticsDto>.Success(
+                stats ?? new EmployeeStatisticsDto());
+        }
+
         public async Task<Result<CompanyResponse>> UpdateCompanyAsync(
             Guid companyId,
             Guid ownerId,
@@ -883,4 +924,4 @@ namespace TaskPilot.Services
             return Result<WorkingConfigDto>.Success(dto);
         }
     }
-}
+}

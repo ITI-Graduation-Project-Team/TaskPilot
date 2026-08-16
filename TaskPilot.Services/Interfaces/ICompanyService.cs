@@ -47,6 +47,12 @@ namespace TaskPilot.Services.Interfaces
                 string employeeId,
                 CancellationToken cancellationToken = default);
 
+        Task<Result<EmployeeStatisticsDto>>
+            GetEmployeeStatisticsAsync(
+                Guid companyId,
+                CancellationToken cancellationToken = default);
+
+
         Task<Result<CompanyResponse>>
             UpdateCompanyAsync(
                 Guid companyId,

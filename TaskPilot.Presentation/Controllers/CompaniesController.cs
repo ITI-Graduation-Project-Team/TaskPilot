@@ -152,6 +152,7 @@ namespace TaskPilot.Presentation.Controllers
             return HandleResult(result, "INVITATION_RESENT_SUCCESS");
         }
 
+        [Authorize(Roles = "ProjectManager")]
         [HttpGet("employees/statistics")]
         public async Task<ActionResult> GetEmployeeStatistics(CancellationToken cancellationToken = default)
         {
@@ -167,9 +168,10 @@ namespace TaskPilot.Presentation.Controllers
                 return StatusCode(403, "You do not belong to a company.");
 
             var result = await _companyService.GetEmployeeStatisticsAsync(user.CompanyId.Value, cancellationToken);
-            return HandleResult(result);
+            return HandleResult(result, "EMPLOYEE_STATISTICS_RETRIEVED");
         }
 
+        [Authorize(Roles = "ProjectManager")]
         [HttpGet("employees")]
         public async Task<ActionResult> GetCompanyEmployees(
             [FromQuery] int page = 1,
@@ -278,4 +280,4 @@ namespace TaskPilot.Presentation.Controllers
             return HandleResult(result, "COMPANY_WORKING_CONFIG_RETRIEVED");
         }
     }
-}
+}

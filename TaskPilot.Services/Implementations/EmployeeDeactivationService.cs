@@ -153,6 +153,7 @@ public class EmployeeDeactivationService : IEmployeeDeactivationService
 
         var plannedTasks = await _taskRepository.GetQueryable()
             .Include(t => t.Sprint)
+                .ThenInclude(s => s!.Project)
             .Where(t => t.EmployeeId == employeeId && t.Sprint != null && t.Sprint.Status == SprintStatus.Planned)
             .ToListAsync(ct);
 
