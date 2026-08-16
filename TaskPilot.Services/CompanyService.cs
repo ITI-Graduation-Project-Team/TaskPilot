@@ -338,6 +338,30 @@ namespace TaskPilot.Services
             return result;
         }
 
+        public async Task<Result<EmployeeStatisticsDto>> GetEmployeeStatisticsAsync(Guid companyId, CancellationToken cancellationToken = default)
+        {
+            var statistics = await _employeeRepository.GetQueryable()
+                .AsNoTracking()
+                .Where(e => e.CompanyId == companyId && !e.IsDeleted)
+                .GroupBy(e => 1)
+                .Select(g => new EmployeeStatisticsDto
+                {
+                    TotalEmployees = g.Count(),
+                    ActiveEmployees = g.Count(e => !e.IsDeactivated),
+                    DeactivatedEmployees = g.Count(e => e.IsDeactivated),
+                    EmployeesInProjects = g.Count(e => !e.IsDeactivated && e.ProjectEmployees.Any(pe => pe.IsActive && !pe.Project.IsDeleted)),
+                    AvailableEmployees = g.Count(e => !e.IsDeactivated && !e.ProjectEmployees.Any(pe => pe.IsActive && !pe.Project.IsDeleted))
+                })
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (statistics == null)
+            {
+                statistics = new EmployeeStatisticsDto();
+            }
+
+            return Result.Success(statistics);
+        }
+
         public async Task<Result<PagedResult<CompanyEmployeeDto>>> GetCompanyEmployeesAsync(
             Guid companyId,
             int page = 1,
@@ -345,11 +369,8 @@ namespace TaskPilot.Services
             bool? isDeactivated = null,
             CancellationToken cancellationToken = default)
         {
-            var companyExists = await _companyRepository.AnyAsync(c => c.Id == companyId);
-            if (!companyExists)
-                return Result<PagedResult<CompanyEmployeeDto>>.Failure(new Error("Company.NotFound", ErrorType.NotFound, "Company not found."));
-
             var query = _employeeRepository.GetQueryable()
+                .AsNoTracking()
                 .Where(e => e.CompanyId == companyId);
 
             if (isDeactivated.HasValue)
@@ -360,7 +381,21 @@ namespace TaskPilot.Services
             var totalItems = await query.CountAsync(cancellationToken);
             var totalPages = totalItems == 0 ? 0 : (int)Math.Ceiling(totalItems / (double)pageSize);
 
-            var projectedEmployees = await query
+            if (totalItems == 0)
+            {
+                return Result<PagedResult<CompanyEmployeeDto>>.Success(new PagedResult<CompanyEmployeeDto>
+                {
+                    Items = new List<CompanyEmployeeDto>(),
+                    Page = page,
+                    PageSize = pageSize,
+                    TotalItems = 0,
+                    TotalPages = 0,
+                    HasPreviousPage = false,
+                    HasNextPage = false
+                });
+            }
+
+            var employeeProjections = await query
                 .OrderBy(e => e.CreatedAt)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
@@ -889,4 +924,4 @@ namespace TaskPilot.Services
             return Result<WorkingConfigDto>.Success(dto);
         }
     }
-}
+}

@@ -39,6 +39,8 @@ namespace TaskPilot.Services.Interfaces
                 int pageSize = 10,
                 bool? isDeactivated = null,
                 CancellationToken cancellationToken = default);
+        Task<Result<EmployeeStatisticsDto>> GetEmployeeStatisticsAsync(Guid companyId, CancellationToken cancellationToken = default);
+
         Task<Result<CompanyEmployeeDto>>
             GetCompanyEmployeeByIdAsync(
                 Guid companyId,

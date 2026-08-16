@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 using TaskPilot.Data.Repositories;
 using TaskPilot.DTOs.Backlog;
 using TaskPilot.Models.Common.Errors;
@@ -34,7 +35,7 @@ namespace TaskPilot.Services
             _notificationService = notificationService;
         }
 
-        public async Task<Result<BacklogDto>> GetBacklogAsync(Guid projectId)
+        public async Task<Result<BacklogDto>> GetBacklogAsync(Guid projectId, string lang = "en")
         {
             var project = await _projectRepository.GetByIdAsync(projectId);
             if (project == null)
@@ -42,48 +43,43 @@ namespace TaskPilot.Services
                 return Result<BacklogDto>.Failure(new Error("Project.NotFound",ErrorType.NotFound, "Project not found."));
             }
 
-            // Fetch only unassigned stories from the database
-            var unassignedStories = (await _userStoryRepository.FindAsync(s => s.ProjectId == projectId && s.SprintId == null)).ToList();
-            
-            var storyIds = unassignedStories.Select(s => s.Id).ToList();
-            var tasks = await _taskRepository.FindAsync(t => t.UserStoryId.HasValue && storyIds.Contains(t.UserStoryId.Value) && t.Status != TaskItemStatus.Done);
-
-            var dto = new BacklogDto
-            {
-                ProjectId = project.Id,
-                ProjectNameEn = project.NameEn,
-                ProjectNameAr = project.NameAr,
-                UserStories = unassignedStories.Select(s => new UserStoryDto
+            var query = _userStoryRepository.GetQueryable()
+                .AsNoTracking()
+                .Where(s => s.ProjectId == projectId && s.SprintId == null)
+                .Select(s => new UserStoryDto
                 {
                     Id = s.Id,
                     ProjectId = s.ProjectId,
-                    TitleEn = s.TitleEn,
-                    TitleAr = s.TitleAr,
-                    DescriptionEn = s.DescriptionEn,
-                    DescriptionAr = s.DescriptionAr,
-                    AcceptanceCriteriaEn = s.AcceptanceCriteriaEn,
-                    AcceptanceCriteriaAr = s.AcceptanceCriteriaAr,
+                    Title = lang == "ar" ? (s.TitleAr ?? s.TitleEn) : s.TitleEn,
+                    Description = lang == "ar" ? (s.DescriptionAr ?? s.DescriptionEn) : s.DescriptionEn,
+                    AcceptanceCriteria = lang == "ar" ? (s.AcceptanceCriteriaAr ?? s.AcceptanceCriteriaEn) : s.AcceptanceCriteriaEn,
                     Priority = s.Priority.ToString(),
                     Status = s.Status.ToString(),
-                    Tasks = tasks.Where(t => t.UserStoryId == s.Id).Select(t => new TaskItemDto
+                    Tasks = s.Tasks.Where(t => t.Status != TaskItemStatus.Done).Select(t => new TaskItemDto
                     {
                         Id = t.Id,
                         UserStoryId = t.UserStoryId.Value,
-                        TitleEn = t.TitleEn,
-                        TitleAr = t.TitleAr,
-                        DescriptionEn = t.DescriptionEn,
-                        DescriptionAr = t.DescriptionAr,
-                        TechnicalSummaryEn = t.TechnicalSummaryEn,
-                        TechnicalSummaryAr = t.TechnicalSummaryAr,
-                        AcceptanceCriteriaEn = t.AcceptanceCriteriaEn,
-                        AcceptanceCriteriaAr = t.AcceptanceCriteriaAr,
+                        Title = lang == "ar" ? (t.TitleAr ?? t.TitleEn) : t.TitleEn,
+                        Description = lang == "ar" ? (t.DescriptionAr ?? t.DescriptionEn) : t.DescriptionEn,
+                        TechnicalSummary = lang == "ar" ? (t.TechnicalSummaryAr ?? t.TechnicalSummaryEn) : t.TechnicalSummaryEn,
+                        AcceptanceCriteria = lang == "ar" ? (t.AcceptanceCriteriaAr ?? t.AcceptanceCriteriaEn) : t.AcceptanceCriteriaEn,
                         EstimatedHours = t.EstimatedHours,
                         EffortSize = t.EffortSize.ToString(),
                         Type = t.Type.ToString(),
                         Priority = t.Priority.ToString(),
-                        Status = t.Status.ToString()
+                        Status = t.Status.ToString(),
+                        AssigneeId = t.EmployeeId,
+                        AssigneeName = t.Employee != null ? (lang == "ar" ? (t.Employee.FirstNameAr ?? t.Employee.FirstNameEn) : t.Employee.FirstNameEn) : null
                     }).ToList()
-                }).ToList()
+                });
+
+            var userStories = await query.AsSplitQuery().ToListAsync();
+
+            var dto = new BacklogDto
+            {
+                ProjectId = project.Id,
+                ProjectName = lang == "ar" ? (project.NameAr ?? project.NameEn) : project.NameEn,
+                UserStories = userStories
             };
 
             return Result<BacklogDto>.Success(dto);
@@ -116,12 +112,9 @@ namespace TaskPilot.Services
             {
                 Id = story.Id,
                 ProjectId = story.ProjectId,
-                TitleEn = story.TitleEn,
-                TitleAr = story.TitleAr,
-                DescriptionEn = story.DescriptionEn,
-                DescriptionAr = story.DescriptionAr,
-                AcceptanceCriteriaEn = story.AcceptanceCriteriaEn,
-                AcceptanceCriteriaAr = story.AcceptanceCriteriaAr,
+                Title = story.TitleEn,
+                Description = story.DescriptionEn,
+                AcceptanceCriteria = story.AcceptanceCriteriaEn,
                 Priority = story.Priority.ToString(),
                 Status = story.Status.ToString()
             };
@@ -199,14 +192,10 @@ namespace TaskPilot.Services
             {
                 Id = task.Id,
                 UserStoryId = task.UserStoryId.Value,
-                TitleEn = task.TitleEn,
-                TitleAr = task.TitleAr,
-                DescriptionEn = task.DescriptionEn,
-                DescriptionAr = task.DescriptionAr,
-                TechnicalSummaryEn = task.TechnicalSummaryEn,
-                TechnicalSummaryAr = task.TechnicalSummaryAr,
-                AcceptanceCriteriaEn = task.AcceptanceCriteriaEn,
-                AcceptanceCriteriaAr = task.AcceptanceCriteriaAr,
+                Title = task.TitleEn,
+                Description = task.DescriptionEn,
+                TechnicalSummary = task.TechnicalSummaryEn,
+                AcceptanceCriteria = task.AcceptanceCriteriaEn,
                 EstimatedHours = task.EstimatedHours,
                 EffortSize = task.EffortSize.ToString(),
                 Type = task.Type.ToString(),

@@ -280,4 +280,4 @@ namespace TaskPilot.Presentation.Controllers
             return HandleResult(result, "COMPANY_WORKING_CONFIG_RETRIEVED");
         }
     }
-}
+}
