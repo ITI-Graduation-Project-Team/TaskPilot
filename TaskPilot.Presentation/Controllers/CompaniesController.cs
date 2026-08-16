@@ -175,7 +175,7 @@ namespace TaskPilot.Presentation.Controllers
         [HttpGet("employees")]
         public async Task<ActionResult> GetCompanyEmployees(
             [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 10,
+            [FromQuery] int pageSize = 5,
             [FromQuery] bool? isDeactivated = null,
             CancellationToken cancellationToken = default)
         {
