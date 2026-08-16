@@ -37,6 +37,7 @@ namespace TaskPilot.AI.Agents.Planning
             string descriptionEn,
             string taskType,
             List<string> availableSkills,
+            Guid projectId,
             CancellationToken cancellationToken = default)
         {
             if (taskType?.Equals("NonTechnical", StringComparison.OrdinalIgnoreCase) == true)
@@ -52,7 +53,8 @@ namespace TaskPilot.AI.Agents.Planning
             {
                 ["title"] = titleEn,
                 ["description"] = descriptionEn,
-                ["availableSkills"] = JsonSerializer.Serialize(availableSkills)
+                ["availableSkills"] = JsonSerializer.Serialize(availableSkills),
+                ["projectId"] = projectId
             };
 
             const int maxAttempts = 3;

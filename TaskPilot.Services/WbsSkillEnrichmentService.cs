@@ -100,6 +100,7 @@ namespace TaskPilot.Services
                     task.DescriptionEn ?? string.Empty,
                     task.Type.ToString(),
                     availableSkillNames,
+                    projectId,
                     cancellationToken);
 
                 if (agentResult.IsFailure)

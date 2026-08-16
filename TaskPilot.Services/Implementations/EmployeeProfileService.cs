@@ -15,20 +15,24 @@ namespace TaskPilot.Services.Implementations
         private readonly IRepository<User> _userRepository;
         private readonly IFileStorageService _fileStorage;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IEntitlementService _entitlementService;
 
         public EmployeeProfileService(
             IRepository<User> userRepository,
             IFileStorageService fileStorage,
-            IUnitOfWork unitOfWork)
+            IUnitOfWork unitOfWork,
+            IEntitlementService entitlementService)
         {
             _userRepository = userRepository;
             _fileStorage = fileStorage;
             _unitOfWork = unitOfWork;
+            _entitlementService = entitlementService;
         }
 
         public async Task<Result> UpdateProfileAsync(Guid userId, UpdateEmployeeProfileDto request)
         {
             var user = await _userRepository.GetQueryable()
+                .Include(u => u.Company)
                 .FirstOrDefaultAsync(u => u.Id == userId);
 
             if (user == null)
@@ -51,6 +55,12 @@ namespace TaskPilot.Services.Implementations
             // 2. Avatar Processing
             if (request.DeleteAvatar)
             {
+                if (user.AvatarFileSize > 0 && user.Company != null)
+                {
+                    await _entitlementService.UpdateStorageUsageAsync(user.Company.OwnerId, -user.AvatarFileSize);
+                    user.AvatarFileSize = 0;
+                }
+                
                 if (!string.IsNullOrEmpty(user.AvatarPublicId))
                 {
                     await _fileStorage.DeleteFileAsync(user.AvatarPublicId);
@@ -60,6 +70,12 @@ namespace TaskPilot.Services.Implementations
             }
             else if (request.Avatar != null && request.Avatar.Length > 0)
             {
+                if (user.Company != null)
+                {
+                    var entitlementResult = await _entitlementService.EnsureCanUploadAsync(user.Company.OwnerId, request.Avatar.Length, user.AvatarFileSize);
+                    if (entitlementResult.IsFailure) return Result.Failure(entitlementResult.Error);
+                }
+
                 // Delete old avatar if exists
                 if (!string.IsNullOrEmpty(user.AvatarPublicId))
                 {
@@ -75,11 +91,23 @@ namespace TaskPilot.Services.Implementations
 
                 user.AvatarUrl = avatarUploadResult.Value.Url;
                 user.AvatarPublicId = avatarUploadResult.Value.PublicId;
+                
+                if (user.Company != null)
+                {
+                    await _entitlementService.UpdateStorageUsageAsync(user.Company.OwnerId, request.Avatar.Length - user.AvatarFileSize);
+                }
+                user.AvatarFileSize = request.Avatar.Length;
             }
             else if (string.IsNullOrEmpty(user.AvatarUrl) || user.AvatarUrl.StartsWith("https://api.dicebear.com"))
             {
                 // Re-generate Avatar using DiceBear if none exists or if it's already dicebear (in case name changed)
                 user.AvatarUrl = $"https://api.dicebear.com/9.x/initials/svg?seed={Uri.EscapeDataString(user.FirstNameEn + " " + user.LastNameEn)}";
+                
+                if (user.AvatarFileSize > 0 && user.Company != null)
+                {
+                    await _entitlementService.UpdateStorageUsageAsync(user.Company.OwnerId, -user.AvatarFileSize);
+                    user.AvatarFileSize = 0;
+                }
             }
 
             // 3. Employee-Specific Processing
@@ -92,6 +120,12 @@ namespace TaskPilot.Services.Implementations
                 // CV Processing
                 if (request.CvFile != null && request.CvFile.Length > 0)
                 {
+                    if (user.Company != null)
+                    {
+                        var entitlementResult = await _entitlementService.EnsureCanUploadAsync(user.Company.OwnerId, request.CvFile.Length, employee.CvFileSize);
+                        if (entitlementResult.IsFailure) return Result.Failure(entitlementResult.Error);
+                    }
+
                     // Delete old CV if exists
                     if (!string.IsNullOrEmpty(employee.CvPublicId))
                     {
@@ -107,6 +141,12 @@ namespace TaskPilot.Services.Implementations
 
                     employee.LatestCvUrl = cvUploadResult.Value.Url;
                     employee.CvPublicId = cvUploadResult.Value.PublicId;
+                    
+                    if (user.Company != null)
+                    {
+                        await _entitlementService.UpdateStorageUsageAsync(user.Company.OwnerId, request.CvFile.Length - employee.CvFileSize);
+                    }
+                    employee.CvFileSize = request.CvFile.Length;
                     
                     // Trigger AI extraction by setting status to Pending
                     employee.CvProcessingStatus = AiProcessingStatus.Pending;

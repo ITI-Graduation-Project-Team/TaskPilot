@@ -19,19 +19,22 @@ namespace TaskPilot.AI.Orchestrators
         private readonly IAiProjectChatService _chatService;
         private readonly IAiBacklogService _backlogService;
         private readonly ILogger<ProjectAiChatOrchestrator> _logger;
+        private readonly ITokenQuotaEnforcer _tokenQuotaEnforcer;
 
         public ProjectAiChatOrchestrator(
             IAiKernelService kernelService,
             IPromptLoaderService promptLoader,
             IAiProjectChatService chatService,
             IAiBacklogService backlogService,
-            ILogger<ProjectAiChatOrchestrator> logger)
+            ILogger<ProjectAiChatOrchestrator> logger,
+            ITokenQuotaEnforcer tokenQuotaEnforcer)
         {
             _kernelService = kernelService;
             _promptLoader = promptLoader;
             _chatService = chatService;
             _backlogService = backlogService;
             _logger = logger;
+            _tokenQuotaEnforcer = tokenQuotaEnforcer;
         }
 
         private static string DetectLanguage(string text)
@@ -107,13 +110,19 @@ namespace TaskPilot.AI.Orchestrators
             var chatCompletionService = kernel.GetRequiredService<IChatCompletionService>();
 
             // 6. Execute model (NO tool calling for normal chat)
-            var aiResponse = await chatCompletionService.GetChatMessageContentAsync(
+            var quota = await _tokenQuotaEnforcer.CheckQuotaAsync(cancellationToken);
+            if (quota.IsExceeded)
+            {
+                return string.Empty;
+            }
+            var response = await chatCompletionService.GetChatMessageContentAsync(
                 chatHistory,
                 null,
                 kernel,
                 cancellationToken);
+            await _tokenQuotaEnforcer.TrackTokensAsync(response, cancellationToken);
 
-            var assistantReply = aiResponse.Content ?? string.Empty;
+            var assistantReply = response.Content ?? string.Empty;
 
             // 7. Persist the new messages in DB
             var persistResult = await _chatService.AppendMessagesAsync(
@@ -207,11 +216,17 @@ The current ProjectId is {projectId}. Use this exact ID for all create operation
             };
 
             // This will execute the tools
+            var quota = await _tokenQuotaEnforcer.CheckQuotaAsync(cancellationToken);
+            if (quota.IsExceeded)
+            {
+                return string.Empty;
+            }
             var response = await chatCompletionService.GetChatMessageContentAsync(
                 chatHistory,
                 executionSettings,
                 kernel,
                 cancellationToken);
+            await _tokenQuotaEnforcer.TrackTokensAsync(response, cancellationToken);
 
             var reply = response.Content;
             return string.IsNullOrWhiteSpace(reply) ? "Backlog updated successfully." : reply;

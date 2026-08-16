@@ -105,7 +105,7 @@ namespace TaskPilot.AI.Orchestrators
                 _logger.LogInformation("Extracted Text Preview: {Preview}", extractedText.Length > 200 ? extractedText.Substring(0, 200) : extractedText);
 
                 // 3. Categorize Document
-                var category = await _categorizationAgent.CategorizeAsync(file.FileName, extractedText, cancellationToken);
+                var category = await _categorizationAgent.CategorizeAsync(file.FileName, extractedText, session.ProjectId.GetValueOrDefault(), cancellationToken);
 
                 // 4. Create Ingested Document
                 using var md5Doc = System.Security.Cryptography.MD5.Create();
@@ -179,7 +179,7 @@ namespace TaskPilot.AI.Orchestrators
 
                 if (unansweredQuestions.Any())
                 {
-                    var resolutions = await _documentQuestionResolutionAgent.ResolveAsync(unansweredQuestions, extractedText);
+                    var resolutions = await _documentQuestionResolutionAgent.ResolveAsync(unansweredQuestions, extractedText, session.ProjectId.GetValueOrDefault());
 
                     foreach (var resolution in resolutions.Where(r => r.IsAnswered))
                     {

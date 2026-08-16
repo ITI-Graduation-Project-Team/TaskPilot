@@ -48,6 +48,9 @@ namespace TaskPilot.Services
         private readonly IFileValidatorService
             _fileValidator;
 
+        private readonly IEntitlementService
+            _entitlementService;
+
         public CompanyService(
             IRepository<Company> companyRepository,
             IRepository<ProjectManager>
@@ -61,9 +64,11 @@ namespace TaskPilot.Services
             IRepository<Employee> employeeRepository,
             IRepository<User> userRepository,
             IUnitOfWork unitOfWork,
-            IFileValidatorService fileValidator)
+            IFileValidatorService fileValidator,
+            IEntitlementService entitlementService)
         {
             _fileValidator = fileValidator;
+            _entitlementService = entitlementService;
             
             _companyRepository =
                 companyRepository;
@@ -162,6 +167,12 @@ namespace TaskPilot.Services
                     return Result<CompanyResponse>.Failure(validationResult.Error!);
                 }
 
+                var entitlementResult = await _entitlementService.EnsureCanUploadAsync(owner.Id, request.PolicyDocument.Length, 0);
+                if (entitlementResult.IsFailure)
+                {
+                    return Result<CompanyResponse>.Failure(entitlementResult.Error!);
+                }
+
                 var uploadResult =
                     await _fileStorage
                         .UploadFileAsync(
@@ -176,6 +187,8 @@ namespace TaskPilot.Services
 
                 documentUrl =
                     uploadResult.Value.Url;
+
+                await _entitlementService.UpdateStorageUsageAsync(owner.Id, request.PolicyDocument.Length);
 
                 documentPublicId =
                     uploadResult.Value.PublicId;
@@ -192,7 +205,7 @@ namespace TaskPilot.Services
                     CompanyId = company.Id,
                     File = request.PolicyDocument,
                     TitleEn = request.PolicyTitleEn ?? "General Policy",
-                    TitleAr = request.PolicyTitleAr ?? "سياسة عامة",
+                    TitleAr = request.PolicyTitleAr ?? "سياسة الشركة الأساسية",
                     ContentEn = request.PolicyContentEn,
                     ContentAr = request.PolicyContentAr,
                     DocumentUrl = documentUrl,
@@ -733,6 +746,17 @@ namespace TaskPilot.Services
             // 4. Handle logo upload or removal
             if (request.RemoveLogo)
             {
+                if (company.LogoFileSize > 0)
+                {
+                    await _entitlementService.UpdateStorageUsageAsync(company.OwnerId, -company.LogoFileSize);
+                    company.LogoFileSize = 0;
+                }
+                
+                if (!string.IsNullOrEmpty(company.CloudinaryPublicId))
+                {
+                    await _fileStorage.DeleteFileAsync(company.CloudinaryPublicId);
+                }
+
                 company.LogoUrl = null;
                 company.CloudinaryPublicId = null;
             }
@@ -748,6 +772,12 @@ namespace TaskPilot.Services
                     return Result<CompanyResponse>.Failure(validationResult.Error!);
                 }
 
+                var entitlementResult = await _entitlementService.EnsureCanUploadAsync(company.OwnerId, request.Logo.Length, company.LogoFileSize);
+                if (entitlementResult.IsFailure)
+                {
+                    return Result<CompanyResponse>.Failure(entitlementResult.Error!);
+                }
+
                 // Upload the new logo to Cloudinary
                 var uploadResult = await _fileStorage.UploadFileAsync(
                     request.Logo,
@@ -758,8 +788,16 @@ namespace TaskPilot.Services
                     return Result<CompanyResponse>.Failure(uploadResult.Error!);
                 }
 
+                if (!string.IsNullOrEmpty(company.CloudinaryPublicId))
+                {
+                    await _fileStorage.DeleteFileAsync(company.CloudinaryPublicId);
+                }
+
                 company.LogoUrl = uploadResult.Value.Url;
                 company.CloudinaryPublicId = uploadResult.Value.PublicId;
+                
+                await _entitlementService.UpdateStorageUsageAsync(company.OwnerId, request.Logo.Length - company.LogoFileSize);
+                company.LogoFileSize = request.Logo.Length;
             }
 
             // 5. No logo uploaded — generate or update avatar if there's no custom logo
@@ -767,6 +805,12 @@ namespace TaskPilot.Services
             {
                 // Use DiceBear initials which has better support for Arabic and Unicode characters than ui-avatars
                 company.LogoUrl = $"https://api.dicebear.com/9.x/initials/svg?seed={Uri.EscapeDataString(company.Name)}";
+                
+                if (company.LogoFileSize > 0)
+                {
+                    await _entitlementService.UpdateStorageUsageAsync(company.OwnerId, -company.LogoFileSize);
+                    company.LogoFileSize = 0;
+                }
             }
 
             // 6. Persist changes

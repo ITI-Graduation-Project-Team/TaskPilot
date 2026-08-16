@@ -71,7 +71,7 @@ namespace TaskPilot.AI.Orchestrators
                 });
             }
 
-            var answer = await _answerAgent.GenerateAsync(question, chunks, cancellationToken);
+            var answer = await _answerAgent.GenerateAsync(question, chunks, projectId.GetValueOrDefault(), cancellationToken);
 
             var sources = new List<KnowledgeSource>();
 

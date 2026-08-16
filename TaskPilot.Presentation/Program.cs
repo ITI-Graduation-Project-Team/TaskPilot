@@ -67,6 +67,7 @@ namespace TaskPilot.Presentation
             builder.Services.AddControllers(options =>
             {
                 options.Filters.Add<TaskPilot.Presentation.Filters.ProjectIdTelemetryActionFilter>();
+                options.Filters.Add<TaskPilot.Presentation.Filters.TokenQuotaActionFilter>();
             })
                 .AddJsonOptions(options =>
                 {
@@ -187,6 +188,11 @@ namespace TaskPilot.Presentation
                     "SprintRiskDetectionJob",
                     job => job.ExecuteAsync(CancellationToken.None),
                     Cron.Daily);
+
+                recurringJobManager.AddOrUpdate<TokenQuotaResetJob>(
+                    "TokenQuotaResetJob",
+                    job => job.ExecuteAsync(CancellationToken.None),
+                    "0 0 1 * *");
             }
             //app.UseCors("AllowAll");
             app.UseCors("AllowFrontend");

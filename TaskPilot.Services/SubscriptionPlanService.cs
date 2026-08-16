@@ -48,6 +48,8 @@ namespace TaskPilot.Services
                 Currency = dto.Currency,
                 MaxProjects = dto.MaxProjects,
                 MaxUsersPerProject = dto.MaxUsersPerProject,
+                MaxStorageMb = dto.MaxStorageMb,
+                MaxTokensPerMonth = dto.MaxTokensPerMonth,
                 HasAi = dto.HasAi,
                 HasAdvancedAnalytics = dto.HasAdvancedAnalytics,
                 HasTrial = dto.HasTrial,
@@ -76,6 +78,8 @@ namespace TaskPilot.Services
             existing.Currency = dto.Currency;
             existing.MaxProjects = dto.MaxProjects;
             existing.MaxUsersPerProject = dto.MaxUsersPerProject;
+            existing.MaxStorageMb = dto.MaxStorageMb;
+            existing.MaxTokensPerMonth = dto.MaxTokensPerMonth;
             existing.HasAi = dto.HasAi;
             existing.HasAdvancedAnalytics = dto.HasAdvancedAnalytics;
             existing.HasTrial = dto.HasTrial;
@@ -108,6 +112,8 @@ namespace TaskPilot.Services
                 Currency = plan.Currency,
                 MaxProjects = plan.MaxProjects,
                 MaxUsersPerProject = plan.MaxUsersPerProject,
+                MaxStorageMb = plan.MaxStorageMb,
+                MaxTokensPerMonth = plan.MaxTokensPerMonth,
                 HasAi = plan.HasAi,
                 HasAdvancedAnalytics = plan.HasAdvancedAnalytics,
                 HasTrial = plan.HasTrial,

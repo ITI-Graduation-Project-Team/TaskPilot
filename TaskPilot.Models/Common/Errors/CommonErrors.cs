@@ -65,5 +65,40 @@ namespace TaskPilot.Models.Common.Errors
 
         public static Error ServerError(string? description = null)
             => new("SERVER_ERROR", ErrorType.Failure, description);
+
+        // ──────────────────────── Entitlements / Subscriptions ────────────────────────
+
+        public static Error NoActiveSubscription(string? description = null)
+            => new("NO_ACTIVE_SUBSCRIPTION", ErrorType.Forbidden, description ?? "You do not have an active subscription plan.");
+
+        public static Error MaxProjectsLimitReached(int limit, int current) =>
+            new Error(
+                "MAX_PROJECTS_REACHED",
+                ErrorType.Forbidden,
+                $"Your plan limits you to {limit} active project(s). You currently have {current}.",
+                metadata: new Dictionary<string, object>
+                {
+                    { "Limit", limit },
+                    { "CurrentCount", current }
+                });
+                
+        public static Error StorageLimitReached(double limitMb, double currentMb) =>
+            new Error(
+                "STORAGE_LIMIT_REACHED",
+                ErrorType.Forbidden,
+                $"Your plan limits you to {limitMb:F2} MB of storage. You currently have used {currentMb:F2} MB.",
+                metadata: new Dictionary<string, object>
+                {
+                    { "LimitMb", limitMb },
+                    { "CurrentMb", currentMb }
+                });
+
+        public static Error MaxTeamMembersLimitReached(int limit, int currentCount)
+            => new("MAX_TEAM_MEMBERS_REACHED", ErrorType.Forbidden, $"Maximum number of team members per project ({limit}) has been reached. Please upgrade your subscription.",
+                new Dictionary<string, object>
+                {
+                    { "Limit", limit },
+                    { "CurrentCount", currentCount }
+                });
     }
 }

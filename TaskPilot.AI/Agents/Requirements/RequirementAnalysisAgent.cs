@@ -24,6 +24,7 @@ namespace TaskPilot.AI.Agents.Requirements
         private readonly IDocumentStore _documentStore;
         private readonly Microsoft.Extensions.Logging.ILogger<RequirementAnalysisAgent> _logger;
         private readonly ITelemetryAccumulator _telemetry;
+        private readonly ITokenQuotaEnforcer _tokenQuotaEnforcer;
 
         public RequirementAnalysisAgent(
             IAiKernelService kernelService,
@@ -31,7 +32,8 @@ namespace TaskPilot.AI.Agents.Requirements
             IVectorStore vectorStore,
             IDocumentStore documentStore,
             Microsoft.Extensions.Logging.ILogger<RequirementAnalysisAgent> logger,
-            ITelemetryAccumulator telemetry)
+            ITelemetryAccumulator telemetry,
+            ITokenQuotaEnforcer tokenQuotaEnforcer)
         {
             _kernelService = kernelService;
             _promptLoader = promptLoader;
@@ -39,6 +41,7 @@ namespace TaskPilot.AI.Agents.Requirements
             _documentStore = documentStore;
             _logger = logger;
             _telemetry = telemetry;
+            _tokenQuotaEnforcer = tokenQuotaEnforcer;
         }
 
         public async Task<RequirementAnalysisResult> AnalyzeAsync(

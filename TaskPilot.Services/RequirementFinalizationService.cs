@@ -28,6 +28,7 @@ namespace TaskPilot.Services
         private readonly ILogger<RequirementFinalizationService> _logger;
         private readonly IServiceProvider _serviceProvider;
         private readonly IRequirementReadinessEvaluator _readinessEvaluator;
+        private readonly IEntitlementService _entitlementService;
 
         public RequirementFinalizationService(
             IRequirementSessionStore sessionStore,
@@ -37,7 +38,8 @@ namespace TaskPilot.Services
             UserManager<User> userManager,
             ILogger<RequirementFinalizationService> logger,
             IServiceProvider serviceProvider,
-            IRequirementReadinessEvaluator readinessEvaluator)
+            IRequirementReadinessEvaluator readinessEvaluator,
+            IEntitlementService entitlementService)
         {
             _sessionStore = sessionStore;
             _unitOfWork = unitOfWork;
@@ -47,6 +49,7 @@ namespace TaskPilot.Services
             _logger = logger;
             _serviceProvider = serviceProvider;
             _readinessEvaluator = readinessEvaluator;
+            _entitlementService = entitlementService;
         }
 
         public async Task<Result<FinalizeRequirementsResponse>> FinalizeRequirementsAsync(Guid sessionId, FinalizeRequirementsRequest request, CancellationToken cancellationToken = default)
@@ -156,6 +159,12 @@ namespace TaskPilot.Services
             };
             
             _logger.LogInformation("Requirements snapshot created successfully.");
+
+            var entitlementResult = await _entitlementService.EnsureCanCreateProjectAsync(company.OwnerId, cancellationToken);
+            if (entitlementResult.IsFailure)
+            {
+                return Result.Failure<FinalizeRequirementsResponse>(entitlementResult.Error);
+            }
 
             // Create Project
             var project = new Project

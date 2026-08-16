@@ -7,6 +7,7 @@ namespace TaskPilot.Models.Entities
         public string Name { get; set; } = string.Empty;
         public string? LogoUrl { get; set; }
         public string? CloudinaryPublicId { get; set; }
+        public long LogoFileSize { get; set; } = 0;
         public Guid OwnerId { get; set; }
         public ProjectManager Owner { get; set; } = null!;
         public ICollection<User> Users { get; set; } = new List<User>();

@@ -36,7 +36,7 @@ namespace TaskPilot.Services
             var existing = await _retrospectiveRepository.FindAsync(sr => sr.SprintId == sprintId);
             var retrospective = existing.FirstOrDefault();
 
-            var (analysis, improvements) = await _retrospectiveAgent.AnalyzeAsync(data, userLanguage, cancellationToken);
+            var (analysis, improvements) = await _retrospectiveAgent.AnalyzeAsync(data, projectId, userLanguage, cancellationToken);
 
             if (retrospective == null)
             {

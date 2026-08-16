@@ -12,6 +12,8 @@ namespace TaskPilot.Models.Entities
 
     public int MaxProjects { get; set; }
     public int MaxUsersPerProject { get; set; }
+    public int MaxStorageMb { get; set; }
+    public int MaxTokensPerMonth { get; set; }
 
     public bool HasAi { get; set; }
     public bool HasAdvancedAnalytics { get; set; }

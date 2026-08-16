@@ -84,7 +84,7 @@ namespace TaskPilot.Services
                 }).ToList()
             };
 
-            var detectionResult = await _detectionAgent.DetectRisksAsync(context, ct);
+            var detectionResult = await _detectionAgent.DetectRisksAsync(context, sprint.ProjectId, ct);
 
             if (detectionResult?.Risks == null) return;
 
@@ -215,7 +215,7 @@ namespace TaskPilot.Services
                 }).ToList()
             };
 
-            var simulation = await _simulationAgent.SimulateAsync(alert, context, ct);
+            var simulation = await _simulationAgent.SimulateAsync(alert, context, alert.Sprint.ProjectId, ct);
 
             if (simulation == null) return Result<SprintRiskSimulationResponseDto>.Failure(SprintRiskErrors.SimulationFailed);
 
@@ -275,7 +275,7 @@ namespace TaskPilot.Services
                     StatusUpdates = assignedTasks.Count(t => t.Status == TaskItemStatus.Done || t.Status == TaskItemStatus.Review)
                 };
 
-                var burnoutResult = await _burnoutAgent.AnalyzeAsync(employeeContext, ct);
+                var burnoutResult = await _burnoutAgent.AnalyzeAsync(employeeContext, sprint.ProjectId, ct);
 
                 var snapshot = new SprintBurnoutSnapshot
                 {

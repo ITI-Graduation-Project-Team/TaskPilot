@@ -96,7 +96,7 @@ public class AssignmentExplanationService : IAssignmentExplanationService
                     using var scope = _serviceScopeFactory.CreateScope();
                     var explanationAgent = scope.ServiceProvider.GetRequiredService<IAssignmentExplanationAgent>();
                     
-                    var explanationResult = await explanationAgent.GenerateExplanationsAsync(context);
+                    var explanationResult = await explanationAgent.GenerateExplanationsAsync(context, projectId);
                     if (explanationResult.IsSuccess && explanationResult.Value != null)
                     {
                         reasons = explanationResult.Value;

@@ -143,45 +143,62 @@ namespace TaskPilot.Services.Payments
                         }
                         else if (result.EventType == "PAYMENT.SALE.COMPLETED" || result.EventType == "BILLING.SUBSCRIPTION.ACTIVATED")
                         {
+                            // Transaction ID idempotency check FIRST
+                            if (!string.IsNullOrEmpty(result.PaymentId))
+                            {
+                                var existingPayment = await _paymentRepo.FindSingleAsync(p => p.GatewayTransactionId == result.PaymentId);
+                                if (existingPayment != null)
+                                {
+                                    _logger.LogInformation("Duplicate webhook ignored — transaction {PaymentId} already processed", result.PaymentId);
+                                    return Result.Success();
+                                }
+                            }
+
                             if (result.EventType == "BILLING.SUBSCRIPTION.ACTIVATED" || result.EventType == "PAYMENT.SALE.COMPLETED")
                             {
-                                // Status-based idempotency: if already Active, skip
-                                if (sub.Status == SubscriptionStatus.Active)
+                                if (sub.Status == SubscriptionStatus.Active && string.IsNullOrEmpty(result.PaymentId))
                                 {
                                     _logger.LogInformation(
-                                        "Duplicate {EventType} webhook ignored — subscription {Id} already Active",
+                                        "Duplicate {EventType} webhook ignored — subscription {Id} already Active (no payment ID)",
                                         result.EventType, sub.Id);
                                     return Result.Success();
                                 }
                             }
 
-                            if (!string.IsNullOrEmpty(result.PaymentId))
+                            bool wasAlreadyActive = sub.Status == SubscriptionStatus.Active;
+                            sub.Status = SubscriptionStatus.Active;
+
+                            // Only extend if it's a payment event. Activation alone doesn't extend end date.
+                            if (result.EventType == "PAYMENT.SALE.COMPLETED")
                             {
-                                var existingPayment = await _paymentRepo.FindSingleAsync(p => p.GatewayTransactionId == result.PaymentId);
-                                if (existingPayment != null)
-                                    return Result.Success(); // Idempotency check: already processed
+                                var baseDate = wasAlreadyActive ? sub.EndDate : (sub.EndDate > DateTime.UtcNow ? sub.EndDate : DateTime.UtcNow);
+                                sub.EndDate = sub.BillingCycle == BillingCycle.Monthly 
+                                    ? baseDate.AddMonths(1) 
+                                    : baseDate.AddYears(1);
                             }
 
-                            sub.Status = SubscriptionStatus.Active;
                             _subRepo.Update(sub);
-                            _logger.LogInformation("Subscription {SubscriptionId} transitioned to {NewStatus} via {Gateway} webhook event {EventType}", sub.Id, sub.Status, gatewayName, result.EventType);
+                            _logger.LogInformation("Subscription {SubscriptionId} transitioned to {NewStatus} with EndDate {EndDate} via {Gateway} webhook event {EventType}", sub.Id, sub.Status, sub.EndDate, gatewayName, result.EventType);
                             
-                            // Find previous Active subscription (different from the one we just activated)
-                            var previousActive = await _subRepo.FindSingleAsync(
-                                s => s.ProjectManagerId == sub.ProjectManagerId &&
-                                     s.Status == SubscriptionStatus.Active &&
-                                     s.Id != sub.Id);
-
-                            if (previousActive != null)
+                            if (!wasAlreadyActive)
                             {
-                                previousActive.Status = SubscriptionStatus.Expired;
-                                previousActive.EndDate = DateTime.UtcNow;
-                                _subRepo.Update(previousActive);
-                                _logger.LogInformation(
-                                    "Previous subscription {Id} expired after " +
-                                    "new payment confirmed for user {UserId}",
-                                    previousActive.Id, 
-                                    sub.ProjectManagerId);
+                                // Find previous Active subscription (different from the one we just activated)
+                                var previousActive = await _subRepo.FindSingleAsync(
+                                    s => s.ProjectManagerId == sub.ProjectManagerId &&
+                                         s.Status == SubscriptionStatus.Active &&
+                                         s.Id != sub.Id);
+
+                                if (previousActive != null)
+                                {
+                                    previousActive.Status = SubscriptionStatus.Expired;
+                                    previousActive.EndDate = DateTime.UtcNow;
+                                    _subRepo.Update(previousActive);
+                                    _logger.LogInformation(
+                                        "Previous subscription {Id} expired after " +
+                                        "new payment confirmed for user {UserId}",
+                                        previousActive.Id, 
+                                        sub.ProjectManagerId);
+                                }
                             }
 
                             var payment = new Payment
@@ -200,48 +217,51 @@ namespace TaskPilot.Services.Payments
                         }
                         else if (result.EventType == "transaction.success")
                         {
-                            // Status-based idempotency
-                            if (sub.Status == SubscriptionStatus.Active)
-                            {
-                                _logger.LogInformation(
-                                    "Duplicate transaction.success webhook " +
-                                    "ignored — subscription {Id} already Active",
-                                    sub.Id);
-                                return Result.Success();
-                            }
-
-                            // Transaction ID idempotency check
+                            // Transaction ID idempotency check FIRST
                             if (!string.IsNullOrEmpty(result.PaymentId))
                             {
                                 var existingPayment = await _paymentRepo
                                     .FindSingleAsync(p => 
                                         p.GatewayTransactionId == result.PaymentId);
                                 if (existingPayment != null)
+                                {
+                                    _logger.LogInformation("Duplicate webhook ignored — transaction {PaymentId} already processed", result.PaymentId);
                                     return Result.Success();
+                                }
                             }
 
+                            bool wasAlreadyActive = sub.Status == SubscriptionStatus.Active;
                             sub.Status = SubscriptionStatus.Active;
+                            
+                            var baseDate = wasAlreadyActive ? sub.EndDate : (sub.EndDate > DateTime.UtcNow ? sub.EndDate : DateTime.UtcNow);
+                            sub.EndDate = sub.BillingCycle == BillingCycle.Monthly 
+                                ? baseDate.AddMonths(1) 
+                                : baseDate.AddYears(1);
+
                             _subRepo.Update(sub);
                             _logger.LogInformation(
-                                "Paymob payment success for order {Id}", 
-                                result.SubscriptionId);
+                                "Paymob payment success for order {Id}. EndDate extended to {EndDate}", 
+                                result.SubscriptionId, sub.EndDate);
 
-                            // Find previous Active subscription (different from the one we just activated)
-                            var previousActive = await _subRepo.FindSingleAsync(
-                                s => s.ProjectManagerId == sub.ProjectManagerId &&
-                                     s.Status == SubscriptionStatus.Active &&
-                                     s.Id != sub.Id);
-
-                            if (previousActive != null)
+                            if (!wasAlreadyActive)
                             {
-                                previousActive.Status = SubscriptionStatus.Expired;
-                                previousActive.EndDate = DateTime.UtcNow;
-                                _subRepo.Update(previousActive);
-                                _logger.LogInformation(
-                                    "Previous subscription {Id} expired after " +
-                                    "new payment confirmed for user {UserId}",
-                                    previousActive.Id, 
-                                    sub.ProjectManagerId);
+                                // Find previous Active subscription (different from the one we just activated)
+                                var previousActive = await _subRepo.FindSingleAsync(
+                                    s => s.ProjectManagerId == sub.ProjectManagerId &&
+                                         s.Status == SubscriptionStatus.Active &&
+                                         s.Id != sub.Id);
+
+                                if (previousActive != null)
+                                {
+                                    previousActive.Status = SubscriptionStatus.Expired;
+                                    previousActive.EndDate = DateTime.UtcNow;
+                                    _subRepo.Update(previousActive);
+                                    _logger.LogInformation(
+                                        "Previous subscription {Id} expired after " +
+                                        "new payment confirmed for user {UserId}",
+                                        previousActive.Id, 
+                                        sub.ProjectManagerId);
+                                }
                             }
 
                             var payment = new Payment

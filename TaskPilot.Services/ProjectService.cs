@@ -23,6 +23,7 @@ namespace TaskPilot.Services
         private readonly ILocalizationService _localizationService;
         private readonly ILogger<ProjectService> _logger;
         private readonly ICurrentUserService _currentUserService;
+        private readonly IEntitlementService _entitlementService;
 
         public ProjectService(
             IRepository<Project> projectRepo, 
@@ -30,7 +31,8 @@ namespace TaskPilot.Services
             IRepository<ProjectManager> managerRepo,
             ILocalizationService localizationService,
             ILogger<ProjectService> logger,
-            ICurrentUserService currentUserService)
+            ICurrentUserService currentUserService,
+            IEntitlementService entitlementService)
         {
             _projectRepo = projectRepo;
             _companyRepo = companyRepo;
@@ -38,6 +40,7 @@ namespace TaskPilot.Services
             _localizationService = localizationService;
             _logger = logger;
             _currentUserService = currentUserService;
+            _entitlementService = entitlementService;
         }
 
         public async Task<Result<ProjectDto>> GetByIdAsync(Guid id)
@@ -255,6 +258,10 @@ namespace TaskPilot.Services
 
             if (!companyExists)
                 return Result.Failure<ProjectDto>(CompanyErrors.NotFound);
+
+            var entitlementResult = await _entitlementService.EnsureCanCreateProjectAsync(userId.Value);
+            if (entitlementResult.IsFailure)
+                return Result.Failure<ProjectDto>(entitlementResult.Error);
 
             var project = new Project
             {

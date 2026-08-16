@@ -31,6 +31,7 @@ namespace TaskPilot.Services
         private readonly IUnitOfWork _unitOfWork;
         private readonly IFileStorageService _fileStorage;
         private readonly ILogger<CompanyPolicyService> _logger;
+        private readonly IEntitlementService _entitlementService;
 
         private static readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, SemaphoreSlim> _companyLocks = new();
 
@@ -44,7 +45,8 @@ namespace TaskPilot.Services
             IRepository<Company> companyRepository,
             IUnitOfWork unitOfWork,
             IFileStorageService fileStorage,
-            ILogger<CompanyPolicyService> logger)
+            ILogger<CompanyPolicyService> logger,
+            IEntitlementService entitlementService)
         {
             _extractors = extractors;
             _categorizationAgent = categorizationAgent;
@@ -56,6 +58,7 @@ namespace TaskPilot.Services
             _unitOfWork = unitOfWork;
             _fileStorage = fileStorage;
             _logger = logger;
+            _entitlementService = entitlementService;
         }
 
         public async Task<Result<UploadCompanyPolicyResponse>> IngestAsync(IngestCompanyPolicyRequest request, Func<CancellationToken, Task> saveChangesAsync, CancellationToken cancellationToken = default)
@@ -130,6 +133,9 @@ namespace TaskPilot.Services
 
                 if (hasFile && string.IsNullOrEmpty(documentUrl) && !request.SkipCloudUpload)
                 {
+                    var entitlementResult = await _entitlementService.EnsureCanUploadAsync(company.OwnerId, request.File!.Length, 0, cancellationToken);
+                    if (entitlementResult.IsFailure) return Result.Failure<UploadCompanyPolicyResponse>(entitlementResult.Error);
+
                     var uploadResult = await _fileStorage.UploadFileAsync(request.File!, $"taskpilot/companies/{request.CompanyId}/policies");
                     if (!uploadResult.IsSuccess)
                     {
@@ -137,9 +143,11 @@ namespace TaskPilot.Services
                     }
                     documentUrl = uploadResult.Value.Url;
                     cloudinaryPublicId = uploadResult.Value.PublicId;
+
+                    await _entitlementService.UpdateStorageUsageAsync(company.OwnerId, request.File!.Length, cancellationToken);
                 }
 
-                var category = await _categorizationAgent.CategorizeAsync(fileName, extractedText, cancellationToken);
+                var category = await _categorizationAgent.CategorizeAsync(fileName, extractedText, Guid.Empty, cancellationToken);
 
                 var chunks = await _chunkingAgent.ChunkContentAsync(documentId, extractedText, cancellationToken: cancellationToken);
 
@@ -169,7 +177,8 @@ namespace TaskPilot.Services
                     DocumentId = documentId,
                     DocumentPublicId = documentId.ToString(), // Maintain legacy compat
                     AiStatus = AiProcessingStatus.Completed,
-                    VersionNumber = nextVersion
+                    VersionNumber = nextVersion,
+                    FileSize = (hasFile && !string.IsNullOrEmpty(documentUrl) && !request.SkipCloudUpload) ? request.File!.Length : 0
                 };
 
                 await _policyRepository.AddAsync(policy);
@@ -280,6 +289,8 @@ namespace TaskPilot.Services
                 cancellationToken: cancellationToken);
 
             _policyRepository.Delete(policy);
+
+            await _entitlementService.UpdateStorageUsageAsync(company.OwnerId, -policy.FileSize, cancellationToken);
 
             return Result.Success();
         }

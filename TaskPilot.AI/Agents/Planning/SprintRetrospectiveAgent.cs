@@ -21,6 +21,7 @@ namespace TaskPilot.AI.Agents.Planning
 
         public async Task<(SprintAnalysisDto Analysis, List<SprintImprovementDto> Improvements)> AnalyzeAsync(
             SprintRetrospectiveData data,
+            Guid projectId,
             string userLanguage = "English",
             CancellationToken cancellationToken = default)
         {
@@ -59,14 +60,17 @@ namespace TaskPilot.AI.Agents.Planning
                 })
             });
 
+            var arguments = new KernelArguments
+            {
+                ["sprintTitle"] = data.SprintTitleEn,
+                ["metricsJson"] = metricsJson,
+                ["userLanguage"] = userLanguage,
+                ["projectId"] = projectId
+            };
+
             var result = await kernel.InvokeAsync(
                 function,
-                new KernelArguments
-                {
-                    ["sprintTitle"]   = data.SprintTitleEn,
-                    ["metricsJson"]   = metricsJson,
-                    ["userLanguage"]  = userLanguage
-                },
+                arguments,
                 cancellationToken: cancellationToken);
 
             var raw = result.ToString().Trim();

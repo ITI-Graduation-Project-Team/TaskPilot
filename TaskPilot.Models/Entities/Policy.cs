@@ -29,6 +29,7 @@ namespace TaskPilot.Models.Entities
         public AiProcessingStatus AiStatus { get; set; } = AiProcessingStatus.Pending;
         public string? AiProcessingError { get; set; }
         public int VersionNumber { get; set; } = 1;
+        public long FileSize { get; set; } = 0;
         public bool IsActive { get; set; } = true;
     }
 }

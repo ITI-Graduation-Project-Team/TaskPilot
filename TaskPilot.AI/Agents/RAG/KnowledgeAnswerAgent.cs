@@ -29,6 +29,7 @@ namespace TaskPilot.AI.Agents.RAG
         public async Task<string> GenerateAsync(
             string question,
             List<KnowledgeChunk> chunks,
+            Guid projectId,
             CancellationToken cancellationToken = default)
         {
             if (chunks == null || chunks.Count == 0)
@@ -45,7 +46,8 @@ namespace TaskPilot.AI.Agents.RAG
             var arguments = new KernelArguments
             {
                 ["question"] = question,
-                ["context"] = context
+                ["context"] = context,
+                ["projectId"] = projectId
             };
 
             var result = await kernel.InvokeAsync(function, arguments, cancellationToken);

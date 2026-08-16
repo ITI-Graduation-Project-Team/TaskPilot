@@ -28,6 +28,7 @@ namespace TaskPilot.AI.Agents.Planning
         public async Task<TechStackSuggestion> SuggestAsync(
             RequirementsSnapshot snapshot,
             List<EmployeeSkillSummary> availableSkills,
+            Guid projectId,
             CancellationToken cancellationToken = default)
         {
             var kernel = _kernelService.CreateKernel(
@@ -60,7 +61,8 @@ namespace TaskPilot.AI.Agents.Planning
                         string.Join("\n", snapshot.Integrations),
                     ["scaleRequirements"] =
                         string.Join("\n", snapshot.ScaleRequirements),
-                    ["availableSkills"] = skillsText
+                    ["availableSkills"] = skillsText,
+                    ["projectId"] = projectId
                 },
                 cancellationToken: cancellationToken);
 

@@ -14,6 +14,7 @@ namespace TaskPilot.Models.Entities
         public bool IsActive => !IsDeleted;
         public string? AvatarUrl { get; set; }
         public string? AvatarPublicId { get; set; }
+        public long AvatarFileSize { get; set; } = 0;
         public string FirstNameEn { get; set; } = string.Empty;
         public string LastNameEn { get; set; } = string.Empty;
         public string FirstNameAr { get; set; } = string.Empty;

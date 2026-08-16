@@ -24,6 +24,7 @@ namespace TaskPilot.AI.Agents.Sprint
 
         public async Task<DetectedRiskResult> DetectRisksAsync(
             SprintRiskContext context,
+            Guid projectId,
             CancellationToken ct = default)
         {
             var kernel = _kernelService.CreateKernel(ModelConstants.CheapModel);
@@ -37,6 +38,7 @@ namespace TaskPilot.AI.Agents.Sprint
 
             var arguments = new KernelArguments();
             arguments["sprintContext"] = contextJson;
+            arguments["projectId"] = projectId;
 
             var invokeResult = await kernel.InvokeAsync(function, arguments, cancellationToken: ct);
             var rawJson = invokeResult.ToString().Trim();

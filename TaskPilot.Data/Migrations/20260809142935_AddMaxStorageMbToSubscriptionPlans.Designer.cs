@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TaskPilot.Data.Context;
 
@@ -11,9 +12,11 @@ using TaskPilot.Data.Context;
 namespace TaskPilot.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260809142935_AddMaxStorageMbToSubscriptionPlans")]
+    partial class AddMaxStorageMbToSubscriptionPlans
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -344,9 +347,6 @@ namespace TaskPilot.Data.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
 
-                    b.Property<long>("LogoFileSize")
-                        .HasColumnType("bigint");
-
                     b.Property<string>("LogoUrl")
                         .HasColumnType("nvarchar(max)");
 
@@ -632,9 +632,6 @@ namespace TaskPilot.Data.Migrations
 
                     b.Property<string>("DocumentUrl")
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<long>("FileSize")
-                        .HasColumnType("bigint");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
@@ -1354,11 +1351,6 @@ namespace TaskPilot.Data.Migrations
                         .HasColumnType("int")
                         .HasDefaultValue(5120);
 
-                    b.Property<int>("MaxTokensPerMonth")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(5000000);
-
                     b.Property<int>("MaxUsersPerProject")
                         .HasColumnType("int");
 
@@ -1705,9 +1697,6 @@ namespace TaskPilot.Data.Migrations
 
                     b.Property<int>("AccessFailedCount")
                         .HasColumnType("int");
-
-                    b.Property<long>("AvatarFileSize")
-                        .HasColumnType("bigint");
 
                     b.Property<string>("AvatarPublicId")
                         .HasColumnType("nvarchar(max)");
@@ -2076,22 +2065,12 @@ namespace TaskPilot.Data.Migrations
                     b.ToTable("UserSubscriptions", (string)null);
                 });
 
-            modelBuilder.Entity("TaskPilot.Models.Entities.Admin", b =>
-                {
-                    b.HasBaseType("TaskPilot.Models.Entities.User");
-
-                    b.HasDiscriminator().HasValue("Admin");
-                });
-
             modelBuilder.Entity("TaskPilot.Models.Entities.Employee", b =>
                 {
                     b.HasBaseType("TaskPilot.Models.Entities.User");
 
                     b.Property<string>("AvailabilityStatus")
                         .HasColumnType("nvarchar(450)");
-
-                    b.Property<long>("CvFileSize")
-                        .HasColumnType("bigint");
 
                     b.Property<int>("CvProcessingStatus")
                         .HasColumnType("int");
@@ -2152,12 +2131,6 @@ namespace TaskPilot.Data.Migrations
             modelBuilder.Entity("TaskPilot.Models.Entities.ProjectManager", b =>
                 {
                     b.HasBaseType("TaskPilot.Models.Entities.User");
-
-                    b.Property<long>("CurrentStorageUsedBytes")
-                        .HasColumnType("bigint");
-
-                    b.Property<long>("CurrentTokensUsedThisMonth")
-                        .HasColumnType("bigint");
 
                     b.HasDiscriminator().HasValue("ProjectManager");
                 });

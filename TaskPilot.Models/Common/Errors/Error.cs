@@ -22,11 +22,17 @@ namespace TaskPilot.Models.Common.Errors
         /// </summary>
         public ErrorType Type { get; }
 
-        public Error(string code, ErrorType type = ErrorType.Failure, string? description=null)
+        /// <summary>
+        /// Optional structured data associated with this error (e.g. limits, counts).
+        /// </summary>
+        public IDictionary<string, object>? Metadata { get; }
+
+        public Error(string code, ErrorType type = ErrorType.Failure, string? description=null, IDictionary<string, object>? metadata = null)
         {
             Code = code;
             Description = description;
             Type = type;
+            Metadata = metadata;
         }
 
         /// <summary>

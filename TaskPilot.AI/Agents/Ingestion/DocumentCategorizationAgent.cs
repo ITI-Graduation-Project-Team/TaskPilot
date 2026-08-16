@@ -22,6 +22,7 @@ namespace TaskPilot.AI.Agents.Ingestion
         public async Task<DocumentCategory> CategorizeAsync(
             string fileName,
             string extractedText,
+            Guid projectId,
             CancellationToken cancellationToken = default)
         {
             try
@@ -33,6 +34,7 @@ namespace TaskPilot.AI.Agents.Ingestion
                 var arguments = KernelArgumentsFactory.CreateDeterministicArguments();
                 arguments["fileName"] = fileName;
                 arguments["extractedText"] = extractedText;
+                arguments["projectId"] = projectId;
 
                 var result = await kernel.InvokeAsync(function, arguments);
                 var response = result.ToString().Trim();

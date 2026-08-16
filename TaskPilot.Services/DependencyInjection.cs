@@ -16,6 +16,8 @@ namespace TaskPilot.Services
         // لاحظ إضافة IConfiguration configuration هنا
         public static IServiceCollection AddServices(this IServiceCollection services, IConfiguration configuration)
         {
+            services.AddScoped<ITokenQuotaContext, TokenQuotaContext>();
+            services.AddScoped<TaskPilot.AI.Services.Interfaces.ITokenQuotaEnforcer, TokenQuotaEnforcer>();
             // ── Business Services ──
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IProjectService, ProjectService>();
@@ -32,6 +34,7 @@ namespace TaskPilot.Services
             services.AddScoped<IProjectPolicyService, ProjectPolicyService>();
             services.AddScoped<IWbsSkillEnrichmentService, WbsSkillEnrichmentService>();
             services.AddScoped<ICalenderService, CalenderService>();
+            services.AddScoped<IEntitlementService, EntitlementService>();
             services.AddScoped<IWbsPersistenceService, WbsPersistenceService>();
             services.AddScoped<IBacklogService, BacklogService>();
             services.AddScoped<IBacklogRegenerationService, BacklogRegenerationService>();

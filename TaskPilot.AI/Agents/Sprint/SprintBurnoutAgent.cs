@@ -25,6 +25,7 @@ namespace TaskPilot.AI.Agents.Sprint
 
         public async Task<BurnoutRiskResult> AnalyzeAsync(
             EmployeeSprintBurnoutContext context,
+            Guid projectId,
             CancellationToken cancellationToken = default)
         {
             var kernel = _kernelService.CreateKernel(ModelConstants.CheapModel);
@@ -38,6 +39,7 @@ namespace TaskPilot.AI.Agents.Sprint
 
             var arguments = KernelArgumentsFactory.CreateDeterministicArguments();
             arguments["employeeSprintContext"] = contextJson;
+            arguments["projectId"] = projectId;
 
             var result = await kernel.InvokeAsync(function, arguments, cancellationToken);
             var resultString = result.ToString().Trim();

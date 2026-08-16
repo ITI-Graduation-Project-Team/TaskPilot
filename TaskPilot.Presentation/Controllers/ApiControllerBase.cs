@@ -85,7 +85,20 @@ namespace TaskPilot.Presentation.Controllers
             var description = !string.IsNullOrEmpty(error.Description)
                 ? error.Description
                 : Localizer.GetString(error.Code);
-            var response = ApiResponse.Fail(error.Code, description);
+                
+            var errorDetail = new ErrorDetail 
+            { 
+                Code = error.Code, 
+                Description = description,
+                Metadata = error.Metadata
+            };
+            
+            var response = new ApiResponse
+            {
+                Succeeded = false,
+                Message = description,
+                Errors = [errorDetail]
+            };
 
             return error.Type switch
             {
@@ -114,7 +127,8 @@ namespace TaskPilot.Presentation.Controllers
                 return new ErrorDetail
                 {
                     Code = e.Code,
-                    Description = desc
+                    Description = desc,
+                    Metadata = e.Metadata
                 };
             });
             var response = ApiResponse.Fail(errorDetails);

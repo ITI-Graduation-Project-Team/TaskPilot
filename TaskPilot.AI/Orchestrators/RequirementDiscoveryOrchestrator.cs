@@ -150,7 +150,7 @@ namespace TaskPilot.AI.Orchestrators
                     stream.Position = 0;
                     var extractedText = await extractor.ExtractTextAsync(stream, cancellationToken);
 
-                    var category = await _categorizationAgent.CategorizeAsync(file.FileName, extractedText, cancellationToken: cancellationToken);
+                    var category = await _categorizationAgent.CategorizeAsync(file.FileName, extractedText, session.ProjectId.GetValueOrDefault(), cancellationToken);
 
                     var document = new IngestedDocument
                     {

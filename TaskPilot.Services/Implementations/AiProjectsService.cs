@@ -37,6 +37,7 @@ namespace TaskPilot.Services.Implementations
         private readonly ICurrentUserService _currentUserService;
         private readonly IRepository<User> _userRepository;
         private readonly IFileValidatorService _fileValidator;
+        private readonly ITokenQuotaEnforcer _tokenQuotaEnforcer;
 
         private static readonly string[] RequiredCategories = new[]
         {
@@ -57,7 +58,8 @@ namespace TaskPilot.Services.Implementations
             ITemporaryBrdStore tempBrdStore,
             ICurrentUserService currentUserService,
             IRepository<User> userRepository,
-            IFileValidatorService fileValidator)
+            IFileValidatorService fileValidator,
+            ITokenQuotaEnforcer tokenQuotaEnforcer)
         {
             _extractors = extractors;
             _kernelService = kernelService;
@@ -72,6 +74,7 @@ namespace TaskPilot.Services.Implementations
             _currentUserService = currentUserService;
             _userRepository = userRepository;
             _fileValidator = fileValidator;
+            _tokenQuotaEnforcer = tokenQuotaEnforcer;
         }
 
         public async Task<Result<BrdUploadResultDto>> UploadBrdAsync(IFormFile file, Guid? projectId, CancellationToken cancellationToken = default)
@@ -167,7 +170,13 @@ Return your analysis as a JSON object with a single array property 'detectedGaps
 BRD Content:
 {extractedText}";
 
+                var quota = await _tokenQuotaEnforcer.CheckQuotaAsync(cancellationToken);
+                if (quota.IsExceeded)
+                {
+                    return Result.Failure<BrdUploadResultDto>(new Error("TOKEN_LIMIT_REACHED", ErrorType.Forbidden, "AI token limit reached.", new System.Collections.Generic.Dictionary<string, object> { { "Limit", quota.Limit }, { "CurrentCount", quota.CurrentUsage } }));
+                }
                 var aiResponse = await chatService.GetChatMessageContentAsync(prompt, null, kernel, cancellationToken);
+                await _tokenQuotaEnforcer.TrackTokensAsync(aiResponse, cancellationToken);
                 var aiContent = aiResponse.Content ?? "{}";
                 
                 // Extract json from possible markdown
@@ -245,7 +254,13 @@ Output your response in JSON format exactly like this:
             }
             history.AddUserMessage(request.Message);
 
+            var quota = await _tokenQuotaEnforcer.CheckQuotaAsync(cancellationToken);
+            if (quota.IsExceeded)
+            {
+                return Result.Failure<AiChatResponseDto>(new Error("TOKEN_LIMIT_REACHED", ErrorType.Forbidden, "AI token limit reached.", new System.Collections.Generic.Dictionary<string, object> { { "Limit", quota.Limit }, { "CurrentCount", quota.CurrentUsage } }));
+            }
             var aiResponse = await chatService.GetChatMessageContentAsync(history, null, kernel, cancellationToken);
+            await _tokenQuotaEnforcer.TrackTokensAsync(aiResponse, cancellationToken);
             var aiContent = aiResponse.Content ?? "{}";
 
             if (aiContent.Contains("```json"))
@@ -469,7 +484,13 @@ Output your response in JSON format exactly like this:
             }
             history.AddUserMessage(message);
 
+            var quota = await _tokenQuotaEnforcer.CheckQuotaAsync(cancellationToken);
+            if (quota.IsExceeded)
+            {
+                return Result.Failure<AiChatResponseDto>(new Error("TOKEN_LIMIT_REACHED", ErrorType.Forbidden, "AI token limit reached.", new System.Collections.Generic.Dictionary<string, object> { { "Limit", quota.Limit }, { "CurrentCount", quota.CurrentUsage } }));
+            }
             var aiResponse = await chatService.GetChatMessageContentAsync(history, null, kernel, cancellationToken);
+            await _tokenQuotaEnforcer.TrackTokensAsync(aiResponse, cancellationToken);
             var reply = aiResponse.Content ?? "I have updated the backlog.";
 
             // 2. Save messages atomically via IProjectChatService

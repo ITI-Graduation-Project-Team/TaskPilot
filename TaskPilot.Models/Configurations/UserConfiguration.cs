@@ -30,7 +30,8 @@ namespace TaskPilot.Models.Configurations
 
             builder.HasDiscriminator<string>("UserType")
                 .HasValue<Employee>("Employee")
-                .HasValue<ProjectManager>("ProjectManager");
+                .HasValue<ProjectManager>("ProjectManager")
+                .HasValue<Admin>("Admin");
 
             builder.Property<string>("UserType")
                  .HasMaxLength(50)
@@ -43,7 +44,7 @@ namespace TaskPilot.Models.Configurations
 
             builder.HasIndex(u => u.CompanyId);
 
-           
+
             builder.Property(u => u.FirstNameEn)
                 .IsRequired()
                 .HasMaxLength(100);

@@ -27,6 +27,11 @@ namespace TaskPilot.Presentation.Controllers
               CancellationToken cancellationToken,
               UserRole Role)
         {
+            if (Role != UserRole.ProjectManager && Role != UserRole.Employee)
+            {
+                return HandleResult(Result.Failure(CommonErrors.InvalidInput("Invalid role selection.")));
+            }
+
             var result = await _authService.RegisterAsync(request, Role);
             return HandleResult(result,SuccessCodes.Auth.Register);
         }

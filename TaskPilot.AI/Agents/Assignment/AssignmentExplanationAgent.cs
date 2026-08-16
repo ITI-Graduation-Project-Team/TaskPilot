@@ -14,7 +14,7 @@ namespace TaskPilot.AI.Agents.Assignment;
 
 public interface IAssignmentExplanationAgent
 {
-    Task<Result<List<(string EmployeeId, string ReasonEn, string ReasonAr)>>> GenerateExplanationsAsync(ExplanationContextDto context);
+    Task<Result<List<(string EmployeeId, string ReasonEn, string ReasonAr)>>> GenerateExplanationsAsync(ExplanationContextDto context, Guid projectId);
 }
 
 public class AssignmentExplanationAgent : IAssignmentExplanationAgent
@@ -30,7 +30,7 @@ public class AssignmentExplanationAgent : IAssignmentExplanationAgent
         _promptLoader = promptLoader;
     }
 
-    public async Task<Result<List<(string EmployeeId, string ReasonEn, string ReasonAr)>>> GenerateExplanationsAsync(ExplanationContextDto context)
+    public async Task<Result<List<(string EmployeeId, string ReasonEn, string ReasonAr)>>> GenerateExplanationsAsync(ExplanationContextDto context, Guid projectId)
     {
         var fallbackReasons = context.TopDevelopers.Select(d => (
             EmployeeId: d.EmployeeId.ToString(),
@@ -49,7 +49,8 @@ public class AssignmentExplanationAgent : IAssignmentExplanationAgent
                 ["TaskTitle"] = context.TaskTitle,
                 ["TaskEstimatedHours"] = context.TaskEstimatedHours.ToString(),
                 ["RequiredSkills"] = JsonSerializer.Serialize(context.RequiredSkills),
-                ["Developers"] = JsonSerializer.Serialize(context.TopDevelopers)
+                ["Developers"] = JsonSerializer.Serialize(context.TopDevelopers),
+                ["projectId"] = projectId
             };
 
             var response = await kernel.InvokeAsync(function, arguments);

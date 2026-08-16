@@ -22,19 +22,22 @@ public class ProjectTeamService : IProjectTeamService
     private readonly IRepository<Employee> _employeeRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly INotificationService _notificationService;
+    private readonly IEntitlementService _entitlementService;
 
     public ProjectTeamService(
         IRepository<ProjectEmployee> projectEmployeeRepository,
         IRepository<Project> projectRepository,
         IRepository<Employee> employeeRepository,
         IUnitOfWork unitOfWork,
-        INotificationService notificationService)
+        INotificationService notificationService,
+        IEntitlementService entitlementService)
     {
         _projectEmployeeRepository = projectEmployeeRepository;
         _projectRepository = projectRepository;
         _employeeRepository = employeeRepository;
         _unitOfWork = unitOfWork;
         _notificationService = notificationService;
+        _entitlementService = entitlementService;
     }
 
     public async Task<Result> AssignEmployeesAsync(
@@ -66,7 +69,11 @@ public class ProjectTeamService : IProjectTeamService
             return Result.Failure(new Error("EmployeeDeactivated", ErrorType.Validation, "Cannot assign deactivated employees to a project."));
 
         if (employees.Any(e => e.CompanyId != project.CompanyId))
+        {
+            var mismatch = employees.First(e => e.CompanyId != project.CompanyId);
+            Console.WriteLine($"[ProjectTeamService] Mismatch! EmpCompany: {mismatch.CompanyId}, ProjCompany: {project.CompanyId}");
             return Result.Failure(new Error("InvalidCompany", ErrorType.Validation, "Only Employees from the same Company may be assigned."));
+        }
 
         var existingAssignments = await _projectEmployeeRepository.GetQueryable()
             .Where(pe => pe.ProjectId == projectId && employeeIds.Contains(pe.EmployeeId))
@@ -84,6 +91,13 @@ public class ProjectTeamService : IProjectTeamService
 
         if (alreadyAssignedToActiveProject)
             return Result.Failure(new Error("EmployeeAlreadyAssignedToAnotherProject", ErrorType.Validation, "One or more employees are already assigned to another active project."));
+
+        // Deduplicate the input to get the exact count to add
+        var uniqueEmployeeIdsToAdd = request.Assignments.Select(a => a.EmployeeId).Distinct().ToList();
+
+        var entitlementResult = await _entitlementService.EnsureCanAddTeamMembersAsync(projectId, uniqueEmployeeIdsToAdd.Count, cancellationToken);
+        if (entitlementResult.IsFailure)
+            return Result.Failure(entitlementResult.Error);
 
         var newAssignments = request.Assignments.Select(a => new ProjectEmployee
         {

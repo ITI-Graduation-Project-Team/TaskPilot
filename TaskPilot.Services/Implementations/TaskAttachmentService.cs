@@ -28,6 +28,9 @@ namespace TaskPilot.Services.Implementations
         private readonly IProjectEmployeeRepository _projectEmployeeRepository;
         private readonly IFileStorageService _fileStorageService;
         private readonly ILogger<TaskAttachmentService> _logger;
+        private readonly IUnitOfWork _unitOfWork;
+        private readonly IEntitlementService _entitlementService;
+        private readonly IRepository<Project> _projectRepository;
 
         public TaskAttachmentService(
             IRepository<TaskAttachment> attachmentRepository,
@@ -36,7 +39,10 @@ namespace TaskPilot.Services.Implementations
             IProjectEmployeeRepository projectEmployeeRepository,
             IFileStorageService fileStorageService,
             ILogger<TaskAttachmentService> logger,
-            IFileValidatorService fileValidator)
+            IFileValidatorService fileValidator,
+            IUnitOfWork unitOfWork,
+            IEntitlementService entitlementService,
+            IRepository<Project> projectRepository)
         {
             _fileValidator = fileValidator;
             _attachmentRepository = attachmentRepository;
@@ -45,6 +51,9 @@ namespace TaskPilot.Services.Implementations
             _projectEmployeeRepository = projectEmployeeRepository;
             _fileStorageService = fileStorageService;
             _logger = logger;
+            _unitOfWork = unitOfWork;
+            _entitlementService = entitlementService;
+            _projectRepository = projectRepository;
         }
 
         public async Task<Result<TaskAttachmentDto>> UploadAttachmentAsync(
@@ -84,6 +93,26 @@ namespace TaskPilot.Services.Implementations
                 return Result.Failure<TaskAttachmentDto>(TaskErrors.ForbiddenTaskUpdate);
             }
 
+            var pmId = task.Sprint?.Project?.ManagerId ?? task.UserStory?.Project?.ManagerId ?? Guid.Empty;
+            if (pmId == Guid.Empty)
+            {
+                // Fallback if related entities aren't fully loaded, try fetching project
+                var project = await _projectRepository.GetByIdAsync(projectId);
+                if (project != null)
+                {
+                    pmId = project.ManagerId;
+                }
+            }
+
+            if (pmId != Guid.Empty)
+            {
+                var entitlementResult = await _entitlementService.EnsureCanUploadAsync(pmId, file.Length, 0, ct);
+                if (entitlementResult.IsFailure)
+                {
+                    return Result.Failure<TaskAttachmentDto>(entitlementResult.Error);
+                }
+            }
+
             var uploadResult = await _fileStorageService.UploadFileAsync(file, $"task-attachments/{taskId}");
             if (uploadResult.IsFailure)
             {
@@ -101,6 +130,13 @@ namespace TaskPilot.Services.Implementations
             };
 
             await _attachmentRepository.AddAsync(attachment);
+
+            if (pmId != Guid.Empty)
+            {
+                await _entitlementService.UpdateStorageUsageAsync(pmId, file.Length, ct);
+            }
+
+            await _unitOfWork.SaveChangesAsync(ct);
 
             var user = await _userRepository.GetByIdAsync(userId);
 
@@ -157,6 +193,24 @@ namespace TaskPilot.Services.Implementations
             }
 
             _attachmentRepository.Delete(attachment);
+
+            var pmId = attachment.Task?.Sprint?.Project?.ManagerId ?? attachment.Task?.UserStory?.Project?.ManagerId ?? Guid.Empty;
+            if (pmId == Guid.Empty)
+            {
+                var pId = attachment.Task?.Sprint?.ProjectId ?? attachment.Task?.UserStory?.ProjectId ?? Guid.Empty;
+                if (pId != Guid.Empty)
+                {
+                    var project = await _projectRepository.GetByIdAsync(pId);
+                    if (project != null) pmId = project.ManagerId;
+                }
+            }
+
+            if (pmId != Guid.Empty)
+            {
+                await _entitlementService.UpdateStorageUsageAsync(pmId, -attachment.FileSize, ct);
+            }
+
+            await _unitOfWork.SaveChangesAsync(ct);
             return Result.Success();
         }
 

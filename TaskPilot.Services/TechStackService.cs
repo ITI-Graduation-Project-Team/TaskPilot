@@ -50,6 +50,7 @@ namespace TaskPilot.Services
             var suggestion = await _techStackAdvisorAgent.SuggestAsync(
                 project.RequirementsSnapshot,
                 skills,
+                projectId,
                 cancellationToken);
 
             return Result.Success(suggestion);
@@ -74,6 +75,7 @@ namespace TaskPilot.Services
             var suggestion = await _techStackAdvisorAgent.SuggestAsync(
                 project.RequirementsSnapshot,
                 skills,
+                projectId,
                 cancellationToken);
 
             return Result.Success(suggestion);

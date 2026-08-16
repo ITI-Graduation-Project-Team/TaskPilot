@@ -96,5 +96,8 @@ namespace TaskPilot.Presentation.Models
     {
         public string Code { get; init; } = string.Empty;
         public string Description { get; init; } = string.Empty;
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public IDictionary<string, object>? Metadata { get; init; }
     }
 }

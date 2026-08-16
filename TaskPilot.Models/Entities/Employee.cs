@@ -15,6 +15,7 @@ namespace TaskPilot.Models.Entities
         public AiProcessingStatus CvProcessingStatus { get; set; }
         public string? LatestCvUrl { get; set; }
         public string? CvPublicId { get; set; }
+        public long CvFileSize { get; set; } = 0;
 
         public bool IsDeactivated { get; set; }
         public DateTime? DeactivatedAt { get; set; }

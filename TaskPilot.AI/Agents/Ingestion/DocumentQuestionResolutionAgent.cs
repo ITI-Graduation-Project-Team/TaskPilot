@@ -22,7 +22,8 @@ namespace TaskPilot.AI.Agents.Ingestion
 
         public async Task<List<QuestionResolution>> ResolveAsync(
             List<ClarificationQuestion> questions,
-            string documentText)
+            string documentText,
+            Guid projectId)
         {
             if (questions == null || !questions.Any() || string.IsNullOrWhiteSpace(documentText))
             {
@@ -43,6 +44,7 @@ namespace TaskPilot.AI.Agents.Ingestion
                 }));
 
             arguments["documentText"] = documentText;
+            arguments["projectId"] = projectId;
 
             var result = await kernel.InvokeAsync(function, arguments);
             var json = result.ToString().Trim();

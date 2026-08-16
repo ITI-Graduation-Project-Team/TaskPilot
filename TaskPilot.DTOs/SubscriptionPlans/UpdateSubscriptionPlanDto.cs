@@ -24,12 +24,19 @@ namespace TaskPilot.DTOs.SubscriptionPlans
         [Range(1, int.MaxValue)]
         public int MaxUsersPerProject { get; set; }
         
+        [Range(1, int.MaxValue)]
+        public int MaxStorageMb { get; set; }
+        
+        [Range(1, int.MaxValue)]
+        public int MaxTokensPerMonth { get; set; }
+        
         public bool HasAi { get; set; }
         
         public bool HasAdvancedAnalytics { get; set; }
         
         public bool HasTrial { get; set; }
         
+        [Range(0, int.MaxValue)]
         public int TrialDays { get; set; }
     }
 }

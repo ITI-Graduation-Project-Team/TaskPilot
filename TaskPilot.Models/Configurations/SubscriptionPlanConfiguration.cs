@@ -40,6 +40,14 @@ namespace TaskPilot.Models.Configurations
             builder.Property(p => p.MaxUsersPerProject)
                 .IsRequired();
 
+            builder.Property(p => p.MaxStorageMb)
+                .IsRequired()
+                .HasDefaultValue(5120);
+
+            builder.Property(p => p.MaxTokensPerMonth)
+                .IsRequired()
+                .HasDefaultValue(5000000);
+
             builder.Property(p => p.HasTrial)
                 .HasDefaultValue(false);
 

@@ -1,4 +1,5 @@
 using System;
+using Microsoft.EntityFrameworkCore;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
@@ -32,6 +33,8 @@ namespace TaskPilot.Services
         private readonly IFileStorageService _fileStorage;
         private readonly IFileValidatorService _fileValidator;
         private readonly ILogger<ProjectPolicyService> _logger;
+        private readonly IEntitlementService _entitlementService;
+        private readonly IRepository<ProjectChatSession> _chatSessionRepository;
 
         private static readonly ConcurrentDictionary<Guid, SemaphoreSlim> _tenantLocks = new();
 
@@ -45,7 +48,9 @@ namespace TaskPilot.Services
             IRepository<Project> projectRepository,
             IFileStorageService fileStorage,
             IFileValidatorService fileValidator,
-            ILogger<ProjectPolicyService> logger)
+            ILogger<ProjectPolicyService> logger,
+            IEntitlementService entitlementService,
+            IRepository<ProjectChatSession> chatSessionRepository)
         {
             _extractors = extractors;
             _categorizationAgent = categorizationAgent;
@@ -57,6 +62,8 @@ namespace TaskPilot.Services
             _fileStorage = fileStorage;
             _fileValidator = fileValidator;
             _logger = logger;
+            _entitlementService = entitlementService;
+            _chatSessionRepository = chatSessionRepository;
         }
 
         public async Task<Result<UploadProjectPolicyResponse>> IngestAsync(
@@ -146,6 +153,27 @@ namespace TaskPilot.Services
                         return Result.Failure<UploadProjectPolicyResponse>(validationResult.Error!);
                     }
 
+                    // Check entitlement before upload
+                    Guid pmId = Guid.Empty;
+                    if (request.ProjectId.HasValue)
+                    {
+                        var project = await _projectRepository.GetByIdAsync(request.ProjectId.Value);
+                        if (project != null) pmId = project.ManagerId;
+                    }
+                    else if (request.RequirementSessionId.HasValue)
+                    {
+                        var session = await _chatSessionRepository.GetQueryable()
+                            .Include(s => s.Project)
+                            .FirstOrDefaultAsync(s => s.Id == request.RequirementSessionId.Value, cancellationToken);
+                        if (session?.Project != null) pmId = session.Project.ManagerId;
+                    }
+
+                    if (pmId != Guid.Empty)
+                    {
+                        var entitlementResult = await _entitlementService.EnsureCanUploadAsync(pmId, request.File.Length, 0, cancellationToken);
+                        if (entitlementResult.IsFailure) return Result.Failure<UploadProjectPolicyResponse>(entitlementResult.Error);
+                    }
+
                     var uploadResult = await _fileStorage.UploadFileAsync(request.File, path);
                     if (!uploadResult.IsSuccess)
                     {
@@ -153,9 +181,14 @@ namespace TaskPilot.Services
                     }
                     documentUrl = uploadResult.Value.Url;
                     cloudinaryPublicId = uploadResult.Value.PublicId;
+
+                    if (pmId != Guid.Empty)
+                    {
+                        await _entitlementService.UpdateStorageUsageAsync(pmId, request.File.Length, cancellationToken);
+                    }
                 }
 
-                var category = await _categorizationAgent.CategorizeAsync(fileName, extractedText, cancellationToken);
+                var category = await _categorizationAgent.CategorizeAsync(request.File.FileName, extractedText, request.ProjectId.GetValueOrDefault(), cancellationToken);
                 var chunks = await _chunkingAgent.ChunkContentAsync(documentId, extractedText, cancellationToken: cancellationToken);
 
                 // Fetch all policies for the project/session to calculate the global next version
@@ -206,6 +239,7 @@ namespace TaskPilot.Services
                     DocumentId = documentId,
                     AiStatus = AiProcessingStatus.Completed,
                     VersionNumber = nextVersion,
+                    FileSize = (!string.IsNullOrEmpty(documentUrl) && !request.SkipCloudUpload) ? request.File.Length : 0,
                     IsActive = true
                 };
 
@@ -413,6 +447,8 @@ namespace TaskPilot.Services
             }
 
             _policyRepository.Delete(policy);
+
+            await _entitlementService.UpdateStorageUsageAsync(project.ManagerId, -policy.FileSize, cancellationToken);
 
             return Result.Success();
         }
