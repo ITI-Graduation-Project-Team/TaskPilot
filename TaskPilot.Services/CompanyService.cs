@@ -338,29 +338,6 @@ namespace TaskPilot.Services
             return result;
         }
 
-        public async Task<Result<EmployeeStatisticsDto>> GetEmployeeStatisticsAsync(Guid companyId, CancellationToken cancellationToken = default)
-        {
-            var statistics = await _employeeRepository.GetQueryable()
-                .AsNoTracking()
-                .Where(e => e.CompanyId == companyId && !e.IsDeleted)
-                .GroupBy(e => 1)
-                .Select(g => new EmployeeStatisticsDto
-                {
-                    TotalEmployees = g.Count(),
-                    ActiveEmployees = g.Count(e => !e.IsDeactivated),
-                    DeactivatedEmployees = g.Count(e => e.IsDeactivated),
-                    EmployeesInProjects = g.Count(e => !e.IsDeactivated && e.ProjectEmployees.Any(pe => pe.IsActive && !pe.Project.IsDeleted)),
-                    AvailableEmployees = g.Count(e => !e.IsDeactivated && !e.ProjectEmployees.Any(pe => pe.IsActive && !pe.Project.IsDeleted))
-                })
-                .FirstOrDefaultAsync(cancellationToken);
-
-            if (statistics == null)
-            {
-                statistics = new EmployeeStatisticsDto();
-            }
-
-            return Result.Success(statistics);
-        }
 
         public async Task<Result<PagedResult<CompanyEmployeeDto>>> GetCompanyEmployeesAsync(
             Guid companyId,
@@ -418,7 +395,7 @@ namespace TaskPilot.Services
                 .AsSplitQuery()
                 .ToListAsync(cancellationToken);
 
-            var dtos = projectedEmployees.Select(e => {
+            var dtos = employeeProjections.Select(e => {
                 var fullName = $"{e.FirstNameEn} {e.LastNameEn}".Trim();
                 if (string.IsNullOrEmpty(fullName))
                 {

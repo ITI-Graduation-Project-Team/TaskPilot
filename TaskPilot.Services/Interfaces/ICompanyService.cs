@@ -39,6 +39,7 @@ namespace TaskPilot.Services.Interfaces
                 int pageSize = 10,
                 bool? isDeactivated = null,
                 CancellationToken cancellationToken = default);
+
         Task<Result<EmployeeStatisticsDto>> GetEmployeeStatisticsAsync(Guid companyId, CancellationToken cancellationToken = default);
 
         Task<Result<CompanyEmployeeDto>>
@@ -47,10 +48,6 @@ namespace TaskPilot.Services.Interfaces
                 string employeeId,
                 CancellationToken cancellationToken = default);
 
-        Task<Result<EmployeeStatisticsDto>>
-            GetEmployeeStatisticsAsync(
-                Guid companyId,
-                CancellationToken cancellationToken = default);
 
 
         Task<Result<CompanyResponse>>
