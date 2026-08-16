@@ -4,10 +4,10 @@ using TaskPilot.Models.Common.Results;
 
 namespace TaskPilot.DTOs.Backlog
 {
-    public class BacklogDto
+    public class PaginatedBacklogDto
     {
         public Guid ProjectId { get; set; }
         public string ProjectName { get; set; } = string.Empty;
-        public List<UserStoryDto> UserStories { get; set; } = new List<UserStoryDto>();
+        public PagedResult<UserStoryDto> UserStories { get; set; } = new();
     }
 }

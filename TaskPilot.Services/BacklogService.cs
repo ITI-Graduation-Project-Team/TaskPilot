@@ -43,9 +43,12 @@ namespace TaskPilot.Services
                 return Result<BacklogDto>.Failure(new Error("Project.NotFound",ErrorType.NotFound, "Project not found."));
             }
 
-            var query = _userStoryRepository.GetQueryable()
+            var baseQuery = _userStoryRepository.GetQueryable()
                 .AsNoTracking()
-                .Where(s => s.ProjectId == projectId && s.SprintId == null)
+                .Where(s => s.ProjectId == projectId && s.SprintId == null);
+
+            var query = baseQuery
+                .OrderByDescending(s => s.CreatedAt)
                 .Select(s => new UserStoryDto
                 {
                     Id = s.Id,
@@ -83,6 +86,75 @@ namespace TaskPilot.Services
             };
 
             return Result<BacklogDto>.Success(dto);
+        }
+
+        public async Task<Result<PaginatedBacklogDto>> GetBacklogPagedAsync(Guid projectId, int page = 1, int pageSize = 7, string lang = "en")
+        {
+            var project = await _projectRepository.GetByIdAsync(projectId);
+            if (project == null)
+            {
+                return Result<PaginatedBacklogDto>.Failure(new Error("Project.NotFound",ErrorType.NotFound, "Project not found."));
+            }
+
+            var baseQuery = _userStoryRepository.GetQueryable()
+                .AsNoTracking()
+                .Where(s => s.ProjectId == projectId && s.SprintId == null);
+
+            int totalItems = await baseQuery.CountAsync();
+            int totalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
+
+            var query = baseQuery
+                .OrderByDescending(s => s.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(s => new UserStoryDto
+                {
+                    Id = s.Id,
+                    ProjectId = s.ProjectId,
+                    Title = lang == "ar" ? (s.TitleAr ?? s.TitleEn) : s.TitleEn,
+                    Description = lang == "ar" ? (s.DescriptionAr ?? s.DescriptionEn) : s.DescriptionEn,
+                    AcceptanceCriteria = lang == "ar" ? (s.AcceptanceCriteriaAr ?? s.AcceptanceCriteriaEn) : s.AcceptanceCriteriaEn,
+                    Priority = s.Priority.ToString(),
+                    Status = s.Status.ToString(),
+                    Tasks = s.Tasks.Where(t => t.Status != TaskItemStatus.Done).Select(t => new TaskItemDto
+                    {
+                        Id = t.Id,
+                        UserStoryId = t.UserStoryId.Value,
+                        Title = lang == "ar" ? (t.TitleAr ?? t.TitleEn) : t.TitleEn,
+                        Description = lang == "ar" ? (t.DescriptionAr ?? t.DescriptionEn) : t.DescriptionEn,
+                        TechnicalSummary = lang == "ar" ? (t.TechnicalSummaryAr ?? t.TechnicalSummaryEn) : t.TechnicalSummaryEn,
+                        AcceptanceCriteria = lang == "ar" ? (t.AcceptanceCriteriaAr ?? t.AcceptanceCriteriaEn) : t.AcceptanceCriteriaEn,
+                        EstimatedHours = t.EstimatedHours,
+                        EffortSize = t.EffortSize.ToString(),
+                        Type = t.Type.ToString(),
+                        Priority = t.Priority.ToString(),
+                        Status = t.Status.ToString(),
+                        AssigneeId = t.EmployeeId,
+                        AssigneeName = t.Employee != null ? (lang == "ar" ? (t.Employee.FirstNameAr ?? t.Employee.FirstNameEn) : t.Employee.FirstNameEn) : null
+                    }).ToList()
+                });
+
+            var userStories = await query.AsSplitQuery().ToListAsync();
+
+            var pagedResult = new TaskPilot.Models.Common.Results.PagedResult<UserStoryDto>
+            {
+                Items = userStories,
+                Page = page,
+                PageSize = pageSize,
+                TotalItems = totalItems,
+                TotalPages = totalPages,
+                HasNextPage = page < totalPages,
+                HasPreviousPage = page > 1
+            };
+
+            var dto = new PaginatedBacklogDto
+            {
+                ProjectId = project.Id,
+                ProjectName = lang == "ar" ? (project.NameAr ?? project.NameEn) : project.NameEn,
+                UserStories = pagedResult
+            };
+
+            return Result<PaginatedBacklogDto>.Success(dto);
         }
 
         public async Task<Result<UserStoryDto>> CreateUserStoryAsync(Guid projectId, CreateUserStoryDto request)

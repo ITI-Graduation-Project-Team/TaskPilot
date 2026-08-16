@@ -25,12 +25,12 @@ namespace TaskPilot.Presentation.Controllers
         }
 
         [HttpGet("~/api/projects/{projectId:guid}/backlog")]
-        public async Task<ActionResult> GetBacklog(Guid projectId)
+        public async Task<ActionResult> GetBacklog(Guid projectId, [FromQuery] int page = 1, [FromQuery] int pageSize = 7)
         {
             var lang = Request.Headers["lang"].ToString();
             if (string.IsNullOrEmpty(lang)) lang = "en";
 
-            var result = await _backlogService.GetBacklogAsync(projectId, lang);
+            var result = await _backlogService.GetBacklogPagedAsync(projectId, page, pageSize, lang);
             return HandleResult(result);
         }
 

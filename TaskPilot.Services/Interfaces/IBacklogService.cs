@@ -8,6 +8,7 @@ namespace TaskPilot.Services.Interfaces
     public interface IBacklogService
     {
         Task<Result<BacklogDto>> GetBacklogAsync(Guid projectId, string lang = "en");
+        Task<Result<PaginatedBacklogDto>> GetBacklogPagedAsync(Guid projectId, int page = 1, int pageSize = 7, string lang = "en");
         Task<Result<UserStoryDto>> CreateUserStoryAsync(Guid projectId, CreateUserStoryDto request);
         Task<Result> UpdateUserStoryAsync(Guid storyId, UpdateUserStoryDto request);
         Task<Result> DeleteUserStoryAsync(Guid storyId);
