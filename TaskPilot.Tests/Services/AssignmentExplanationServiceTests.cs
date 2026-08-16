@@ -87,7 +87,7 @@ public class AssignmentExplanationServiceTests
             });
 
         // Act
-        var result = await _service.GenerateAsync(projectId, sprintId, CancellationToken.None);
+        var result = await _service.GenerateAsync(projectId, sprintId, "en", CancellationToken.None);
 
         // Assert
         Assert.True(result.IsSuccess);
@@ -138,7 +138,7 @@ public class AssignmentExplanationServiceTests
             .ThrowsAsync(new Exception("LLM Timeout or crash"));
 
         // Act
-        var result = await _service.GenerateAsync(projectId, sprintId, CancellationToken.None);
+        var result = await _service.GenerateAsync(projectId, sprintId, "en", CancellationToken.None);
 
         // Assert
         Assert.True(result.IsSuccess);
@@ -189,7 +189,7 @@ public class AssignmentExplanationServiceTests
             }));
 
         // Act
-        var result = await _service.GenerateAsync(projectId, sprintId, CancellationToken.None);
+        var result = await _service.GenerateAsync(projectId, sprintId, "en", CancellationToken.None);
 
         // Assert
         Assert.True(result.IsSuccess);

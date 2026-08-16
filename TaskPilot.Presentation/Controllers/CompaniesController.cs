@@ -152,7 +152,24 @@ namespace TaskPilot.Presentation.Controllers
             return HandleResult(result, "INVITATION_RESENT_SUCCESS");
         }
 
-        [Authorize(Roles = "ProjectManager")]
+        [HttpGet("employees/statistics")]
+        public async Task<ActionResult> GetEmployeeStatistics(CancellationToken cancellationToken = default)
+        {
+            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(userIdStr, out Guid userId))
+                return Unauthorized();
+
+            var user = await _userRepository.GetByIdAsync(userId);
+            if (user is null)
+                return Unauthorized();
+
+            if (!user.CompanyId.HasValue)
+                return StatusCode(403, "You do not belong to a company.");
+
+            var result = await _companyService.GetEmployeeStatisticsAsync(user.CompanyId.Value, cancellationToken);
+            return HandleResult(result);
+        }
+
         [HttpGet("employees")]
         public async Task<ActionResult> GetCompanyEmployees(
             [FromQuery] int page = 1,

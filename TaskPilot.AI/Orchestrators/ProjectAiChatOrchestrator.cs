@@ -75,7 +75,7 @@ namespace TaskPilot.AI.Orchestrators
             if (backlogResult.IsSuccess && backlogResult.Value?.UserStories != null)
             {
                 var lines = backlogResult.Value.UserStories.Select(s =>
-                    $"  - StoryId: {s.Id} | Title: {s.TitleEn} | Priority: {s.Priority} | Status: {s.Status} | Tasks: {s.Tasks.Count}");
+                    $"  - StoryId: {s.Id} | Title: {s.Title} | Priority: {s.Priority} | Status: {s.Status} | Tasks: {s.Tasks.Count}");
                 var backlogBlock = "CURRENT BACKLOG (use these exact IDs for update/delete):\n" + string.Join("\n", lines);
                 chatHistory.AddSystemMessage(backlogBlock);
             }
@@ -158,10 +158,10 @@ namespace TaskPilot.AI.Orchestrators
                 var backlogBlock = "CURRENT BACKLOG (use these exact IDs for update/delete):\n";
                 foreach (var s in backlogResult.Value.UserStories)
                 {
-                    backlogBlock += $"  - StoryId: {s.Id} | Title: {s.TitleEn} | Priority: {s.Priority} | Status: {s.Status}\n";
+                    backlogBlock += $"  - StoryId: {s.Id} | Title: {s.Title} | Priority: {s.Priority} | Status: {s.Status}\n";
                     foreach (var t in s.Tasks)
                     {
-                        backlogBlock += $"      - TaskId: {t.Id} | Title: {t.TitleEn}\n";
+                        backlogBlock += $"      - TaskId: {t.Id} | Title: {t.Title}\n";
                     }
                 }
                 chatHistory.AddSystemMessage(backlogBlock);

@@ -46,12 +46,12 @@ namespace TaskPilot.AI.Plugins
             {
                 var normalizedNew = titleEn.Trim().ToLowerInvariant();
                 var duplicate = existingBacklog.Value.UserStories.FirstOrDefault(s =>
-                    s.TitleEn != null &&
-                    (s.TitleEn.Trim().ToLowerInvariant().Contains(normalizedNew) ||
-                     normalizedNew.Contains(s.TitleEn.Trim().ToLowerInvariant())));
+                    s.Title != null &&
+                    (s.Title.Trim().ToLowerInvariant().Contains(normalizedNew) ||
+                     normalizedNew.Contains(s.Title.Trim().ToLowerInvariant())));
 
                 if (duplicate != null)
-                    return $"SKIPPED: A story with a similar title already exists: '{duplicate.TitleEn}'. No duplicate was created.";
+                    return $"SKIPPED: A story with a similar title already exists: '{duplicate.Title}'. No duplicate was created.";
             }
 
             var translation = await TranslateToArabicAsync(kernel, titleEn, descriptionEn, acceptanceCriteriaEn);
@@ -278,14 +278,14 @@ Acceptance Criteria: {{$acceptanceCriteriaEn}}";
 
             var request = new UpdateTaskDto
             {
-                TitleEn = titleEn ?? existingTask.TitleEn,
-                TitleAr = existingTask.TitleAr,
-                DescriptionEn = descriptionEn ?? existingTask.DescriptionEn,
-                DescriptionAr = existingTask.DescriptionAr,
-                TechnicalSummaryEn = existingTask.TechnicalSummaryEn,
-                TechnicalSummaryAr = existingTask.TechnicalSummaryAr,
-                AcceptanceCriteriaEn = existingTask.AcceptanceCriteriaEn,
-                AcceptanceCriteriaAr = existingTask.AcceptanceCriteriaAr,
+                TitleEn = titleEn ?? existingTask.Title,
+                TitleAr = null,
+                DescriptionEn = descriptionEn ?? existingTask.Description,
+                DescriptionAr = null,
+                TechnicalSummaryEn = existingTask.TechnicalSummary,
+                TechnicalSummaryAr = null,
+                AcceptanceCriteriaEn = existingTask.AcceptanceCriteria,
+                AcceptanceCriteriaAr = null,
                 Priority = priority != null && Enum.TryParse<TaskPriority>(priority, true, out var tp) ? tp : Enum.Parse<TaskPriority>(existingTask.Priority),
                 EstimatedHours = estimatedHours ?? existingTask.EstimatedHours,
                 EffortSize = effortSize != null && Enum.TryParse<EffortSize>(effortSize, true, out var es) ? es : Enum.Parse<EffortSize>(existingTask.EffortSize),

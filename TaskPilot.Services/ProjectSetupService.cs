@@ -208,6 +208,7 @@ namespace TaskPilot.Services
                 .Include(x => x.ProjectEmployees)
                     .ThenInclude(pe => pe.Employee)
                         .ThenInclude(employee => employee.UserSkills)
+                .AsSplitQuery()
                 .FirstOrDefaultAsync(x => x.Id == projectId && !x.IsDeleted, cancellationToken);
             if (project == null) return (null, null, CommonErrors.NotFound("Project"));
             if (project.ManagerId != userId.Value) return (null, null, CommonErrors.Forbidden("Only the project manager can manage project setup."));

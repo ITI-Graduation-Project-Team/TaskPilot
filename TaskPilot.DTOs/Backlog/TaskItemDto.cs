@@ -6,14 +6,10 @@ namespace TaskPilot.DTOs.Backlog
     {
         public Guid Id { get; set; }
         public Guid UserStoryId { get; set; }
-        public string TitleEn { get; set; } = string.Empty;
-        public string? TitleAr { get; set; }
-        public string? DescriptionEn { get; set; }
-        public string? DescriptionAr { get; set; }
-        public string? TechnicalSummaryEn { get; set; }
-        public string? TechnicalSummaryAr { get; set; }
-        public string? AcceptanceCriteriaEn { get; set; }
-        public string? AcceptanceCriteriaAr { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public string? TechnicalSummary { get; set; }
+        public string? AcceptanceCriteria { get; set; }
         public decimal EstimatedHours { get; set; }
         public string EffortSize { get; set; } = string.Empty;
         public string Type { get; set; } = string.Empty;
