@@ -263,9 +263,11 @@ public class EmployeeController : ApiControllerBase
         Guid employeeId,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 10,
+        [FromQuery] string? statusFilter = null,
+        [FromQuery] string? searchQuery = null,
         CancellationToken cancellationToken = default)
     {
-        var result = await _projectService.GetProjectsByEmployeeIdPagedAsync(employeeId, page, pageSize, cancellationToken);
+        var result = await _projectService.GetProjectsByEmployeeIdPagedAsync(employeeId, page, pageSize, statusFilter, searchQuery, cancellationToken);
         return HandleResult(result);
     }
 

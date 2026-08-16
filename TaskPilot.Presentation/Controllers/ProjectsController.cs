@@ -47,9 +47,9 @@ namespace TaskPilot.Presentation.Controllers
         }
 
         [HttpGet("company/{companyId:guid}/paged")]
-        public async Task<ActionResult> GetByCompanyIdPaged(Guid companyId, [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+        public async Task<ActionResult> GetByCompanyIdPaged(Guid companyId, [FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? statusFilter = null, [FromQuery] string? searchQuery = null)
         {
-            var result = await _projectService.GetProjectsByCompanyIdPagedAsync(companyId, page, pageSize);
+            var result = await _projectService.GetProjectsByCompanyIdPagedAsync(companyId, page, pageSize, statusFilter, searchQuery);
             return HandleResult(result);
         }
 
