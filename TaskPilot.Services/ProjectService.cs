@@ -144,7 +144,11 @@ namespace TaskPilot.Services
                                 ? ProjectSetupOverallStatus.WbsQueued
                                 : p.SetupState != null && p.SetupState.TechStackStatus == TechStackSetupStatus.Confirmed
                                     ? ProjectSetupOverallStatus.ReadyForWbs
-                                    : ProjectSetupOverallStatus.NeedsTechStack
+                                    : ProjectSetupOverallStatus.NeedsTechStack,
+                    TeamSize = p.ProjectEmployees.Count,
+                    TotalUserStories = p.UserStories.Count,
+                    CompletedSprintsCount = p.Sprints.Count(s => s.Status == SprintStatus.Completed),
+                    ActiveSprintsCount = p.Sprints.Count(s => s.Status == SprintStatus.Active)
                 })
                 .ToListAsync();
 
@@ -193,7 +197,7 @@ namespace TaskPilot.Services
             return Result.Success(projects.AsEnumerable());
         }
 
-        public async Task<Result<PagedResult<ProjectDto>>> GetProjectsByCompanyIdPagedAsync(Guid companyId, int page, int pageSize, CancellationToken cancellationToken = default)
+        public async Task<Result<PagedResult<ProjectDto>>> GetProjectsByCompanyIdPagedAsync(Guid companyId, int page, int pageSize, string? statusFilter = null, string? searchQuery = null, CancellationToken cancellationToken = default)
         {
             var companyExists = await _companyRepo.AnyAsync(c => c.Id == companyId);
             if (!companyExists)
@@ -206,12 +210,35 @@ namespace TaskPilot.Services
             var isArabic = _localizationService.CurrentLanguage == "ar";
 
             var query = _projectRepo.GetQueryable()
-                .Where(p => p.CompanyId == companyId && p.ManagerId == userId && !p.IsDeleted)
-                .OrderByDescending(p => p.CreatedAt);
+                .AsNoTracking()
+                .Where(p => p.CompanyId == companyId && p.ManagerId == userId && !p.IsDeleted);
+
+            if (!string.IsNullOrWhiteSpace(statusFilter))
+            {
+                if (statusFilter.Equals("active", StringComparison.OrdinalIgnoreCase))
+                {
+                    query = query.Where(p => p.Status == ProjectStatus.Active || p.Status == ProjectStatus.Draft);
+                }
+                else if (Enum.TryParse<ProjectStatus>(statusFilter, true, out var parsedStatus))
+                {
+                    query = query.Where(p => p.Status == parsedStatus);
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(searchQuery))
+            {
+                var lowerQuery = searchQuery.ToLower();
+                query = query.Where(p => 
+                    (p.NameEn != null && p.NameEn.ToLower().Contains(lowerQuery)) ||
+                    (p.NameAr != null && p.NameAr.ToLower().Contains(lowerQuery)) ||
+                    (p.DescriptionEn != null && p.DescriptionEn.ToLower().Contains(lowerQuery)) ||
+                    (p.DescriptionAr != null && p.DescriptionAr.ToLower().Contains(lowerQuery)));
+            }
 
             var totalCount = await query.CountAsync(cancellationToken);
 
             var projects = await query
+                .OrderByDescending(p => p.CreatedAt)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .Select(p => new ProjectDto
@@ -237,7 +264,7 @@ namespace TaskPilot.Services
                                     ? ProjectSetupOverallStatus.ReadyForWbs
                                     : ProjectSetupOverallStatus.NeedsTechStack,
                     TeamSize = p.ProjectEmployees.Count,
-                    TotalUserStories = p.Sprints.SelectMany(s => s.Tasks).Count(),
+                    TotalUserStories = p.UserStories.Count(us => !us.IsDeleted),
                     CompletedSprintsCount = p.Sprints.Count(s => s.Status == SprintStatus.Completed),
                     ActiveSprintsCount = p.Sprints.Count(s => s.Status == SprintStatus.Active)
                 })
@@ -256,13 +283,36 @@ namespace TaskPilot.Services
             return Result.Success(pagedResult);
         }
 
-        public async Task<Result<PagedResult<ProjectDto>>> GetProjectsByEmployeeIdPagedAsync(Guid employeeId, int page, int pageSize, CancellationToken cancellationToken = default)
+        public async Task<Result<PagedResult<ProjectDto>>> GetProjectsByEmployeeIdPagedAsync(Guid employeeId, int page, int pageSize, string? statusFilter = null, string? searchQuery = null, CancellationToken cancellationToken = default)
         {
             var isArabic = _localizationService.CurrentLanguage == "ar";
 
             var query = _projectRepo.GetQueryable()
-                .Where(p => p.ProjectEmployees.Any(pe => pe.EmployeeId == employeeId) && !p.IsDeleted)
-                .OrderByDescending(p => p.CreatedAt);
+                .Where(p => p.ProjectEmployees.Any(pe => pe.EmployeeId == employeeId) && !p.IsDeleted);
+
+            if (!string.IsNullOrWhiteSpace(statusFilter))
+            {
+                if (statusFilter.Equals("active", StringComparison.OrdinalIgnoreCase))
+                {
+                    query = query.Where(p => p.Status == ProjectStatus.Active || p.Status == ProjectStatus.Draft);
+                }
+                else if (Enum.TryParse<ProjectStatus>(statusFilter, true, out var parsedStatus))
+                {
+                    query = query.Where(p => p.Status == parsedStatus);
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(searchQuery))
+            {
+                var lowerQuery = searchQuery.ToLower();
+                query = query.Where(p => 
+                    (p.NameEn != null && p.NameEn.ToLower().Contains(lowerQuery)) ||
+                    (p.NameAr != null && p.NameAr.ToLower().Contains(lowerQuery)) ||
+                    (p.DescriptionEn != null && p.DescriptionEn.ToLower().Contains(lowerQuery)) ||
+                    (p.DescriptionAr != null && p.DescriptionAr.ToLower().Contains(lowerQuery)));
+            }
+
+            query = query.OrderByDescending(p => p.CreatedAt);
 
             var totalCount = await query.CountAsync(cancellationToken);
 
@@ -281,7 +331,7 @@ namespace TaskPilot.Services
                     ProjectType = p.ProjectType,
                     status = p.Status,
                     TeamSize = p.ProjectEmployees.Count,
-                    TotalUserStories = p.Sprints.SelectMany(s => s.Tasks).Count(),
+                    TotalUserStories = p.UserStories.Count(us => !us.IsDeleted),
                     CompletedSprintsCount = p.Sprints.Count(s => s.Status == SprintStatus.Completed),
                     ActiveSprintsCount = p.Sprints.Count(s => s.Status == SprintStatus.Active)
                 })

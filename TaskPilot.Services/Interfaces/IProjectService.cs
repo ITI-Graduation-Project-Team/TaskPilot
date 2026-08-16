@@ -21,7 +21,7 @@ namespace TaskPilot.Services.Interfaces
         Task<Result<List<ProjectStatusTransitionDto>>> GetAvailableTransitionsAsync(Guid projectId, CancellationToken cancellationToken = default);
         Task<Result<IEnumerable<ProjectDto>>> GetProjectsByEmployeeIdAsync(Guid employeeId, CancellationToken cancellationToken = default);
         
-        Task<Result<PagedResult<ProjectDto>>> GetProjectsByCompanyIdPagedAsync(Guid companyId, int page, int pageSize, CancellationToken cancellationToken = default);
-        Task<Result<PagedResult<ProjectDto>>> GetProjectsByEmployeeIdPagedAsync(Guid employeeId, int page, int pageSize, CancellationToken cancellationToken = default);
+        Task<Result<PagedResult<ProjectDto>>> GetProjectsByCompanyIdPagedAsync(Guid companyId, int page, int pageSize, string? statusFilter = null, string? searchQuery = null, CancellationToken cancellationToken = default);
+        Task<Result<PagedResult<ProjectDto>>> GetProjectsByEmployeeIdPagedAsync(Guid employeeId, int page, int pageSize, string? statusFilter = null, string? searchQuery = null, CancellationToken cancellationToken = default);
     }
 }
