@@ -20,19 +20,22 @@ namespace TaskPilot.Services
         private readonly IRepository<TaskItem> _taskRepository;
         private readonly IUnitOfWork _unitOfWork;
         private readonly INotificationService _notificationService;
+        private readonly ICurrentUserService _currentUserService;
 
         public BacklogService(
             IRepository<Project> projectRepository,
             IRepository<UserStory> userStoryRepository,
             IRepository<TaskItem> taskRepository,
             IUnitOfWork unitOfWork,
-            INotificationService notificationService)
+            INotificationService notificationService,
+            ICurrentUserService currentUserService)
         {
             _projectRepository = projectRepository;
             _userStoryRepository = userStoryRepository;
             _taskRepository = taskRepository;
             _unitOfWork = unitOfWork;
             _notificationService = notificationService;
+            _currentUserService = currentUserService;
         }
 
         public async Task<Result<BacklogDto>> GetBacklogAsync(Guid projectId, string lang = "en")
@@ -194,6 +197,36 @@ namespace TaskPilot.Services
             return Result<UserStoryDto>.Success(dto);
         }
 
+        public async Task<Result<UserStoryDetailDto>> GetUserStoryAsync(Guid storyId)
+        {
+            var story = await _userStoryRepository.GetQueryable()
+                .AsNoTracking()
+                .Include(s => s.Project)
+                .FirstOrDefaultAsync(s => s.Id == storyId);
+
+            if (story == null)
+                return Result<UserStoryDetailDto>.Failure(new Error("UserStory.NotFound", ErrorType.NotFound, "User story not found."));
+
+            var userId = _currentUserService.UserId;
+            if (userId == null || story.Project?.ManagerId != userId.Value)
+                return Result<UserStoryDetailDto>.Failure(CommonErrors.Forbidden("You do not have access to this project."));
+
+            var dto = new UserStoryDetailDto
+            {
+                Id = story.Id,
+                ProjectId = story.ProjectId,
+                TitleEn = story.TitleEn,
+                TitleAr = story.TitleAr ?? string.Empty,
+                DescriptionEn = story.DescriptionEn,
+                DescriptionAr = story.DescriptionAr,
+                AcceptanceCriteriaEn = story.AcceptanceCriteriaEn,
+                AcceptanceCriteriaAr = story.AcceptanceCriteriaAr,
+                Priority = story.Priority.ToString()
+            };
+
+            return Result<UserStoryDetailDto>.Success(dto);
+        }
+
         public async Task<Result> UpdateUserStoryAsync(Guid storyId, UpdateUserStoryDto request)
         {
             var story = await _userStoryRepository.GetByIdAsync(storyId);
@@ -276,6 +309,43 @@ namespace TaskPilot.Services
             };
 
             return Result<TaskItemDto>.Success(dto);
+        }
+
+        public async Task<Result<TaskDetailDto>> GetTaskAsync(Guid taskId)
+        {
+            var task = await _taskRepository.GetQueryable()
+                .AsNoTracking()
+                .Include(t => t.UserStory)
+                .ThenInclude(s => s.Project)
+                .FirstOrDefaultAsync(t => t.Id == taskId);
+
+            if (task == null)
+                return Result<TaskDetailDto>.Failure(new Error("TaskItem.NotFound", ErrorType.NotFound, "Task not found."));
+
+            var userId = _currentUserService.UserId;
+            if (userId == null || task.UserStory?.Project?.ManagerId != userId.Value)
+                return Result<TaskDetailDto>.Failure(CommonErrors.Forbidden("You do not have access to this project."));
+
+            var dto = new TaskDetailDto
+            {
+                Id = task.Id,
+                UserStoryId = task.UserStoryId.Value,
+                TitleEn = task.TitleEn,
+                TitleAr = task.TitleAr ?? string.Empty,
+                DescriptionEn = task.DescriptionEn,
+                DescriptionAr = task.DescriptionAr,
+                TechnicalSummaryEn = task.TechnicalSummaryEn,
+                TechnicalSummaryAr = task.TechnicalSummaryAr,
+                AcceptanceCriteriaEn = task.AcceptanceCriteriaEn,
+                AcceptanceCriteriaAr = task.AcceptanceCriteriaAr,
+                EstimatedHours = task.EstimatedHours,
+                EffortSize = task.EffortSize.ToString(),
+                Type = task.Type.ToString(),
+                Priority = task.Priority.ToString(),
+                Status = task.Status.ToString()
+            };
+
+            return Result<TaskDetailDto>.Success(dto);
         }
 
         public async Task<Result> UpdateTaskAsync(Guid taskId, UpdateTaskDto request)

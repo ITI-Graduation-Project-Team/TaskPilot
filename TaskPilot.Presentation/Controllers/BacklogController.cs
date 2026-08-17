@@ -41,6 +41,13 @@ namespace TaskPilot.Presentation.Controllers
             return HandleCreated(result, SuccessCodes.UserStory.Created);
         }
 
+        [HttpGet("~/api/userstories/{storyId:guid}")]
+        public async Task<ActionResult> GetUserStory(Guid storyId)
+        {
+            var result = await _backlogService.GetUserStoryAsync(storyId);
+            return HandleResult(result);
+        }
+
         [HttpPut("~/api/userstories/{storyId:guid}")]
         public async Task<ActionResult> UpdateUserStory(Guid storyId, [FromBody] UpdateUserStoryDto request)
         {
@@ -60,6 +67,13 @@ namespace TaskPilot.Presentation.Controllers
         {
             var result = await _backlogService.CreateTaskAsync(storyId, request);
             return HandleCreated(result, SuccessCodes.Task.Created);
+        }
+
+        [HttpGet("~/api/tasks/{taskId:guid}")]
+        public async Task<ActionResult> GetTask(Guid taskId)
+        {
+            var result = await _backlogService.GetTaskAsync(taskId);
+            return HandleResult(result);
         }
 
         [HttpPut("~/api/tasks/{taskId:guid}")]
