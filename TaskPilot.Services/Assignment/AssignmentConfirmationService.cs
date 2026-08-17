@@ -1,17 +1,12 @@
-using System;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using TaskPilot.Data.Repositories;
 using TaskPilot.Data.Repositories.Interfaces;
 using TaskPilot.DTOs.Assignment;
 using TaskPilot.Models.Common;
+using TaskPilot.Models.Common.Errors;
 using TaskPilot.Models.Common.Results;
+using TaskPilot.Models.Entities;
 using TaskPilot.Models.Enums;
-using TaskPilot.Services.Interfaces;
-using TaskPilot.Services.Interfaces.External; // <-- تمت إضافة مسار خدمة جوجل
-using TaskPilot.Services.Assignment;
+using Microsoft.EntityFrameworkCore;
 
 namespace TaskPilot.Services.Assignment;
 
@@ -19,33 +14,28 @@ public class AssignmentConfirmationService : IAssignmentConfirmationService
 {
     private readonly ITaskRepository _taskRepository;
     private readonly IProjectEmployeeRepository _projectEmployeeRepository;
+    private readonly IRepository<ProjectEmployee> _projectEmployeeEntityRepository;
+    private readonly IRepository<TaskItem> _taskEntityRepository;
+    private readonly IRepository<Sprint> _sprintRepository;
     private readonly ILocalizationService _localizationService;
-    private readonly INotificationService _notificationService;
-    private readonly ICalenderService _calenderService;
-    private readonly ILogger<AssignmentConfirmationService> _logger;
-
-    // 1. إضافة خدمة جوجل هنا
-    private readonly IGoogleCalendarService _googleCalendarService;
     private readonly ITeamSnapshotService _teamSnapshotService;
 
     public AssignmentConfirmationService(
         ITaskRepository taskRepository,
         IProjectEmployeeRepository projectEmployeeRepository,
+        IRepository<ProjectEmployee> projectEmployeeEntityRepository,
+        IRepository<TaskItem> taskEntityRepository,
+        IRepository<Sprint> sprintRepository,
         ILocalizationService localizationService,
-        INotificationService notificationService,
-        ICalenderService calenderService,
-        IGoogleCalendarService googleCalendarService, // <-- حقن الخدمة هنا
-        ITeamSnapshotService teamSnapshotService,
-        ILogger<AssignmentConfirmationService> logger)
+        ITeamSnapshotService teamSnapshotService)
     {
         _taskRepository = taskRepository;
         _projectEmployeeRepository = projectEmployeeRepository;
+        _projectEmployeeEntityRepository = projectEmployeeEntityRepository;
+        _taskEntityRepository = taskEntityRepository;
+        _sprintRepository = sprintRepository;
         _localizationService = localizationService;
-        _notificationService = notificationService;
-        _calenderService = calenderService;
-        _googleCalendarService = googleCalendarService; // <-- حفظ الخدمة في المتغير
         _teamSnapshotService = teamSnapshotService;
-        _logger = logger;
     }
 
     public async Task<Result<AssignmentConfirmationResult>> ConfirmAsync(
@@ -54,247 +44,187 @@ public class AssignmentConfirmationService : IAssignmentConfirmationService
         ConfirmAssignmentsRequest request,
         CancellationToken cancellationToken = default)
     {
-        var result = new AssignmentConfirmationResult
-        {
-            TotalRequested = request.Assignments.Count
-        };
+        var sprintResult = await GetPlannedSprintAsync(projectId, sprintId);
+        if (sprintResult.IsFailure)
+            return Result.Failure<AssignmentConfirmationResult>(sprintResult.Error!);
 
-        if (!request.Assignments.Any())
+        if (request.Assignments.GroupBy(a => a.TaskId).Any(g => g.Count() > 1))
+            return Result.Failure<AssignmentConfirmationResult>(CommonErrors.InvalidInput("Duplicate task assignments are not allowed."));
+
+        var result = new AssignmentConfirmationResult { TotalRequested = request.Assignments.Count };
+        if (request.Assignments.Count == 0)
         {
             result.Warnings.Add(_localizationService.GetString("assignment.warnings.noAssignmentsProvided"));
             return Result.Success(result);
         }
 
-        var validEmployeeIds = await _projectEmployeeRepository
-            .GetEmployeeIdsByProjectAsync(projectId, cancellationToken);
-
-        var sprintTasks = await _taskRepository
-            .GetBySprintIdAsync(sprintId, cancellationToken);
-
+        var validEmployeeIds = await _projectEmployeeRepository.GetEmployeeIdsByProjectAsync(projectId, cancellationToken);
+        var sprintTasks = await _taskRepository.GetBySprintIdAsync(sprintId, cancellationToken);
         var sprintTaskMap = sprintTasks.ToDictionary(t => t.Id);
 
         var snapshotResult = await _teamSnapshotService.GetSnapshotAsync(projectId, sprintId, cancellationToken);
-        var provisionalRemaining = new Dictionary<Guid, double>();
-        var totalCapacities = new Dictionary<Guid, double>();
+        if (snapshotResult.IsFailure)
+            return Result.Failure<AssignmentConfirmationResult>(snapshotResult.Error!);
 
-        if (snapshotResult.IsSuccess && snapshotResult.Value != null)
-        {
-            foreach (var dev in snapshotResult.Value.Team.Developers)
-            {
-                provisionalRemaining[dev.EmployeeId] = dev.RemainingHours;
-                totalCapacities[dev.EmployeeId] = dev.RemainingHours;
-            }
-        }
+        var developers = snapshotResult.Value!.Team.Developers.ToDictionary(d => d.EmployeeId);
+        var provisionalRemaining = developers.ToDictionary(x => x.Key, x => x.Value.RemainingHours);
+        var changes = new List<(TaskItem Task, Guid? EmployeeId)>();
+        var affectedEmployees = new HashSet<Guid>();
 
         foreach (var assignment in request.Assignments)
         {
             if (!sprintTaskMap.TryGetValue(assignment.TaskId, out var task))
             {
                 result.Skipped++;
-                var warningTpl = _localizationService.GetString("assignment.warnings.taskNotFound");
-                result.Warnings.Add(string.Format(warningTpl, assignment.TaskId, sprintId));                continue;
+                var warning = _localizationService.GetString("assignment.warnings.taskNotFound");
+                result.Warnings.Add(string.Format(warning, assignment.TaskId, sprintId));
+                continue;
             }
 
             if (assignment.EmployeeId.HasValue && !validEmployeeIds.Contains(assignment.EmployeeId.Value))
             {
                 result.Skipped++;
-                var warningTpl = _localizationService.GetString("assignment.warnings.employeeNotInProject");
-                result.Warnings.Add(string.Format(warningTpl, assignment.EmployeeId.Value));      
+                var warning = _localizationService.GetString("assignment.warnings.employeeNotInProject");
+                result.Warnings.Add(string.Format(warning, assignment.EmployeeId.Value));
                 continue;
             }
 
-            if (task.EmployeeId != assignment.EmployeeId)
+            if (assignment.EmployeeId.HasValue && !developers.ContainsKey(assignment.EmployeeId.Value))
             {
-                if (task.EmployeeId.HasValue)
-                {
-                    result.OverridesApplied++;
-                    if (provisionalRemaining.ContainsKey(task.EmployeeId.Value))
-                    {
-                        provisionalRemaining[task.EmployeeId.Value] += (double)task.EstimatedHours;
-                    }
-                }
-
-                //.........................................................................
-                // Capacity warning — not a block
-                if (assignment.EmployeeId.HasValue && provisionalRemaining.ContainsKey(assignment.EmployeeId.Value))
-                {
-                    provisionalRemaining[assignment.EmployeeId.Value] -= (double)task.EstimatedHours;
-
-                    if (provisionalRemaining[assignment.EmployeeId.Value] < 0)
-                    {
-                        // Using invariant English string as default if localization not set
-                        var warnEn = $"Developer over capacity. Sprint capacity: {totalCapacities[assignment.EmployeeId.Value]:F0}h, Assigned: {(totalCapacities[assignment.EmployeeId.Value] - provisionalRemaining[assignment.EmployeeId.Value]):F0}h.";
-                        var warningTpl = _localizationService.GetString("assignment.warnings.insufficientCapacity") ?? warnEn;
-                        
-                        if (warningTpl.Contains("{0}"))
-                        {
-                            result.Warnings.Add(string.Format(warningTpl, task.TitleEn, provisionalRemaining[assignment.EmployeeId.Value].ToString("F0"), task.EstimatedHours));
-                        }
-                        else
-                        {
-                            result.Warnings.Add(warnEn);
-                        }
-                    }
-                }
+                result.Skipped++;
+                var warning = _localizationService.GetString("assignment.warnings.employeeNotInProject");
+                result.Warnings.Add(string.Format(warning, assignment.EmployeeId.Value));
+                continue;
             }
 
-                //.....................................................................................
+            if (task.EmployeeId == assignment.EmployeeId)
+                continue;
 
-            task.EmployeeId = assignment.EmployeeId;
-            // Task status is typically ToDo when planned in a sprint, regardless of assignee
-            task.Status = TaskItemStatus.ToDo;
+            if (task.EmployeeId.HasValue && provisionalRemaining.ContainsKey(task.EmployeeId.Value))
+            {
+                provisionalRemaining[task.EmployeeId.Value] += (double)task.EstimatedHours;
+                result.OverridesApplied++;
+            }
+
+            if (assignment.EmployeeId.HasValue && provisionalRemaining.ContainsKey(assignment.EmployeeId.Value))
+            {
+                provisionalRemaining[assignment.EmployeeId.Value] -= (double)task.EstimatedHours;
+                affectedEmployees.Add(assignment.EmployeeId.Value);
+            }
+
+            changes.Add((task, assignment.EmployeeId));
             result.AssignmentsConfirmed++;
-
-            if (assignment.EmployeeId.HasValue)
-            {
-                try
-                {
-                    var eventTitle = $" TaskPilot: {task.TitleEn}";
-                    var eventDescription = $"You have a new task assigned.\nTitle: {task.TitleEn}\nEstimated Hours: {task.EstimatedHours}";
-
-                    var startTime = DateTime.UtcNow;
-                    var endTime = DateTime.UtcNow.AddHours(Math.Max(1, (double)task.EstimatedHours));
-
-                    await _googleCalendarService.AddEventToCalendarAsync(
-                        assignment.EmployeeId.Value,
-                        eventTitle,
-                        eventDescription,
-                        startTime,
-                        endTime
-                    );
-                }
-                catch (Exception ex)
-                {
-                    // The assignment itself succeeds regardless of Google Calendar status.
-                    // This warning will appear in server logs to help diagnose Calendar issues.
-                    _logger.LogWarning(ex,
-                        "Google Calendar event creation failed for employee {EmployeeId} on task '{TaskTitle}'. " +
-                        "The employee may not have linked their Google Calendar yet.",
-                        assignment.EmployeeId.Value, task.TitleEn);
-                }
-            }
         }
+
+        var overCapacityEmployees = affectedEmployees
+            .Where(id => provisionalRemaining[id] < 0)
+            .ToList();
+
+        if (overCapacityEmployees.Count > 0 && !request.AllowOverCapacity)
+            return Result.Failure<AssignmentConfirmationResult>(AssignmentErrors.CapacityExceeded);
+
+        foreach (var employeeId in overCapacityEmployees)
+        {
+            var developer = developers[employeeId];
+            var assignedHours = developer.MaxSprintHours - provisionalRemaining[employeeId];
+            result.Warnings.Add($"{developer.FullName} is over capacity: {assignedHours:F0}h assigned of {developer.MaxSprintHours:F0}h.");
+        }
+
+        foreach (var change in changes)
+            change.Task.EmployeeId = change.EmployeeId;
 
         return Result.Success(result);
     }
+
+    public async Task<Result<AssignTaskResult>> AssignTaskAsync(
+        Guid projectId,
+        Guid sprintId,
+        Guid taskId,
+        AssignTaskRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var sprintResult = await GetPlannedSprintAsync(projectId, sprintId);
+        if (sprintResult.IsFailure)
+            return Result.Failure<AssignTaskResult>(sprintResult.Error!);
+
+        var sprint = sprintResult.Value;
+
+        var task = await _taskRepository.GetByIdWithSprintAsync(taskId, cancellationToken);
+        if (task == null || task.SprintId != sprintId)
+            return Result.Failure<AssignTaskResult>(CommonErrors.NotFound("Task"));
+
+        var previousEmployeeId = task.EmployeeId;
+        if (previousEmployeeId == request.EmployeeId)
+        {
+            return Result.Success(new AssignTaskResult
+            {
+                TaskId = task.Id,
+                PreviousEmployeeId = previousEmployeeId,
+                EmployeeId = request.EmployeeId
+            });
+        }
+
+        var result = new AssignTaskResult
+        {
+            TaskId = task.Id,
+            PreviousEmployeeId = previousEmployeeId,
+            EmployeeId = request.EmployeeId
+        };
+
+        if (request.EmployeeId.HasValue)
+        {
+            var projectEmployee = await _projectEmployeeEntityRepository.GetQueryable()
+                .AsNoTracking()
+                .Include(pe => pe.Employee)
+                .Include(pe => pe.Project)
+                    .ThenInclude(project => project.Company)
+                .FirstOrDefaultAsync(pe =>
+                    pe.ProjectId == projectId &&
+                    pe.EmployeeId == request.EmployeeId.Value &&
+                    pe.IsActive &&
+                    !pe.Employee.IsDeactivated,
+                    cancellationToken);
+
+            if (projectEmployee == null)
+                return Result.Failure<AssignTaskResult>(CommonErrors.InvalidInput("The selected employee is not an active member of this project."));
+
+            var currentAssignedHours = await _taskEntityRepository.GetQueryable()
+                .AsNoTracking()
+                .Where(t => t.SprintId == sprintId && t.EmployeeId == request.EmployeeId.Value)
+                .SumAsync(t => (decimal?)t.EstimatedHours, cancellationToken) ?? 0m;
+            var maxSprintHours = AssignmentCapacityCalculator.CalculateMaxSprintHours(
+                sprint,
+                projectEmployee.Project.Company,
+                projectEmployee.AllocationPercentage);
+            var projectedAssignedHours = (double)(currentAssignedHours + task.EstimatedHours);
+            result.AssignedHours = projectedAssignedHours;
+            result.MaxSprintHours = maxSprintHours;
+
+            if (projectedAssignedHours > maxSprintHours)
+            {
+                if (!request.AllowOverCapacity)
+                    return Result.Failure<AssignTaskResult>(AssignmentErrors.CapacityExceeded);
+
+                var fullName = $"{projectEmployee.Employee.FirstNameEn} {projectEmployee.Employee.LastNameEn}".Trim();
+                result.Warnings.Add($"{fullName} will be over capacity: {projectedAssignedHours:F0}h assigned of {maxSprintHours:F0}h.");
+            }
+        }
+
+        task.EmployeeId = request.EmployeeId;
+        result.Changed = true;
+        return Result.Success(result);
+    }
+
+    private async Task<Result<Sprint>> GetPlannedSprintAsync(Guid projectId, Guid sprintId)
+    {
+        var sprint = await _sprintRepository.GetByIdAsync(sprintId);
+        if (sprint == null)
+            return Result.Failure<Sprint>(AssignmentErrors.SprintNotFound);
+        if (sprint.ProjectId != projectId)
+            return Result.Failure<Sprint>(AssignmentErrors.SprintDoesNotBelongToProject);
+        if (sprint.Status != SprintStatus.Planned)
+            return Result.Failure<Sprint>(AssignmentErrors.SprintNotPlanned);
+
+        return Result.Success(sprint);
+    }
 }
-
-
-//using System;
-//using System.Linq;
-//using System.Threading;
-//using System.Threading.Tasks;
-//using TaskPilot.Data.Repositories;
-//using TaskPilot.Data.Repositories.Interfaces;
-//using TaskPilot.DTOs.Assignment;
-//using TaskPilot.Models.Common;
-//using TaskPilot.Models.Common.Results;
-//using TaskPilot.Models.Enums;
-//using TaskPilot.Services.Interfaces;
-
-//namespace TaskPilot.Services.Assignment;
-
-//public class AssignmentConfirmationService : IAssignmentConfirmationService
-//{
-//    private readonly ITaskRepository _taskRepository;
-//    private readonly IProjectEmployeeRepository _projectEmployeeRepository;
-//    private readonly ILocalizationService _localizationService;
-//    private readonly INotificationService _notificationService;
-//    private readonly ICalenderService _calenderService;
-
-//    public AssignmentConfirmationService(
-//        ITaskRepository taskRepository,
-//        IProjectEmployeeRepository projectEmployeeRepository,
-//        ILocalizationService localizationService,
-//        INotificationService notificationService,
-//        ICalenderService calenderService)
-//    {
-//        _taskRepository = taskRepository;
-//        _projectEmployeeRepository = projectEmployeeRepository;
-//        _localizationService = localizationService;
-//        _notificationService = notificationService;
-//        _calenderService = calenderService;
-//    }
-
-//    public async Task<Result<AssignmentConfirmationResult>> ConfirmAsync(
-//        Guid projectId,
-//        Guid sprintId,
-//        ConfirmAssignmentsRequest request,
-//        CancellationToken cancellationToken = default)
-//    {
-//        var result = new AssignmentConfirmationResult
-//        {
-//            TotalRequested = request.Assignments.Count
-//        };
-
-//        if (!request.Assignments.Any())
-//        {
-//            result.Warnings.Add(_localizationService.GetString("assignment.warnings.noAssignmentsProvided"));
-//            return Result.Success(result);
-//        }
-
-//        // 1. Load all valid employee IDs for this project once
-//        var validEmployeeIds = await _projectEmployeeRepository
-//            .GetEmployeeIdsByProjectAsync(projectId, cancellationToken);
-
-//        // 2. Load all task IDs for this sprint once
-//        var sprintTasks = await _taskRepository
-//            .GetBySprintIdAsync(sprintId, cancellationToken);
-
-//        var sprintTaskMap = sprintTasks.ToDictionary(t => t.Id);
-
-//        // 3. Process each assignment
-//        foreach (var assignment in request.Assignments)
-//        {
-//            // Validate task belongs to this sprint
-//            if (!sprintTaskMap.TryGetValue(assignment.TaskId, out var task))
-//            {
-//                result.Skipped++;
-//                var warningTpl = _localizationService.GetString("assignment.warnings.taskNotFound");
-//                result.Warnings.Add(string.Format(warningTpl, assignment.TaskId, sprintId));
-//                continue;
-//            }
-
-//            // Validate employee belongs to this project
-//            if (!validEmployeeIds.Contains(assignment.EmployeeId))
-//            {
-//                result.Skipped++;
-//                var warningTpl = _localizationService.GetString("assignment.warnings.employeeNotInProject");
-//                result.Warnings.Add(string.Format(warningTpl, assignment.EmployeeId));
-//                continue;
-//            }
-
-//            // Track override
-//            if (task.EmployeeId.HasValue && task.EmployeeId != assignment.EmployeeId)
-//            {
-//                result.OverridesApplied++;
-//            }
-
-//            // Capacity warning — not a block
-//            var employeeCurrentHours = sprintTasks
-//                .Where(t => t.EmployeeId == assignment.EmployeeId)
-//                .Sum(t => (double)t.EstimatedHours);
-
-//            // This is a rough check using already-loaded data
-//            var maxSprintHours = 84.0; // default 14d × 6h
-//            var remaining = maxSprintHours - employeeCurrentHours;
-
-//            if (remaining < (double)task.EstimatedHours)
-//            {
-//                var warningTpl = _localizationService.GetString("assignment.warnings.insufficientCapacity");
-//                result.Warnings.Add(string.Format(warningTpl, task.TitleEn, remaining.ToString("F0"), task.EstimatedHours));
-//            }
-
-//            // Apply assignment (no SaveChangesAsync here!)
-//            task.EmployeeId = assignment.EmployeeId;
-
-//            // Transition task status to ToDo upon assignment confirmation (ready to start)
-//            task.Status = TaskItemStatus.ToDo;
-
-//            result.AssignmentsConfirmed++;
-
-//        }
-
-//        return Result.Success(result);
-//    }
-//}

@@ -24,7 +24,7 @@ namespace TaskPilot.Data.Repositories
             CancellationToken cancellationToken = default)
         {
             var ids = await _context.ProjectEmployees
-                .Where(pe => pe.ProjectId == projectId)
+                .Where(pe => pe.ProjectId == projectId && pe.IsActive && !pe.Employee.IsDeactivated)
                 .Select(pe => pe.EmployeeId)
                 .ToListAsync(cancellationToken);
 

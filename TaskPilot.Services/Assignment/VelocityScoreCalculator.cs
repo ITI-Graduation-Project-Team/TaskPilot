@@ -9,9 +9,8 @@ public class VelocityScoreCalculator : IScoreCalculator
         if (!developer.HasHistoricalData)
             return 50;
 
-        var velocity = developer.HistoricalVelocity.GetValueOrDefault(0);
-        if (velocity > 100) return 100;
-        if (velocity < 0) return 0;
-        return velocity;
+        var deliveryRatio = developer.HistoricalVelocity.GetValueOrDefault(1);
+        var reliabilityScore = 100 - Math.Abs(1 - deliveryRatio) * 100;
+        return Math.Clamp(reliabilityScore, 0, 100);
     }
 }
