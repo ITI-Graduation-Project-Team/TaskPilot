@@ -6,6 +6,9 @@ namespace TaskPilot.Models.Common.Errors
 {
     public class AuthErrors
     {
+        public static readonly Error InvalidRoleRegistration =
+            new("INVALID_ROLE_REGISTRATION", ErrorType.Validation, "Only ProjectManager or Employee roles can be registered.");
+
         public static readonly Error EmailAlreadyRegistered =
           new("EMAIL_ALREADY_REGISTERED", ErrorType.Conflict);
 

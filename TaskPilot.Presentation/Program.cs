@@ -171,7 +171,7 @@ namespace TaskPilot.Presentation
             app.UseSwagger();
             app.UseSwaggerUI();
 
-            if (!app.Environment.IsProduction())
+            if (app.Environment.IsDevelopment())
             {
                 app.UseHangfireDashboard("/hangfire", new DashboardOptions
                 {
@@ -201,6 +201,14 @@ namespace TaskPilot.Presentation
 
             app.MapControllers();
             app.MapHub<TaskPilot.Presentation.Hubs.NotificationHub>("/hubs/notifications");
+
+            if (!app.Environment.IsDevelopment() && !app.Environment.IsProduction())
+            {
+                app.MapHangfireDashboard("/hangfire", new DashboardOptions
+                {
+                    Authorization = new[] { new HangfireAllowAllDashboardFilter() }
+                }).RequireAuthorization(new Microsoft.AspNetCore.Authorization.AuthorizeAttribute { Roles = "Admin" });
+            }
 
             app.Run();
            
