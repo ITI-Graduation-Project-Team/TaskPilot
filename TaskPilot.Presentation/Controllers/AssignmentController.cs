@@ -1,17 +1,15 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
-using TaskPilot.Services.Assignment;
-using TaskPilot.Models.Common.Results;
-using Microsoft.AspNetCore.Authorization;
-using TaskPilot.Models.Common;
 using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using TaskPilot.Data.Repositories;
-using TaskPilot.Models.Entities;
-using TaskPilot.Models.Common.Errors;
 using TaskPilot.DTOs.Assignment;
-using TaskPilot.Data.Repositories.Interfaces;
+using TaskPilot.Models.Common;
+using TaskPilot.Models.Common.Errors;
+using TaskPilot.Models.Common.Results;
+using TaskPilot.Models.Entities;
+using TaskPilot.Models.Enums;
+using TaskPilot.Services.Assignment;
 
 namespace TaskPilot.Presentation.Controllers;
 
@@ -20,72 +18,69 @@ namespace TaskPilot.Presentation.Controllers;
 [Authorize(Roles = "Admin,ProjectManager")]
 public class AssignmentController : ApiControllerBase
 {
-    private readonly IAssignmentExplanationService _assignmentExplanationService;
+    private readonly IAssignmentScoringService _scoringService;
     private readonly IAssignmentConfirmationService _confirmationService;
-    private readonly ITaskRepository _taskRepository;
-    private readonly IRepository<TaskItem> _baseTaskRepository;
     private readonly IUnitOfWork _unitOfWork;
-    private readonly IRepository<User> _userRepository;
     private readonly IRepository<Project> _projectRepository;
+    private readonly IRepository<Sprint> _sprintRepository;
+    private readonly IRepository<ProjectEmployee> _projectEmployeeRepository;
 
     public AssignmentController(
-        IAssignmentExplanationService assignmentExplanationService,
+        IAssignmentScoringService scoringService,
         IAssignmentConfirmationService confirmationService,
-        ITaskRepository taskRepository,
-        IRepository<TaskItem> baseTaskRepository,
         IUnitOfWork unitOfWork,
-        IRepository<User> userRepository,
-        IRepository<Project> projectRepository)
+        IRepository<Project> projectRepository,
+        IRepository<Sprint> sprintRepository,
+        IRepository<ProjectEmployee> projectEmployeeRepository)
     {
-        _assignmentExplanationService = assignmentExplanationService;
+        _scoringService = scoringService;
         _confirmationService = confirmationService;
-        _taskRepository = taskRepository;
-        _baseTaskRepository = baseTaskRepository;
         _unitOfWork = unitOfWork;
-        _userRepository = userRepository;
         _projectRepository = projectRepository;
+        _sprintRepository = sprintRepository;
+        _projectEmployeeRepository = projectEmployeeRepository;
     }
 
     [HttpGet("suggestions")]
     public async Task<ActionResult> GetSuggestions(
-        [FromRoute] Guid projectId,
-        [FromRoute] Guid sprintId,
+        Guid projectId,
+        Guid sprintId,
         CancellationToken cancellationToken)
     {
-        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (!Guid.TryParse(userIdStr, out Guid userId))
-            return HandleResult(Result.Failure(CommonErrors.Unauthorized()));
+        var access = await ValidateProjectAccessAsync(projectId);
+        if (access.IsFailure)
+            return HandleResult(access);
 
-        if (!User.IsInRole("Admin"))
-        {
-            var user = await _userRepository.GetByIdAsync(userId);
-            if (user == null)
-                return HandleResult(Result.Failure(CommonErrors.Unauthorized()));
-
-            var project = await _projectRepository.GetByIdAsync(projectId);
-            if (project == null)
-                return HandleResult(Result.Failure(AssignmentErrors.InvalidProject));
-
-            if (user.CompanyId != project.CompanyId)
-                return HandleResult(Result.Failure(CommonErrors.Forbidden()));
-        }
-
-        var lang = Request.Headers["lang"].ToString();
-        if (string.IsNullOrEmpty(lang)) lang = "en";
-
-        var result = await _assignmentExplanationService.GenerateAsync(projectId, sprintId, lang, cancellationToken);
-        
-        // Sprint 8c is READ ONLY.
-        // Therefore NO _unitOfWork.SaveChangesAsync(); must exist inside this controller.
-        
-        return HandleResult(result, SuccessCodes.Assignment.ExplanationsGenerated);
+        var result = await _scoringService.ScoreAsync(projectId, sprintId, cancellationToken);
+        return HandleResult(result);
     }
 
-    /// <summary>
-    /// Confirm PM-reviewed assignments in bulk.
-    /// Partial confirm allowed — tasks not included remain unchanged.
-    /// Override allowed — tasks already assigned will be reassigned.
-    /// </summary>
+    [HttpGet("team")]
+    public async Task<ActionResult> GetAssignmentTeam(
+        Guid projectId,
+        Guid sprintId,
+        CancellationToken cancellationToken)
+    {
+        var validation = await ValidateAccessAndSprintAsync(projectId, sprintId);
+        if (validation.IsFailure)
+            return HandleResult(validation);
+
+        var team = await _projectEmployeeRepository.GetQueryable()
+            .AsNoTracking()
+            .Where(pe => pe.ProjectId == projectId && pe.IsActive && !pe.Employee.IsDeactivated)
+            .OrderBy(pe => pe.Employee.FirstNameEn)
+            .ThenBy(pe => pe.Employee.LastNameEn)
+            .Select(pe => new AssignmentTeamMemberDto
+            {
+                EmployeeId = pe.EmployeeId,
+                FullName = (pe.Employee.FirstNameEn + " " + pe.Employee.LastNameEn).Trim(),
+                JobTitle = pe.Employee.JobTitle ?? string.Empty
+            })
+            .ToListAsync(cancellationToken);
+
+        return HandleResult(Result.Success(team));
+    }
+
     [HttpPost("confirm")]
     public async Task<IActionResult> Confirm(
         Guid projectId,
@@ -93,35 +88,75 @@ public class AssignmentController : ApiControllerBase
         [FromBody] ConfirmAssignmentsRequest request,
         CancellationToken cancellationToken)
     {
-        var result = await _confirmationService
-            .ConfirmAsync(projectId, sprintId, request, cancellationToken);
+        var access = await ValidateProjectAccessAsync(projectId);
+        if (access.IsFailure)
+            return HandleResult(access);
 
+        var result = await _confirmationService.ConfirmAsync(projectId, sprintId, request, cancellationToken);
         if (result.IsSuccess && result.Value!.AssignmentsConfirmed > 0)
-        {
             await _unitOfWork.SaveChangesAsync(cancellationToken);
-        }
 
         return HandleResult(result, SuccessCodes.Assignment.AssignmentsConfirmed);
     }
 
-    /// <summary>
-    /// Remove assignment from a single task (reset to unassigned).
-    /// </summary>
-    [HttpDelete("tasks/{taskId}")]
-    public async Task<IActionResult> UnassignTask(
+    [HttpPatch("tasks/{taskId:guid}")]
+    public async Task<IActionResult> AssignTask(
+        Guid projectId,
+        Guid sprintId,
+        Guid taskId,
+        [FromBody] AssignTaskRequest request,
+        CancellationToken cancellationToken)
+    {
+        var access = await ValidateProjectAccessAsync(projectId);
+        if (access.IsFailure)
+            return HandleResult(access);
+
+        var result = await _confirmationService.AssignTaskAsync(projectId, sprintId, taskId, request, cancellationToken);
+        if (result.IsSuccess && result.Value!.Changed)
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return HandleResult(result);
+    }
+
+    [HttpDelete("tasks/{taskId:guid}")]
+    public Task<IActionResult> UnassignTask(
         Guid projectId,
         Guid sprintId,
         Guid taskId,
         CancellationToken cancellationToken)
+        => AssignTask(projectId, sprintId, taskId, new AssignTaskRequest(), cancellationToken);
+
+    private async Task<Result> ValidateAccessAndSprintAsync(Guid projectId, Guid sprintId)
     {
-        var task = await _baseTaskRepository.GetByIdAsync(taskId);
+        var access = await ValidateProjectAccessAsync(projectId);
+        if (access.IsFailure)
+            return access;
 
-        if (task is null || task.SprintId != sprintId)
-            return HandleResult(Result.Failure(CommonErrors.NotFound()));
+        var sprint = await _sprintRepository.GetByIdAsync(sprintId);
+        if (sprint == null)
+            return Result.Failure(AssignmentErrors.SprintNotFound);
+        if (sprint.ProjectId != projectId)
+            return Result.Failure(AssignmentErrors.SprintDoesNotBelongToProject);
+        if (sprint.Status != SprintStatus.Planned)
+            return Result.Failure(AssignmentErrors.SprintNotPlanned);
 
-        task.EmployeeId = null;
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return Result.Success();
+    }
 
-        return HandleResult(Result.Success(), SuccessCodes.Assignment.TaskUnassigned);
+    private async Task<Result> ValidateProjectAccessAsync(Guid projectId)
+    {
+        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(userIdValue, out var userId))
+            return Result.Failure(CommonErrors.Unauthorized());
+
+        if (User.IsInRole("Admin"))
+            return Result.Success();
+
+        var canManageProject = await _projectRepository.AnyAsync(
+            project => project.Id == projectId && project.ManagerId == userId);
+        if (!canManageProject)
+            return Result.Failure(CommonErrors.Forbidden());
+
+        return Result.Success();
     }
 }

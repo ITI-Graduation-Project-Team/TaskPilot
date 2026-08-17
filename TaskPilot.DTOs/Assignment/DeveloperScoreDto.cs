@@ -9,10 +9,14 @@ public class DeveloperScoreDto
     public double SkillScore { get; set; }
     public double AvailabilityScore { get; set; }
     public double VelocityScore { get; set; }
+    public bool HasHistoricalData { get; set; }
     public double ExperienceScore { get; set; }
     public List<SkillGapDto> SkillGaps { get; set; } = new();
     public double RemainingHours { get; set; }
     public double MaxSprintHours { get; set; }
     public double CurrentAssignedHours { get; set; }
+    public double NonEditableHours { get; set; }
+    public int MatchedSkillsCount { get; set; }
+    public int RequiredSkillsCount { get; set; }
     public bool HasSufficientCapacity { get; set; }
 }

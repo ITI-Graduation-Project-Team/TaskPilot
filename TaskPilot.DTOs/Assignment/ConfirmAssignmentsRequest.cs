@@ -11,6 +11,7 @@ public class ConfirmAssignmentsRequest
     /// Tasks not included remain unchanged (EmployeeId not reset).
     /// </summary>
     public List<TaskAssignmentDto> Assignments { get; set; } = new();
+    public bool AllowOverCapacity { get; set; }
 }
 
 public class TaskAssignmentDto
@@ -18,7 +19,7 @@ public class TaskAssignmentDto
     public Guid TaskId { get; set; }
 
     /// <summary>
-    /// The developer the PM chose — may or may not be the AI top suggestion.
+    /// The developer selected by the project manager; may differ from the top scored candidate.
     /// </summary>
     public Guid? EmployeeId { get; set; }
 }
