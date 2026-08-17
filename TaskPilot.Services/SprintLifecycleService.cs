@@ -33,6 +33,7 @@ namespace TaskPilot.Services
         private readonly IGoogleCalendarService _googleCalendarService;
         private readonly ILocalizationService _localizationService;
         private readonly IBackgroundJobClient _backgroundJobClient;
+        private readonly IRepository<User> _userRepository;
 
         public SprintLifecycleService(
             ISprintRepository sprintRepository,
@@ -45,7 +46,8 @@ namespace TaskPilot.Services
             IGoogleCalendarService googleCalendarService = null!,
             IProjectEmployeeRepository projectEmployeeRepository = null!,
             ILocalizationService localizationService = null!,
-            IBackgroundJobClient backgroundJobClient = null!)
+            IBackgroundJobClient backgroundJobClient = null!,
+            IRepository<User> userRepository = null!)
         {
             _sprintRepository = sprintRepository;
             _projectRepository = projectRepository;
@@ -58,21 +60,51 @@ namespace TaskPilot.Services
             _googleCalendarService = googleCalendarService;
             _localizationService = localizationService;
             _backgroundJobClient = backgroundJobClient;
+            _userRepository = userRepository;
         }
 
-        public async Task<Result<System.Collections.Generic.IEnumerable<SprintListItemDto>>> GetAllSprintsAsync(Guid projectId)
+        public async Task<Result<PagedResult<SprintListItemDto>>> GetAllSprintsPagedAsync(Guid projectId, Guid userId, int page, int pageSize, string? statusFilter, string? dateFrom, string? dateTo, CancellationToken cancellationToken = default)
         {
-            if (projectId == Guid.Empty) return Result.Failure<System.Collections.Generic.IEnumerable<SprintListItemDto>>(SprintErrors.InvalidProject);
+            if (projectId == Guid.Empty) return Result.Failure<PagedResult<SprintListItemDto>>(SprintErrors.InvalidProject);
 
             var project = await _projectRepository.GetByIdAsync(projectId);
             if (project == null)
             {
-                return Result.Failure<System.Collections.Generic.IEnumerable<SprintListItemDto>>(SprintErrors.ProjectNotFound);
+                return Result.Failure<PagedResult<SprintListItemDto>>(SprintErrors.ProjectNotFound);
             }
 
-            var sprints = _sprintRepository.GetQueryable()
-                .Where(s => s.ProjectId == projectId && !s.IsDeleted)
+            if (project.ManagerId != userId)
+            {
+                return Result.Failure<PagedResult<SprintListItemDto>>(TaskPilot.Models.Common.Errors.CommonErrors.Forbidden());
+            }
+
+            var query = _sprintRepository.GetQueryable()
+                .Where(s => s.ProjectId == projectId && !s.IsDeleted);
+
+            if (!string.IsNullOrWhiteSpace(statusFilter) && !statusFilter.Equals("All", StringComparison.OrdinalIgnoreCase))
+            {
+                if (Enum.TryParse<SprintStatus>(statusFilter, true, out var parsedStatus))
+                {
+                    query = query.Where(s => s.Status == parsedStatus);
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(dateFrom) && DateTime.TryParse(dateFrom, out var fromDt))
+            {
+                query = query.Where(s => s.StartDate >= fromDt);
+            }
+
+            if (!string.IsNullOrWhiteSpace(dateTo) && DateTime.TryParse(dateTo, out var toDt))
+            {
+                query = query.Where(s => s.EndDate <= toDt);
+            }
+
+            var totalCount = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.CountAsync(query, cancellationToken);
+
+            var items = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync(query
                 .OrderByDescending(s => s.StartDate)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .Select(s => new SprintListItemDto
                 {
                     SprintId = s.Id,
@@ -85,10 +117,20 @@ namespace TaskPilot.Services
                     Status = s.Status.ToString(),
                     UserStoriesCount = s.UserStories.Count,
                     TasksCount = s.Tasks.Count
-                })
-                .ToList();
+                }), cancellationToken);
 
-            return Result.Success<System.Collections.Generic.IEnumerable<SprintListItemDto>>(sprints);
+            var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+
+            return Result.Success(new PagedResult<SprintListItemDto>
+            {
+                Items = items,
+                Page = page,
+                PageSize = pageSize,
+                TotalItems = totalCount,
+                TotalPages = totalPages,
+                HasPreviousPage = page > 1,
+                HasNextPage = page < totalPages
+            });
         }
 
         public async Task<Result<SprintStatusDto>> StartSprintAsync(Guid projectId, Guid sprintId, CancellationToken cancellationToken = default)

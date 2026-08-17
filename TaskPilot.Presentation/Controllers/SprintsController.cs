@@ -170,9 +170,16 @@ namespace TaskPilot.Presentation.Controllers
 
         [HttpGet]
         [Authorize(Roles = "ProjectManager")]
-        public async Task<IActionResult> GetAllSprints(Guid projectId)
+        public async Task<IActionResult> GetAllSprints(Guid projectId, [FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? statusFilter = null, [FromQuery] string? dateFrom = null, [FromQuery] string? dateTo = null, CancellationToken cancellationToken = default)
         {
-            var result = await _sprintLifecycleService.GetAllSprintsAsync(projectId);
+            if (page < 1) return HandleResult(Result.Failure<PagedResult<SprintListItemDto>>(SprintErrors.InvalidPageNumber));
+            if (pageSize < 1 || pageSize > 100) return HandleResult(Result.Failure<PagedResult<SprintListItemDto>>(SprintErrors.InvalidPageSize));
+
+            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!Guid.TryParse(userIdStr, out Guid userId)) 
+                return HandleResult(Result.Failure<PagedResult<SprintListItemDto>>(CommonErrors.Unauthorized()));
+
+            var result = await _sprintLifecycleService.GetAllSprintsPagedAsync(projectId, userId, page, pageSize, statusFilter, dateFrom, dateTo, cancellationToken);
             return HandleResult(result);
         }
 

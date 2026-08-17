@@ -48,6 +48,10 @@ namespace TaskPilot.Services
 
         public async Task<Result> RegisterAsync(RegisterDTO RegisterRequest, UserRole Role)
         {
+            if (Role != UserRole.ProjectManager && Role != UserRole.Employee)
+            {
+                return AuthErrors.InvalidRoleRegistration;
+            }
 
             //1 check 
             var existingUser = await _identityService.FindByEmailAsync(RegisterRequest.Email);
@@ -316,6 +320,11 @@ namespace TaskPilot.Services
 
         public async Task<Result<AuthResponseDTO>> CompleteGoogleSignupAsync(string idToken, UserRole role)
         {
+            if (role != UserRole.ProjectManager && role != UserRole.Employee)
+            {
+                return Result.Failure<AuthResponseDTO>(AuthErrors.InvalidRoleRegistration);
+            }
+
             var googleResult = await _googleAuthService.ValidateTokenAsync(idToken);
             if (googleResult.IsFailure)
             {
