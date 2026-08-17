@@ -27,6 +27,7 @@ namespace TaskPilot.AI.Agents.Planning
             decimal utilizedHours,
             string selectedStoriesJson,
             string excludedStoriesJson,
+            string language = "English",
             string retrospectiveContext = "",
             int sprintNumber = 1,
             CancellationToken cancellationToken = default)
@@ -56,6 +57,7 @@ namespace TaskPilot.AI.Agents.Planning
                 ["utilizedHours"] = utilizedHours.ToString(),
                 ["selectedStories"] = selectedStoriesJson,
                 ["excludedStories"] = excludedStoriesJson,
+                ["language"] = language,
                 ["retrospectiveContext"] = retrospectiveContext ?? string.Empty,
                 ["sprintNumber"] = sprintNumber.ToString()
             };
@@ -95,14 +97,11 @@ namespace TaskPilot.AI.Agents.Planning
                 suggestion.SprintNumber = sprintNumber;
             }
 
-            if (string.IsNullOrWhiteSpace(suggestion.SprintTitleEn))
+            if (string.IsNullOrWhiteSpace(suggestion.SprintTitle))
             {
-                suggestion.SprintTitleEn = $"Sprint {sprintNumber}";
-            }
-
-            if (string.IsNullOrWhiteSpace(suggestion.SprintTitleAr))
-            {
-                suggestion.SprintTitleAr = $"السبرينت {sprintNumber}";
+                suggestion.SprintTitle = language == "Arabic"
+                    ? $"السبرينت {sprintNumber}"
+                    : $"Sprint {sprintNumber}";
             }
 
             return suggestion;
