@@ -48,6 +48,13 @@ template: |
   {{$retrospectiveContext}}
 
   -------------------------------------------------------------------
+  LANGUAGE
+  -------------------------------------------------------------------
+  Generate the Sprint Goal in BOTH English and Arabic (sprintGoalEn and sprintGoalAr).
+  Generate ALL OTHER text fields in {{$language}} ONLY.
+  Do not produce any other text in any other language.
+
+  -------------------------------------------------------------------
   INSTRUCTIONS
   -------------------------------------------------------------------
 
@@ -59,7 +66,7 @@ template: |
   Incorporate retrospective context if carry-over work is heavily present in the selection.
 
   3. STORY JUSTIFICATION (RATIONALE)
-  For every SELECTED User Story provide a reasonEn and reasonAr.
+  For every SELECTED User Story provide a reason field.
   Explain WHY this story is included.
   Base your explanation on its business value, priority, and capacity efficiency. DO NOT argue with the selection. Assume every selected story is critical to the sprint's success.
 
@@ -72,8 +79,6 @@ template: |
   - Timelines
   - Workload
 
-  Return all narrative fields in BOTH English and Arabic.
-
   -------------------------------------------------------------------
   OUTPUT
   -------------------------------------------------------------------
@@ -85,26 +90,20 @@ template: |
   The JSON MUST exactly match:
   {
     "sprintNumber": {{$sprintNumber}},
-    "sprintTitleEn": "string (e.g. 'Sprint {{$sprintNumber}}: Payment Confirmations')",
-    "sprintTitleAr": "string (e.g. 'السبرينت {{$sprintNumber}}: تأكيدات الدفع')",
+    "sprintTitle": "string (e.g. 'Sprint {{$sprintNumber}}: Payment Confirmations')",
     "sprintGoalEn": "string",
     "sprintGoalAr": "string",
     "totalEstimatedHours": {{$utilizedHours}},
-    "risksEn": [
-      "string"
-    ],
-    "risksAr": [
+    "risks": [
       "string"
     ],
     "stories": [
       {
         "storyId": "guid",
-        "titleEn": "string",
-        "titleAr": "string",
+        "title": "string",
         "estimatedHours": number,
         "priorityScore": number,
-        "reasonEn": "string",
-        "reasonAr": "string"
+        "reason": "string"
       }
     ]
   }

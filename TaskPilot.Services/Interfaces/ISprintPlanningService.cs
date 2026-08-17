@@ -5,6 +5,6 @@ namespace TaskPilot.Services.Interfaces
 {
     public interface ISprintPlanningService
     {
-        Task<Result<SprintSuggestionDto>> GenerateSprintSuggestionAsync(Guid projectId, CancellationToken cancellationToken = default);
+        Task<Result<SprintSuggestionDto>> GenerateSprintSuggestionAsync(Guid projectId, string lang = "en", CancellationToken cancellationToken = default);
     }
 }

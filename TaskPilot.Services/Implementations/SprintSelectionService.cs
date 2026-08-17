@@ -66,7 +66,7 @@ namespace TaskPilot.Services.Implementations
                         result.ExcludedStories.Add(new ExcludedStoryDto
                         {
                             StoryId = story.Id,
-                            TitleEn = story.TitleEn,
+                            Title = story.TitleEn,
                             Reason = $"Excluded due to unmet dependency on '{depName}'."
                         });
                         continue;
@@ -85,12 +85,10 @@ namespace TaskPilot.Services.Implementations
                     result.SelectedStories.Add(new SuggestedStoryDto
                     {
                         StoryId = story.Id,
-                        TitleEn = story.TitleEn,
-                        TitleAr = story.TitleAr,
+                        Title = story.TitleEn,
                         EstimatedHours = item.TotalEstimatedHours,
                         PriorityScore = (item.IsCarryOver ? 1000 : GetPriorityValue(story.Priority)), 
-                        ReasonEn = string.Empty, 
-                        ReasonAr = string.Empty
+                        Reason = string.Empty
                     });
                 }
                 else
@@ -99,7 +97,7 @@ namespace TaskPilot.Services.Implementations
                     result.ExcludedStories.Add(new ExcludedStoryDto
                     {
                         StoryId = story.Id,
-                        TitleEn = story.TitleEn,
+                        Title = story.TitleEn,
                         Reason = "Excluded due to sprint capacity limits."
                     });
                 }
@@ -141,7 +139,7 @@ namespace TaskPilot.Services.Implementations
                                 excludedStories.Add(new ExcludedStoryDto
                                 {
                                     StoryId = cycleNodeId,
-                                    TitleEn = nodeStory.TitleEn,
+                                    Title = nodeStory.TitleEn,
                                     Reason = "Excluded due to a circular dependency cycle."
                                 });
                             }

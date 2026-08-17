@@ -57,7 +57,7 @@ namespace TaskPilot.Services
             _logger = logger;
         }
 
-        public async Task<Result<SprintSuggestionDto>> GenerateSprintSuggestionAsync(Guid projectId, CancellationToken cancellationToken = default)
+        public async Task<Result<SprintSuggestionDto>> GenerateSprintSuggestionAsync(Guid projectId, string lang = "en", CancellationToken cancellationToken = default)
         {
             var project = await _projectRepository.GetByIdAsync(projectId);
             if (project == null)
@@ -180,7 +180,10 @@ namespace TaskPilot.Services
                 }
             }
 
-            _logger.LogInformation("Generating Sprint suggestion for ProjectId: {ProjectId} with {StoryCount} unassigned stories", projectId, unassignedStories.Count);
+            // Map lang code to full word expected by the LLM prompt
+            var language = lang.Equals("ar", StringComparison.OrdinalIgnoreCase) ? "Arabic" : "English";
+
+            _logger.LogInformation("Generating Sprint suggestion for ProjectId: {ProjectId} with {StoryCount} unassigned stories (lang={Lang})", projectId, unassignedStories.Count, lang);
 
             var existingSprintsCount = _sprintRepository != null
                 ? await _sprintRepository.GetQueryable().CountAsync(s => s.ProjectId == projectId, cancellationToken)
@@ -217,7 +220,7 @@ namespace TaskPilot.Services
                     highlightedExcluded.Add(new
                     {
                         excluded.StoryId,
-                        excluded.TitleEn,
+                        excluded.Title,
                         excluded.Reason
                     });
                 }
@@ -253,13 +256,15 @@ namespace TaskPilot.Services
                     selectionResult.UtilizedHours,
                     selectedStoriesJson,
                     excludedStoriesJson,
+                    language,
                     retrospectiveContext,
                     nextSprintNumber,
                     cancellationToken);
                     
-                // Append transparency fields from C# calculation
-                suggestion.CapacityExplanationEn = capacityResult.Value!.ExplanationEn;
-                suggestion.CapacityExplanationAr = capacityResult.Value!.ExplanationAr;
+                // Append transparency fields from C# calculation — pick the locale-correct string
+                suggestion.CapacityExplanation = language == "Arabic"
+                    ? capacityResult.Value!.ExplanationAr
+                    : capacityResult.Value!.ExplanationEn;
             }
             catch (Exception ex)
             {
@@ -272,15 +277,36 @@ namespace TaskPilot.Services
             // The AI is authoritative on: SprintTitle, SprintGoal, Risks, and Story Rationale (ReasonEn/Ar)
 
             suggestion.TotalEstimatedHours = selectionResult.UtilizedHours;
+
+            // Post-process ExcludedStories: set locale-correct Title from the UserStory entity
+            // (SprintSelectionService is locale-agnostic; it always stored TitleEn internally)
+            foreach (var excluded in selectionResult.ExcludedStories)
+            {
+                var originalStory = unassignedStories.FirstOrDefault(u => u.Id == excluded.StoryId);
+                if (originalStory != null)
+                {
+                    excluded.Title = language == "Arabic"
+                        ? (originalStory.TitleAr ?? originalStory.TitleEn)
+                        : originalStory.TitleEn;
+                }
+            }
             suggestion.ExcludedStories = selectionResult.ExcludedStories;
 
-            // Map rationale to the selected stories
+            // Map AI rationale + locale-correct Title to the deterministic selected stories
             var finalStories = new List<SuggestedStoryDto>();
             foreach (var algoStory in selectionResult.SelectedStories)
             {
                 var aiStory = suggestion.Stories.FirstOrDefault(s => s.StoryId == algoStory.StoryId);
-                algoStory.ReasonEn = aiStory?.ReasonEn ?? string.Empty;
-                algoStory.ReasonAr = aiStory?.ReasonAr ?? string.Empty;
+                algoStory.Reason = aiStory?.Reason ?? string.Empty;
+
+                // Replace the AI-supplied title with the authoritative DB title in the correct language
+                var originalStory = unassignedStories.FirstOrDefault(u => u.Id == algoStory.StoryId);
+                if (originalStory != null)
+                {
+                    algoStory.Title = language == "Arabic"
+                        ? (originalStory.TitleAr ?? originalStory.TitleEn)
+                        : originalStory.TitleEn;
+                }
                 
                 finalStories.Add(algoStory);
             }

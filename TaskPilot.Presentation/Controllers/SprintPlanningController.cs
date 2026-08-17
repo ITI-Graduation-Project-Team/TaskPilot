@@ -23,7 +23,10 @@ namespace TaskPilot.Presentation.Controllers
             Guid projectId,
             CancellationToken cancellationToken)
         {
-            var result = await _sprintPlanningService.GenerateSprintSuggestionAsync(projectId, cancellationToken);
+            var lang = Request.Headers["lang"].ToString();
+            if (string.IsNullOrEmpty(lang)) lang = "en";
+
+            var result = await _sprintPlanningService.GenerateSprintSuggestionAsync(projectId, lang, cancellationToken);
             return HandleResult(result);
         }
     }
