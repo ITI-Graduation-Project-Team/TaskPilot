@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Diagnostics;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using TaskPilot.DTOs.Assignment;
 using TaskPilot.Models.Common.Errors;
@@ -13,20 +15,20 @@ namespace TaskPilot.Services.Assignment;
 public class AssignmentScoringService : IAssignmentScoringService
 {
     private readonly ITeamSnapshotService _teamSnapshotService;
-    private readonly ICapacityValidationService _capacityValidationService;
     private readonly IOptions<ScoringWeights> _weightsOptions;
     private readonly IEnumerable<IScoreCalculator> _calculators;
+    private readonly ILogger<AssignmentScoringService> _logger;
 
     public AssignmentScoringService(
         ITeamSnapshotService teamSnapshotService,
-        ICapacityValidationService capacityValidationService,
         IOptions<ScoringWeights> weightsOptions,
-        IEnumerable<IScoreCalculator> calculators)
+        IEnumerable<IScoreCalculator> calculators,
+        ILogger<AssignmentScoringService> logger)
     {
         _teamSnapshotService = teamSnapshotService;
-        _capacityValidationService = capacityValidationService;
         _weightsOptions = weightsOptions;
         _calculators = calculators;
+        _logger = logger;
     }
 
     public async Task<Result<ScoredAssignmentDto>> ScoreAsync(
@@ -34,9 +36,11 @@ public class AssignmentScoringService : IAssignmentScoringService
         Guid sprintId,
         CancellationToken cancellationToken)
     {
+        var stopwatch = Stopwatch.StartNew();
         // Snapshot is retrieved early to validate project and sprint existence.
         // It's also required to get the snapshot data itself.
         var snapshotResult = await _teamSnapshotService.GetSnapshotAsync(projectId, sprintId, cancellationToken);
+        var snapshotMs = stopwatch.ElapsedMilliseconds;
         
         if (snapshotResult.IsFailure)
         {
@@ -57,16 +61,8 @@ public class AssignmentScoringService : IAssignmentScoringService
             return Result.Failure<ScoredAssignmentDto>(AssignmentErrors.SnapshotNotFound);
         }
 
-        var capacityResult = await _capacityValidationService.ValidateAsync(projectId, sprintId, cancellationToken);
-        if (capacityResult.IsFailure)
-        {
-            return Result.Failure<ScoredAssignmentDto>(capacityResult.Error!);
-        }
-
-        if (!capacityResult.Value!.CanProceed)
-        {
-            return Result.Failure<ScoredAssignmentDto>(AssignmentErrors.CapacityValidationFailed);
-        }
+        if (snapshot.SprintStatus != TaskPilot.Models.Enums.SprintStatus.Planned)
+            return Result.Failure<ScoredAssignmentDto>(AssignmentErrors.SprintNotPlanned);
 
         var weightsValidation = _weightsOptions.Value.Validate();
         if (weightsValidation.IsFailure)
@@ -79,17 +75,28 @@ public class AssignmentScoringService : IAssignmentScoringService
         {
             ProjectId = projectId,
             SprintId = sprintId,
+            Weights = new ScoringWeightsDto
+            {
+                SkillWeight = weights.SkillWeight,
+                AvailabilityWeight = weights.AvailabilityWeight,
+                VelocityWeight = weights.VelocityWeight,
+                ExperienceWeight = weights.ExperienceWeight
+            },
             TaskScores = new List<TaskScoringResultDto>()
         };
 
         var skillCalculator = _calculators.FirstOrDefault(c => c is SkillScoreCalculator);
-        var availabilityCalculator = _calculators.FirstOrDefault(c => c is AvailabilityScoreCalculator);
         var velocityCalculator = _calculators.FirstOrDefault(c => c is VelocityScoreCalculator);
         var experienceCalculator = _calculators.FirstOrDefault(c => c is ExperienceScoreCalculator);
 
-        var provisionalRemaining = snapshot.Team.Developers.ToDictionary(d => d.EmployeeId, d => d.RemainingHours);
+        var editableHoursByDeveloper = snapshot.UnassignedTasks
+            .Where(t => t.AssigneeId.HasValue)
+            .GroupBy(t => t.AssigneeId!.Value)
+            .ToDictionary(g => g.Key, g => g.Sum(t => (double)t.EstimatedHours));
 
-        foreach (var task in snapshot.UnassignedTasks)
+        foreach (var task in snapshot.UnassignedTasks
+                     .OrderByDescending(t => t.Priority)
+                     .ThenByDescending(t => t.EstimatedHours))
         {
             var taskScoringResult = new TaskScoringResultDto
             {
@@ -99,24 +106,20 @@ public class AssignmentScoringService : IAssignmentScoringService
 
             foreach (var developer in snapshot.Team.Developers)
             {
-                var currentRemaining = provisionalRemaining[developer.EmployeeId];
-                
-                var effectiveRemaining = currentRemaining;
+                var assignedWithoutTask = developer.CurrentAssignedHours;
                 if (task.AssigneeId.HasValue && task.AssigneeId == developer.EmployeeId)
                 {
-                    effectiveRemaining += (double)task.EstimatedHours;
+                    assignedWithoutTask -= (double)task.EstimatedHours;
                 }
 
-                if (effectiveRemaining <= 0.01)
-                {
-                    continue; // Hard exclusion
-                }
-
-                // Update the snapshot object so calculators receive the current capacity
-                developer.RemainingHours = effectiveRemaining;
+                assignedWithoutTask = Math.Max(0, assignedWithoutTask);
+                var projectedAssignedHours = assignedWithoutTask + (double)task.EstimatedHours;
+                var projectedRemainingHours = developer.MaxSprintHours - projectedAssignedHours;
+                var availabilityScore = developer.MaxSprintHours > 0
+                    ? Math.Clamp(projectedRemainingHours / developer.MaxSprintHours * 100, 0, 100)
+                    : 0;
 
                 var skillScore = skillCalculator?.Calculate(task, developer) ?? 0;
-                var availabilityScore = availabilityCalculator?.Calculate(task, developer) ?? 0;
                 var velocityScore = velocityCalculator?.Calculate(task, developer) ?? 0;
                 var experienceScore = experienceCalculator?.Calculate(task, developer) ?? 0;
 
@@ -149,6 +152,9 @@ public class AssignmentScoringService : IAssignmentScoringService
                     }
                 }
 
+                var editableHours = editableHoursByDeveloper.GetValueOrDefault(developer.EmployeeId);
+                var nonEditableHours = Math.Max(0, developer.CurrentAssignedHours - editableHours);
+
                 taskScoringResult.RankedDevelopers.Add(new DeveloperScoreDto
                 {
                     EmployeeId = developer.EmployeeId,
@@ -157,51 +163,39 @@ public class AssignmentScoringService : IAssignmentScoringService
                     SkillScore = skillScore,
                     AvailabilityScore = availabilityScore,
                     VelocityScore = velocityScore,
+                    HasHistoricalData = developer.HasHistoricalData,
                     ExperienceScore = experienceScore,
                     FinalScore = finalScore,
                     SkillGaps = skillGaps,
-                    RemainingHours = effectiveRemaining,
+                    RemainingHours = projectedRemainingHours,
                     MaxSprintHours = developer.MaxSprintHours,
                     CurrentAssignedHours = developer.CurrentAssignedHours,
-                    HasSufficientCapacity = effectiveRemaining >= (double)task.EstimatedHours
+                    NonEditableHours = nonEditableHours,
+                    MatchedSkillsCount = Math.Max(0, task.RequiredSkills.Count - skillGaps.Count),
+                    RequiredSkillsCount = task.RequiredSkills.Count,
+                    HasSufficientCapacity = projectedRemainingHours >= 0
                 });
             }
 
             taskScoringResult.RankedDevelopers = taskScoringResult.RankedDevelopers
                 .OrderByDescending(d => d.FinalScore)
                 .ThenByDescending(d => d.RemainingHours)
-                // Developer object is no longer available, so we omit HistoricalVelocity sorting
-                // or we could add it to DeveloperScoreDto. We'll just omit it here.
-
                 .ToList();
 
-            // Decay capacity for the selected top developer
-            var topDeveloper = taskScoringResult.RankedDevelopers.FirstOrDefault();
-            if (topDeveloper != null)
-            {
-                if (topDeveloper.EmployeeId != task.AssigneeId)
-                {
-                    // New developer takes the task: deduct hours from them
-                    provisionalRemaining[topDeveloper.EmployeeId] -= (double)task.EstimatedHours;
-
-                    // Old assignee (if any) gets their hours back in the simulation
-                    if (task.AssigneeId.HasValue && provisionalRemaining.ContainsKey(task.AssigneeId.Value))
-                    {
-                        provisionalRemaining[task.AssigneeId.Value] += (double)task.EstimatedHours;
-                    }
-                }
-            }
-            else
-            {
-                taskScoringResult.IsUnassignable = true;
-                if (task.AssigneeId.HasValue && provisionalRemaining.ContainsKey(task.AssigneeId.Value))
-                {
-                    provisionalRemaining[task.AssigneeId.Value] += (double)task.EstimatedHours;
-                }
-            }
+            taskScoringResult.IsUnassignable = taskScoringResult.RankedDevelopers.Count == 0;
 
             scoredAssignment.TaskScores.Add(taskScoringResult);
         }
+
+        _logger.LogInformation(
+            "Assignment scoring completed for ProjectId: {ProjectId}, SprintId: {SprintId}. Tasks: {TaskCount}, Developers: {DeveloperCount}, SnapshotMs: {SnapshotMs}, ScoringMs: {ScoringMs}, DurationMs: {DurationMs}",
+            projectId,
+            sprintId,
+            snapshot.UnassignedTasks.Count,
+            snapshot.Team.Developers.Count,
+            snapshotMs,
+            stopwatch.ElapsedMilliseconds - snapshotMs,
+            stopwatch.ElapsedMilliseconds);
 
         return Result.Success(scoredAssignment);
     }

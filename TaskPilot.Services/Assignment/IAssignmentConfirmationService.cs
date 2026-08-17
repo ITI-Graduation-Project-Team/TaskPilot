@@ -13,4 +13,11 @@ public interface IAssignmentConfirmationService
         Guid sprintId,
         ConfirmAssignmentsRequest request,
         CancellationToken cancellationToken = default);
+
+    Task<Result<AssignTaskResult>> AssignTaskAsync(
+        Guid projectId,
+        Guid sprintId,
+        Guid taskId,
+        AssignTaskRequest request,
+        CancellationToken cancellationToken = default);
 }

@@ -317,7 +317,7 @@ public class EmployeeController : ApiControllerBase
         return HandleResult(result);
     }
 
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,ProjectManager")]
     [HttpPost("{employeeId:guid}/terminate")]
     public async Task<ActionResult> TerminateEmployee(
         [FromRoute] Guid employeeId,
@@ -325,6 +325,33 @@ public class EmployeeController : ApiControllerBase
         [FromServices] IEmployeeDeactivationService deactivationService,
         CancellationToken cancellationToken)
     {
+        if (!User.IsInRole("Admin"))
+        {
+            if (_currentUser.UserId == null)
+                return HandleResult(Result.Failure(CommonErrors.Unauthorized()));
+
+            var currentUser = await _userRepository.GetQueryable()
+                .AsNoTracking()
+                .Where(u => u.Id == _currentUser.UserId.Value)
+                .Select(u => new { u.CompanyId })
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (currentUser?.CompanyId == null)
+                return HandleResult(Result.Failure(CommonErrors.Forbidden("You do not belong to a company.")));
+
+            var employeeCompanyId = await _employeeRepository.GetQueryable()
+                .AsNoTracking()
+                .Where(e => e.Id == employeeId)
+                .Select(e => e.CompanyId)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (employeeCompanyId == null)
+                return HandleResult(Result.Failure(CommonErrors.NotFound("Employee")));
+
+            if (employeeCompanyId != currentUser.CompanyId)
+                return HandleResult(Result.Failure(CommonErrors.Forbidden("You can only terminate employees in your company.")));
+        }
+
         var result = await deactivationService.TerminateEmployeeAsync(employeeId, request, cancellationToken);
         return HandleResult(result);
     }
