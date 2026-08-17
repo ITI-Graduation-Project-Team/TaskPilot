@@ -145,5 +145,28 @@ TaskPilot is an AI-augmented Agile Project Management application. Primary flows
 - **Dependency Vulnerabilities**: Built on very recent stacks (.NET 10, Angular 21). Risk is inherently low right now.
 - **Rate Limiting**: No explicit rate limiting middleware is wired into `Program.cs`.
 
+## ═══════════════════════════════════
+## VERIFICATION ADDENDUM
+## ═══════════════════════════════════
+
+### 1. Cookie Security Verification
+**Findings**: The backend does **not** issue cookies via `Response.Cookies.Append`. Instead, the frontend handles token storage via `js-cookie` in `cookie.helper.ts` after parsing the JSON response.
+**Exact Flags Set**:
+- `secure`: Bound to `environment.production`.
+- `sameSite`: `'Strict'`.
+- `expires`: `7` (days).
+- **`HttpOnly`**: **ABSENT**. Because the tokens are stored client-side via JavaScript, they cannot be flagged as `HttpOnly`, making them theoretically accessible to XSS attacks.
+
+### 2. HTTP Client Pattern Resolution
+**Findings**: There is a mix of `apiClient` (Axios) and `HttpClient` (Angular native) across the codebase.
+- `HttpClient` usage is isolated to older files (e.g., `auth.service.ts` last modified in July 2026).
+- `apiClient` (Axios) is heavily utilized (>100 references) and is the exclusive pattern in the most recently developed features (e.g., `sprint-planning.service.ts`, last modified in August 2026).
+**Assessment**: This is a genuine **incomplete migration** away from Angular's `HttpClient` toward the custom Axios `apiClient` instance, rather than a deliberate architectural split.
+**Canonical Recommendation**: All future code **must** use the Axios `apiClient`. It contains the centralized token-refresh logic, dynamic loader injection, and language header attachment that the application relies on.
+
+### 3. Rate Limiting & Security Headers
+**Findings**: Grep searches across the backend solution for `UseRateLimiter`, `AddRateLimiter`, `UseHsts`, `UseCsp`, `Content-Security-Policy`, and `X-Frame-Options` yielded **zero results**. 
+**Conclusion**: There is absolutely no explicit rate limiting, HSTS, or CSP configuration wired into `Program.cs` or any middleware, not even as commented-out code. The application relies entirely on Kestrel/IIS defaults and infrastructure-level protections (if any exist).
+
 ---
 **END OF BASELINE**
