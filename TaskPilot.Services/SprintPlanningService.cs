@@ -116,8 +116,8 @@ namespace TaskPilot.Services
                 var contextLines = new List<string>();
 
                 // 1. High Priority Improvements
-                var improvements = string.IsNullOrEmpty(previousRetrospective.ImprovementsJson) 
-                    ? new List<SprintImprovementDto>() 
+                var improvements = string.IsNullOrEmpty(previousRetrospective.ImprovementsJson)
+                    ? new List<SprintImprovementDto>()
                     : JsonSerializer.Deserialize<List<SprintImprovementDto>>(previousRetrospective.ImprovementsJson);
 
                 if (improvements != null && improvements.Any(i => i.Priority == "High"))
@@ -190,7 +190,7 @@ namespace TaskPilot.Services
 
             var startDate = DateTime.UtcNow;
             var endDate = startDate.AddDays(project.SprintDurationInDays - 1);
-            
+
             var capacityResult = await _capacityCalculationService.CalculateTargetSprintHoursAsync(projectId, startDate, endDate, cancellationToken);
             if (!capacityResult.IsSuccess)
             {
@@ -201,9 +201,50 @@ namespace TaskPilot.Services
             var options = new SprintSelectionOptions { TargetSprintHours = capacityResult.Value!.TargetSprintHours };
             var selectionResult = _sprintSelectionService.SelectStories(unassignedStories, carryOverStoryIds.ToList(), options);
 
+            // 1a. Underutilization Detection (Fix 2 — deterministic C# check, never LLM).
+            //     Threshold: if utilized hours fall below 85% of target, surface a structured
+            //     warning so ops/PMs can investigate without re-running the pipeline.
+            const decimal MinUtilizationThreshold = 0.85m;
+
+            decimal unallocatedHours = selectionResult.TargetHours - selectionResult.UtilizedHours;
+            bool isUnderutilized = selectionResult.TargetHours > 0
+                && selectionResult.UtilizedHours < selectionResult.TargetHours * MinUtilizationThreshold;
+
+            if (isUnderutilized)
+            {
+                int excludedEligibleCount = selectionResult.ExcludedStories
+                    .Count(e => !e.Reason.Contains("capacity limits") && !e.Reason.Contains("circular dependency"));
+
+                _logger.LogWarning(
+                    "Sprint {SprintNumber} underutilized for ProjectId {ProjectId}: " +
+                    "{UtilizedHours}h selected of {TargetHours}h capacity ({UtilizationPct:F1}%). " +
+                    "{UnallocatedHours}h unallocated. {ExcludedEligibleCount} stories were excluded for non-capacity reasons.",
+                    nextSprintNumber,
+                    projectId,
+                    selectionResult.UtilizedHours,
+                    selectionResult.TargetHours,
+                    selectionResult.TargetHours > 0
+                        ? selectionResult.UtilizedHours / selectionResult.TargetHours * 100m
+                        : 0m,
+                    unallocatedHours,
+                    excludedEligibleCount);
+            }
+
             // 2. Map AI Payload (Selected Stories & Excluded Stories Summary)
-            var selectedStoriesJson = JsonSerializer.Serialize(selectionResult.SelectedStories, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, WriteIndented = true });
-            
+            // Fix B: Project to the 4 fields the prompt actually reads.
+            //   Dropped: titleAr (prompt is EN-only for context), reasonEn/reasonAr (LLM
+            //   generates these — they are empty strings at this point, not inputs).
+            //   WriteIndented removed — saves ~30% of whitespace characters in the token budget.
+            var selectedStoriesJson = JsonSerializer.Serialize(
+                selectionResult.SelectedStories.Select(s => new
+                {
+                    s.StoryId,
+                    s.TitleEn,
+                    s.EstimatedHours,
+                    s.PriorityScore
+                }),
+                new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+
             var highlightedExcluded = new List<object>();
             var summaryCounts = new Dictionary<string, int>();
 
@@ -211,7 +252,7 @@ namespace TaskPilot.Services
             {
                 var originalStory = unassignedStories.FirstOrDefault(u => u.Id == excluded.StoryId);
                 bool isHighlighted = originalStory != null && (carryOverStoryIds.Contains(originalStory.Id) || originalStory.Priority == StoryPriority.Critical || originalStory.Priority == StoryPriority.High);
-                
+
                 if (isHighlighted)
                 {
                     highlightedExcluded.Add(new
@@ -229,7 +270,7 @@ namespace TaskPilot.Services
                 }
             }
 
-            var summaryText = summaryCounts.Any() 
+            var summaryText = summaryCounts.Any()
                 ? $"{summaryCounts.Values.Sum()} additional lower-priority stories excluded: " + string.Join(", ", summaryCounts.Select(kvp => $"{kvp.Value} due to '{kvp.Key}'"))
                 : "No additional stories excluded.";
 
@@ -256,7 +297,7 @@ namespace TaskPilot.Services
                     retrospectiveContext,
                     nextSprintNumber,
                     cancellationToken);
-                    
+
                 // Append transparency fields from C# calculation
                 suggestion.CapacityExplanationEn = capacityResult.Value!.ExplanationEn;
                 suggestion.CapacityExplanationAr = capacityResult.Value!.ExplanationAr;
@@ -272,6 +313,8 @@ namespace TaskPilot.Services
             // The AI is authoritative on: SprintTitle, SprintGoal, Risks, and Story Rationale (ReasonEn/Ar)
 
             suggestion.TotalEstimatedHours = selectionResult.UtilizedHours;
+            suggestion.UnallocatedCapacityHours = unallocatedHours;
+            suggestion.IsUnderutilized = isUnderutilized;
             suggestion.ExcludedStories = selectionResult.ExcludedStories;
 
             // Map rationale to the selected stories
@@ -281,7 +324,7 @@ namespace TaskPilot.Services
                 var aiStory = suggestion.Stories.FirstOrDefault(s => s.StoryId == algoStory.StoryId);
                 algoStory.ReasonEn = aiStory?.ReasonEn ?? string.Empty;
                 algoStory.ReasonAr = aiStory?.ReasonAr ?? string.Empty;
-                
+
                 finalStories.Add(algoStory);
             }
 

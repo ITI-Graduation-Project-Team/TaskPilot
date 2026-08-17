@@ -25,7 +25,7 @@ namespace TaskPilot.Services
         private readonly ICurrentUserService _currentUserService;
 
         public ProjectService(
-            IRepository<Project> projectRepo, 
+            IRepository<Project> projectRepo,
             IRepository<Company> companyRepo,
             IRepository<ProjectManager> managerRepo,
             ILocalizationService localizationService,
@@ -228,7 +228,7 @@ namespace TaskPilot.Services
             if (!string.IsNullOrWhiteSpace(searchQuery))
             {
                 var lowerQuery = searchQuery.ToLower();
-                query = query.Where(p => 
+                query = query.Where(p =>
                     (p.NameEn != null && p.NameEn.ToLower().Contains(lowerQuery)) ||
                     (p.NameAr != null && p.NameAr.ToLower().Contains(lowerQuery)) ||
                     (p.DescriptionEn != null && p.DescriptionEn.ToLower().Contains(lowerQuery)) ||
@@ -270,7 +270,7 @@ namespace TaskPilot.Services
                 })
                 .ToListAsync(cancellationToken);
 
-            var pagedResult = new PagedResult<ProjectDto> 
+            var pagedResult = new PagedResult<ProjectDto>
             {
                 Items = projects,
                 TotalItems = totalCount,
@@ -305,18 +305,18 @@ namespace TaskPilot.Services
             if (!string.IsNullOrWhiteSpace(searchQuery))
             {
                 var lowerQuery = searchQuery.ToLower();
-                query = query.Where(p => 
+                query = query.Where(p =>
                     (p.NameEn != null && p.NameEn.ToLower().Contains(lowerQuery)) ||
                     (p.NameAr != null && p.NameAr.ToLower().Contains(lowerQuery)) ||
                     (p.DescriptionEn != null && p.DescriptionEn.ToLower().Contains(lowerQuery)) ||
                     (p.DescriptionAr != null && p.DescriptionAr.ToLower().Contains(lowerQuery)));
             }
 
-            query = query.OrderByDescending(p => p.CreatedAt);
-
+            // Count on the filtered base query — no ORDER BY in the count SQL.
             var totalCount = await query.CountAsync(cancellationToken);
 
             var projects = await query
+                .OrderByDescending(p => p.CreatedAt)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .Select(p => new ProjectDto
@@ -337,7 +337,7 @@ namespace TaskPilot.Services
                 })
                 .ToListAsync(cancellationToken);
 
-            var pagedResult = new PagedResult<ProjectDto> 
+            var pagedResult = new PagedResult<ProjectDto>
             {
                 Items = projects,
                 TotalItems = totalCount,
@@ -374,7 +374,8 @@ namespace TaskPilot.Services
                 DescriptionAr = dto.DescriptionAr,
                 ManagerId = userId.Value,
                 CompanyId = dto.CompanyId
-                ,SetupState = new ProjectSetupState()
+                ,
+                SetupState = new ProjectSetupState()
             };
 
             await _projectRepo.AddAsync(project);
@@ -457,16 +458,16 @@ namespace TaskPilot.Services
                 return Result.Success(new ProjectStatusDto { ProjectId = project.Id, Status = project.Status });
 
             var availableTransitions = GetAllowedTransitions(project.Status);
-            
+
             if (!availableTransitions.Contains(request.Status))
                 return Result.Failure<ProjectStatusDto>(ProjectErrors.InvalidStatusTransition);
 
             var oldStatus = project.Status;
             project.Status = request.Status;
-            
+
             _projectRepo.Update(project);
 
-            _logger.LogInformation("Project status updated. ProjectId: {ProjectId}, OldStatus: {OldStatus}, NewStatus: {NewStatus}, UserId: {UserId}, Transition: {Transition}", 
+            _logger.LogInformation("Project status updated. ProjectId: {ProjectId}, OldStatus: {OldStatus}, NewStatus: {NewStatus}, UserId: {UserId}, Transition: {Transition}",
                 projectId, oldStatus.ToString(), project.Status.ToString(), userId, $"{oldStatus}->{project.Status}");
 
             return Result.Success(new ProjectStatusDto
