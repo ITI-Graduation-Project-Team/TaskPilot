@@ -242,7 +242,7 @@ namespace TaskPilot.Services
                 selectionResult.SelectedStories.Select(s => new
                 {
                     s.StoryId,
-                    s.TitleEn,
+                    s.Title,
                     s.EstimatedHours,
                     s.PriorityScore
                 }),
