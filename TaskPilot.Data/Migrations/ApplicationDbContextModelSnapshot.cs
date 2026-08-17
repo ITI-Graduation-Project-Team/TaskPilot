@@ -1954,7 +1954,9 @@ namespace TaskPilot.Data.Migrations
 
                     b.Property<string>("Level")
                         .IsRequired()
-                        .HasColumnType("nvarchar(450)");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("nvarchar(450)")
+                        .HasDefaultValue("Intermediate");
 
                     b.Property<DateTime?>("ModifiedAt")
                         .HasColumnType("datetime2");

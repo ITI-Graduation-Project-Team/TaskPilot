@@ -13,18 +13,6 @@ namespace TaskPilot.DTOs.Planning
         public string SprintGoalAr { get; set; } = string.Empty;
 
         public decimal TotalEstimatedHours { get; set; }
-
-        /// <summary>
-        /// Capacity hours not consumed by the selected stories (TargetHours - UtilizedHours).
-        /// Set by the deterministic C# layer after story selection — not the AI.
-        /// </summary>
-        public decimal UnallocatedCapacityHours { get; set; }
-
-        /// <summary>
-        /// True when UtilizedHours fell below MinUtilizationThreshold (85%) of TargetHours,
-        /// indicating the backlog may have more eligible stories that could have been included.
-        /// </summary>
-        public bool IsUnderutilized { get; set; }
         
         public string CapacityExplanationEn { get; set; } = string.Empty;
         
