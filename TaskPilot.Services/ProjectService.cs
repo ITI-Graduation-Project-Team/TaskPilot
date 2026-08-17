@@ -312,11 +312,11 @@ namespace TaskPilot.Services
                     (p.DescriptionAr != null && p.DescriptionAr.ToLower().Contains(lowerQuery)));
             }
 
-            query = query.OrderByDescending(p => p.CreatedAt);
-
+            // Count on the filtered base query — no ORDER BY in the count SQL.
             var totalCount = await query.CountAsync(cancellationToken);
 
             var projects = await query
+                .OrderByDescending(p => p.CreatedAt)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .Select(p => new ProjectDto
