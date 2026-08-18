@@ -21,6 +21,14 @@ namespace TaskPilot.DTOs.Projects
         public bool IsReady => WbsStatus == BackgroundSetupStatus.Succeeded;
     }
 
+    public sealed class ProjectSetupStatusChangedDto
+    {
+        public Guid ProjectId { get; set; }
+        public string Stage { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public DateTime OccurredAt { get; set; }
+    }
+
     public sealed class TeamContextDto
     {
         public int ActiveMemberCount { get; set; }

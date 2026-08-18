@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using TaskPilot.Data.Context;
+using TaskPilot.DTOs.Projects;
 using TaskPilot.Models.Enums;
 using TaskPilot.Services.Interfaces;
 using TaskPilot.Services.Helpers;
@@ -36,6 +37,8 @@ namespace TaskPilot.Services.BackgroundJobs
                 state.SkillsStartedAt = DateTime.UtcNow;
                 state.SkillsError = null;
                 await db.SaveChangesAsync();
+                await NotifyStatusChangedAsync(scope.ServiceProvider, initiatedByUserId, projectId,
+                    state.SkillsStatus);
 
                 var enrichment = scope.ServiceProvider.GetRequiredService<IWbsSkillEnrichmentService>();
                 var result = await enrichment.EnrichProjectTasksAsync(projectId);
@@ -57,6 +60,8 @@ namespace TaskPilot.Services.BackgroundJobs
                         + string.Join(" ", result.Value.Warnings.Take(5))
                     : null;
                 await db.SaveChangesAsync();
+                await NotifyStatusChangedAsync(scope.ServiceProvider, initiatedByUserId, projectId,
+                    state.SkillsStatus);
 
                 var project = await db.Projects.AsNoTracking().FirstAsync(x => x.Id == projectId);
                 try
@@ -75,12 +80,16 @@ namespace TaskPilot.Services.BackgroundJobs
             catch (Exception ex)
             {
                 var retryCount = context?.GetJobParameter<int>("RetryCount") ?? 0;
-                await RecordFailureAsync(projectId, ex.Message, retryCount >= 2);
+                await RecordFailureAsync(projectId, initiatedByUserId, ex.Message, retryCount >= 2);
                 throw;
             }
         }
 
-        private async Task RecordFailureAsync(Guid projectId, string message, bool finalAttempt)
+        private async Task RecordFailureAsync(
+            Guid projectId,
+            Guid initiatedByUserId,
+            string message,
+            bool finalAttempt)
         {
             try
             {
@@ -91,10 +100,37 @@ namespace TaskPilot.Services.BackgroundJobs
                 state.SkillsStatus = finalAttempt ? BackgroundSetupStatus.Failed : BackgroundSetupStatus.Queued;
                 state.SkillsError = finalAttempt ? message : "Skill enrichment is being retried automatically.";
                 await db.SaveChangesAsync();
+                await NotifyStatusChangedAsync(failureScope.ServiceProvider, initiatedByUserId, projectId,
+                    state.SkillsStatus);
             }
             catch (Exception recordEx)
             {
                 logger.LogError(recordEx, "Could not persist skill enrichment failure for project {ProjectId}", projectId);
+            }
+        }
+
+        private async Task NotifyStatusChangedAsync(
+            IServiceProvider services,
+            Guid userId,
+            Guid projectId,
+            BackgroundSetupStatus status)
+        {
+            try
+            {
+                var notifier = services.GetRequiredService<IProjectSetupStatusNotifier>();
+                await notifier.NotifyAsync(userId, new ProjectSetupStatusChangedDto
+                {
+                    ProjectId = projectId,
+                    Stage = "SkillEnrichment",
+                    Status = status.ToString(),
+                    OccurredAt = DateTime.UtcNow
+                });
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex,
+                    "Could not broadcast skill enrichment status {Status} for project {ProjectId}",
+                    status, projectId);
             }
         }
     }

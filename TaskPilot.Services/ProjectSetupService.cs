@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Hangfire;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using TaskPilot.Data.Context;
 using TaskPilot.DTOs.Projects;
 using TaskPilot.Models.Common.Errors;
@@ -20,17 +21,23 @@ namespace TaskPilot.Services
         private readonly ICurrentUserService _currentUser;
         private readonly ITechStackService _techStackService;
         private readonly IBackgroundJobClient _jobs;
+        private readonly IProjectSetupStatusNotifier _setupNotifier;
+        private readonly ILogger<ProjectSetupService> _logger;
 
         public ProjectSetupService(
             ApplicationDbContext context,
             ICurrentUserService currentUser,
             ITechStackService techStackService,
-            IBackgroundJobClient jobs)
+            IBackgroundJobClient jobs,
+            IProjectSetupStatusNotifier setupNotifier,
+            ILogger<ProjectSetupService> logger)
         {
             _context = context;
             _currentUser = currentUser;
             _techStackService = techStackService;
             _jobs = jobs;
+            _setupNotifier = setupNotifier;
+            _logger = logger;
         }
 
         public async Task<Result<ProjectSetupDto>> GetAsync(Guid projectId, CancellationToken cancellationToken = default)
@@ -170,6 +177,7 @@ namespace TaskPilot.Services
                 state.WbsStatus = BackgroundSetupStatus.Succeeded;
                 state.WbsCompletedAt ??= DateTime.UtcNow;
                 await _context.SaveChangesAsync(cancellationToken);
+                await NotifyStatusChangedAsync(project, "Wbs", state.WbsStatus);
                 return Result.Success(ToDto(project, state));
             }
 
@@ -195,6 +203,7 @@ namespace TaskPilot.Services
                 _context.ChangeTracker.Clear();
                 return await GetAsync(projectId, cancellationToken);
             }
+            await NotifyStatusChangedAsync(project, "Wbs", state.WbsStatus);
             return Result.Success(ToDto(project, state));
         }
 
@@ -234,7 +243,31 @@ namespace TaskPilot.Services
                 _context.ChangeTracker.Clear();
                 return await GetAsync(projectId, cancellationToken);
             }
+            await NotifyStatusChangedAsync(project, "SkillEnrichment", state.SkillsStatus);
             return Result.Success(ToDto(project, state));
+        }
+
+        private async Task NotifyStatusChangedAsync(
+            Project project,
+            string stage,
+            BackgroundSetupStatus status)
+        {
+            try
+            {
+                await _setupNotifier.NotifyAsync(project.ManagerId, new ProjectSetupStatusChangedDto
+                {
+                    ProjectId = project.Id,
+                    Stage = stage,
+                    Status = status.ToString(),
+                    OccurredAt = DateTime.UtcNow
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex,
+                    "Could not broadcast project setup status {Stage}/{Status} for project {ProjectId}",
+                    stage, status, project.Id);
+            }
         }
 
         private async Task<(Project? Project, ProjectSetupState? State, TaskPilot.Models.Common.Errors.Error? Error)> LoadOwnedAsync(
