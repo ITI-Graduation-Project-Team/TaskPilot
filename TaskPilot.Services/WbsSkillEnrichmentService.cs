@@ -1,11 +1,6 @@
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using TaskPilot.AI.Agents.Planning;
+using TaskPilot.AI.Models.Planning;
 using TaskPilot.Data.Repositories;
 using TaskPilot.Models.Common.Errors;
 using TaskPilot.Models.Common.Results;
@@ -14,220 +9,233 @@ using TaskPilot.Models.Enums;
 using TaskPilot.Services.Helpers;
 using TaskPilot.Services.Interfaces;
 
-namespace TaskPilot.Services
+namespace TaskPilot.Services;
+
+public class WbsSkillEnrichmentService : IWbsSkillEnrichmentService
 {
-    public class WbsSkillEnrichmentService : IWbsSkillEnrichmentService
+    internal const int BatchSize = 25;
+    internal const int MaxConcurrentBatches = 5;
+    internal const int MaxTaskAttempts = 3;
+
+    private readonly IRepository<Project> _projectRepository;
+    private readonly IRepository<TaskItem> _taskRepository;
+    private readonly IRepository<Skill> _skillRepository;
+    private readonly IRepository<TaskRequiredSkill> _taskRequiredSkillRepository;
+    private readonly RequiredSkillsEnrichmentAgent _agent;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<WbsSkillEnrichmentService> _logger;
+
+    public WbsSkillEnrichmentService(
+        IRepository<Project> projectRepository,
+        IRepository<TaskItem> taskRepository,
+        IRepository<Skill> skillRepository,
+        IRepository<TaskRequiredSkill> taskRequiredSkillRepository,
+        RequiredSkillsEnrichmentAgent agent,
+        IUnitOfWork unitOfWork,
+        ILogger<WbsSkillEnrichmentService> logger)
     {
-        private readonly IRepository<Project> _projectRepository;
-        private readonly IRepository<TaskItem> _taskRepository;
-        private readonly IRepository<Skill> _skillRepository;
-        private readonly IRepository<TaskRequiredSkill> _taskRequiredSkillRepository;
-        private readonly RequiredSkillsEnrichmentAgent _agent;
-        private readonly IUnitOfWork _unitOfWork;
-        private readonly ILogger<WbsSkillEnrichmentService> _logger;
+        _projectRepository = projectRepository;
+        _taskRepository = taskRepository;
+        _skillRepository = skillRepository;
+        _taskRequiredSkillRepository = taskRequiredSkillRepository;
+        _agent = agent;
+        _unitOfWork = unitOfWork;
+        _logger = logger;
+    }
 
-        public WbsSkillEnrichmentService(
-            IRepository<Project> projectRepository,
-            IRepository<TaskItem> taskRepository,
-            IRepository<Skill> skillRepository,
-            IRepository<TaskRequiredSkill> taskRequiredSkillRepository,
-            RequiredSkillsEnrichmentAgent agent,
-            IUnitOfWork unitOfWork,
-            ILogger<WbsSkillEnrichmentService> logger)
+    public async Task<Result<SkillEnrichmentResult>> EnrichProjectTasksAsync(
+        Guid projectId,
+        CancellationToken cancellationToken = default)
+    {
+        var project = await _projectRepository.GetByIdAsync(projectId);
+        if (project == null)
+            return Result.Failure<SkillEnrichmentResult>(WbsErrors.ProjectNotFound);
+
+        var projectTasks = (await _taskRepository.FindAsync(
+            task => task.UserStory != null && task.UserStory.ProjectId == projectId,
+            task => task.RequiredSkills)).ToList();
+
+        var eligibleTasks = projectTasks.Where(task => task.Type != TaskType.NonTechnical).ToList();
+        var alreadyEnriched = eligibleTasks.Count(task => task.RequiredSkills.Any());
+        var pendingTasks = eligibleTasks.Where(task => !task.RequiredSkills.Any()).ToList();
+
+        if (pendingTasks.Count == 0)
         {
-            _projectRepository = projectRepository;
-            _taskRepository = taskRepository;
-            _skillRepository = skillRepository;
-            _taskRequiredSkillRepository = taskRequiredSkillRepository;
-            _agent = agent;
-            _unitOfWork = unitOfWork;
-            _logger = logger;
-        }
-
-        public async Task<Result<SkillEnrichmentResult>> EnrichProjectTasksAsync(
-            Guid projectId,
-            CancellationToken cancellationToken = default)
-        {
-            // 1. Verify project exists
-            var project = await _projectRepository.GetByIdAsync(projectId);
-            if (project == null)
-                return Result.Failure<SkillEnrichmentResult>(WbsErrors.ProjectNotFound);
-
-            // Load all project tasks so retries report cumulative coverage instead of
-            // replacing the counters with the size of the latest retry batch.
-            var projectTasks = (await _taskRepository.FindAsync(
-                t => t.UserStory != null && t.UserStory.ProjectId == projectId,
-                t => t.RequiredSkills))
-                .ToList();
-
-            var eligibleTasks = projectTasks
-                .Where(t => t.Type != TaskType.NonTechnical)
-                .ToList();
-            var alreadyEnriched = eligibleTasks.Count(t => t.RequiredSkills.Any());
-            var tasksToEnrich = eligibleTasks
-                .Where(t => !t.RequiredSkills.Any())
-                .ToList();
-
-            if (!tasksToEnrich.Any())
-                return Result.Success(new SkillEnrichmentResult
-                {
-                    TasksProcessed = eligibleTasks.Count,
-                    TasksEnriched = alreadyEnriched,
-                    TasksSkipped = 0,
-                    SkillsCreated = 0
-                });
-
-            // 3. Fix 4: bulk-load ALL existing skills once before any LLM call — no DB reads inside the loop
-            var allSkills = await _skillRepository.GetAllAsync();
-            var availableSkillNames = allSkills.Select(s => s.Name).Distinct().ToList();
-
-            // Fix 2: ConcurrentDictionary so parallel tasks share the skill lookup safely
-            var skillDict = new ConcurrentDictionary<string, Skill>(StringComparer.OrdinalIgnoreCase);
-            foreach (var s in allSkills)
-                if (!string.IsNullOrWhiteSpace(s.NormalizedName))
-                    skillDict.TryAdd(s.NormalizedName, s);
-
-            // Fix 4: collections that survive parallel writes safely
-            var newSkillsToInsert = new ConcurrentDictionary<string, Skill>(StringComparer.OrdinalIgnoreCase);
-            var newRequiredSkillsToSave = new ConcurrentBag<TaskRequiredSkill>();
-            var processedTaskSkillPairs = new ConcurrentDictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
-
-            // Keep AI pressure bounded. Per-task retries add exponential backoff and jitter.
-            const int maxConcurrentAiCalls = 5;
-            using var semaphore = new SemaphoreSlim(maxConcurrentAiCalls, maxConcurrentAiCalls);
-
-            int tasksEnriched = 0;
-            var warnings = new List<string>();
-
-            // Fix 2: Replace sequential foreach with Task.WhenAll over all technical tasks
-            var parallelTasks = tasksToEnrich.Select(task => ProcessSingleTaskAsync(
-                task, availableSkillNames, skillDict, newSkillsToInsert,
-                newRequiredSkillsToSave, processedTaskSkillPairs,
-                semaphore, cancellationToken));
-
-            var perTaskResults = await Task.WhenAll(parallelTasks);
-
-            // Aggregate counts
-            foreach (var r in perTaskResults)
-            {
-                tasksEnriched += r.enriched ? 1 : 0;
-                if (!string.IsNullOrWhiteSpace(r.warning))
-                    warnings.Add(r.warning);
-            }
-
-            var totalEnriched = alreadyEnriched + tasksEnriched;
-            var resultStats = new SkillEnrichmentResult
+            return Result.Success(new SkillEnrichmentResult
             {
                 TasksProcessed = eligibleTasks.Count,
-                TasksEnriched = totalEnriched,
-                TasksSkipped = eligibleTasks.Count - totalEnriched,
-                Warnings = warnings
-            };
+                TasksEnriched = alreadyEnriched,
+                TasksSkipped = 0,
+                SkillsCreated = 0
+            });
+        }
 
-            // Fix 4: single bulk persist after Task.WhenAll — no SaveChangesAsync inside the loop
-            try
+        var allSkills = (await _skillRepository.GetAllAsync()).ToList();
+        var availableSkillNames = allSkills
+            .Select(skill => skill.Name)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var generatedByTask = new Dictionary<Guid, List<GeneratedRequiredSkill>>();
+        var failureReasonByTask = new Dictionary<Guid, string>();
+
+        for (var attempt = 1; attempt <= MaxTaskAttempts && pendingTasks.Count > 0; attempt++)
+        {
+            var batchResults = await RunBatchRoundAsync(
+                pendingTasks,
+                availableSkillNames,
+                cancellationToken);
+
+            foreach (var batchResult in batchResults)
             {
-                if (!newSkillsToInsert.IsEmpty)
-                    await _skillRepository.AddRangeAsync(newSkillsToInsert.Values);
+                if (batchResult.Result.IsFailure)
+                {
+                    foreach (var task in batchResult.Tasks)
+                        failureReasonByTask[task.Id] = batchResult.Result.Error.Code;
+                    continue;
+                }
 
-                if (!newRequiredSkillsToSave.IsEmpty)
-                    await _taskRequiredSkillRepository.AddRangeAsync(newRequiredSkillsToSave);
+                var allowedTaskIds = batchResult.Tasks.Select(task => task.Id).ToHashSet();
+                foreach (var generated in batchResult.Result.Value.Where(item => allowedTaskIds.Contains(item.TaskId)))
+                {
+                    if (generated.Skills.Count == 0)
+                        continue;
 
-                await _unitOfWork.SaveChangesAsync(cancellationToken);
-                resultStats.SkillsCreated = newSkillsToInsert.Count;
-                return Result.Success(resultStats);
+                    generatedByTask[generated.TaskId] = generated.Skills;
+                    failureReasonByTask.Remove(generated.TaskId);
+                }
+
+                foreach (var task in batchResult.Tasks.Where(task => !generatedByTask.ContainsKey(task.Id)))
+                    failureReasonByTask[task.Id] = "REQUIRED_SKILLS_MISSING_FROM_BATCH";
             }
-            catch (Exception)
+
+            pendingTasks = pendingTasks
+                .Where(task => !generatedByTask.ContainsKey(task.Id))
+                .ToList();
+
+            if (pendingTasks.Count > 0 && attempt < MaxTaskAttempts)
             {
-                return Result.Failure<SkillEnrichmentResult>(WbsErrors.RequiredSkillsPersistenceFailed);
+                _logger.LogWarning(
+                    "Required-skill enrichment attempt {Attempt}/{MaxAttempts} left {MissingCount} tasks; retrying only those tasks.",
+                    attempt,
+                    MaxTaskAttempts,
+                    pendingTasks.Count);
+                await Task.Delay((attempt * 250) + Random.Shared.Next(50, 151), cancellationToken);
             }
         }
 
-        /// <summary>
-        /// Fix 2: processes one task in parallel. No EF Core calls — only reads/writes to
-        /// thread-safe in-memory collections. Returns an enriched flag and an optional warning.
-        /// </summary>
-        private async Task<(bool enriched, string? warning)> ProcessSingleTaskAsync(
-            TaskItem task,
-            List<string> availableSkillNames,
-            ConcurrentDictionary<string, Skill> skillDict,
-            ConcurrentDictionary<string, Skill> newSkillsToInsert,
-            ConcurrentBag<TaskRequiredSkill> newRequiredSkillsToSave,
-            ConcurrentDictionary<string, bool> processedTaskSkillPairs,
-            SemaphoreSlim semaphore,
-            CancellationToken cancellationToken)
+        var skillByNormalizedName = allSkills
+            .Where(skill => !string.IsNullOrWhiteSpace(skill.NormalizedName))
+            .GroupBy(skill => skill.NormalizedName, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
+        var newSkillsByNormalizedName = new Dictionary<string, Skill>(StringComparer.OrdinalIgnoreCase);
+        var requiredSkillsToSave = new List<TaskRequiredSkill>();
+        var processedPairs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var persistedTaskIds = new HashSet<Guid>();
+
+        foreach (var (taskId, generatedSkills) in generatedByTask)
         {
-            if (task.Type == TaskType.NonTechnical)
-                return (false, null);
-
-            await semaphore.WaitAsync(cancellationToken);
-            try
+            foreach (var generatedSkill in generatedSkills)
             {
-                // Fix 3: _agent uses cached Kernel + KernelFunction — no rebuild per call
-                var agentResult = await _agent.EnrichAsync(
-                    task.TitleEn,
-                    task.DescriptionEn ?? string.Empty,
-                    task.Type.ToString(),
-                    availableSkillNames,
-                    cancellationToken);
+                if (!Enum.TryParse<SkillLevel>(generatedSkill.RequiredLevel, true, out var requiredLevel))
+                    continue;
 
-                if (agentResult.IsFailure)
+                var normalizedName = SkillNormalizer.Normalize(generatedSkill.SkillName);
+                if (string.IsNullOrWhiteSpace(normalizedName))
+                    continue;
+
+                if (!skillByNormalizedName.TryGetValue(normalizedName, out var skillEntity))
                 {
-                    _logger.LogWarning(
-                        "Required-skill enrichment skipped technical task {TaskId}. Reason={ReasonCode}",
-                        task.Id,
-                        agentResult.Error.Code);
-                    return (false, $"Task {task.Id}: {agentResult.Error.Code}");
-                }
-
-                var generatedSkills = agentResult.Value;
-                if (generatedSkills == null || !generatedSkills.Any())
-                    return (false, $"Task {task.Id}: REQUIRED_SKILLS_EMPTY");
-
-                bool enriched = false;
-
-                foreach (var generatedSkill in generatedSkills)
-                {
-                    if (string.IsNullOrWhiteSpace(generatedSkill.SkillName))
-                        continue;
-
-                    if (!Enum.TryParse<SkillLevel>(generatedSkill.RequiredLevel, true, out var requiredLevel))
-                        continue;
-
-                    var normalizedName = SkillNormalizer.Normalize(generatedSkill.SkillName);
-                    if (string.IsNullOrWhiteSpace(normalizedName))
-                        continue;
-
-                    // Resolve skill: existing in DB or created this run — no DB calls here (Fix 4)
-                    var skillEntity = skillDict.GetOrAdd(normalizedName, key =>
-                        newSkillsToInsert.GetOrAdd(key,
-                            _ => new Skill { Name = generatedSkill.SkillName, NormalizedName = key }));
-
-                    var pairKey = $"{task.Id}_{normalizedName}";
-                    if (processedTaskSkillPairs.TryAdd(pairKey, true))
+                    if (!newSkillsByNormalizedName.TryGetValue(normalizedName, out skillEntity))
                     {
-                        newRequiredSkillsToSave.Add(new TaskRequiredSkill
+                        skillEntity = new Skill
                         {
-                            TaskId = task.Id,
-                            Skill = skillEntity,
-                            RequiredLevel = requiredLevel
-                        });
-                        enriched = true;
+                            Name = generatedSkill.SkillName.Trim(),
+                            NormalizedName = normalizedName
+                        };
+                        newSkillsByNormalizedName[normalizedName] = skillEntity;
                     }
                 }
 
-                if (enriched)
-                    return (true, null);
+                if (!processedPairs.Add($"{taskId}_{normalizedName}"))
+                    continue;
 
-                _logger.LogWarning(
-                    "Required-skill enrichment produced no persistable skills for technical task {TaskId}.",
-                    task.Id);
-                return (false, $"Task {task.Id}: INVALID_GENERATED_SKILL");
+                requiredSkillsToSave.Add(new TaskRequiredSkill
+                {
+                    TaskId = taskId,
+                    Skill = skillEntity,
+                    RequiredLevel = requiredLevel
+                });
+                persistedTaskIds.Add(taskId);
+            }
+        }
+
+        var warnings = eligibleTasks
+            .Where(task => !task.RequiredSkills.Any() && !persistedTaskIds.Contains(task.Id))
+            .Select(task => $"Task {task.Id}: {failureReasonByTask.GetValueOrDefault(task.Id, "INVALID_GENERATED_SKILL")}")
+            .ToList();
+        var totalEnriched = alreadyEnriched + persistedTaskIds.Count;
+        var resultStats = new SkillEnrichmentResult
+        {
+            TasksProcessed = eligibleTasks.Count,
+            TasksEnriched = totalEnriched,
+            TasksSkipped = eligibleTasks.Count - totalEnriched,
+            SkillsCreated = newSkillsByNormalizedName.Count,
+            Warnings = warnings
+        };
+
+        try
+        {
+            if (newSkillsByNormalizedName.Count > 0)
+                await _skillRepository.AddRangeAsync(newSkillsByNormalizedName.Values);
+
+            if (requiredSkillsToSave.Count > 0)
+                await _taskRequiredSkillRepository.AddRangeAsync(requiredSkillsToSave);
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            return Result.Success(resultStats);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to persist required-skill enrichment for project {ProjectId}.", projectId);
+            return Result.Failure<SkillEnrichmentResult>(WbsErrors.RequiredSkillsPersistenceFailed);
+        }
+    }
+
+    private async Task<IReadOnlyCollection<BatchResult>> RunBatchRoundAsync(
+        IReadOnlyCollection<TaskItem> tasks,
+        IReadOnlyCollection<string> availableSkillNames,
+        CancellationToken cancellationToken)
+    {
+        using var semaphore = new SemaphoreSlim(MaxConcurrentBatches, MaxConcurrentBatches);
+        var batches = tasks.Chunk(BatchSize).Select(batch => batch.ToList()).ToList();
+
+        var calls = batches.Select(async batch =>
+        {
+            await semaphore.WaitAsync(cancellationToken);
+            try
+            {
+                var inputs = batch.Select(task => new SkillEnrichmentTaskInput
+                {
+                    TaskId = task.Id,
+                    Title = task.TitleEn,
+                    Description = task.DescriptionEn ?? string.Empty
+                }).ToList();
+
+                var result = await _agent.EnrichBatchAsync(inputs, availableSkillNames, cancellationToken);
+                return new BatchResult(batch, result);
             }
             finally
             {
                 semaphore.Release();
             }
-        }
+        });
+
+        return await Task.WhenAll(calls);
     }
+
+    private sealed record BatchResult(
+        IReadOnlyCollection<TaskItem> Tasks,
+        Result<List<GeneratedTaskRequiredSkills>> Result);
 }
