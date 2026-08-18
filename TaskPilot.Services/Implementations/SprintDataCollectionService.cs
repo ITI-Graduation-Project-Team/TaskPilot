@@ -26,7 +26,9 @@ namespace TaskPilot.Services.Implementations
             Guid sprintId,
             CancellationToken cancellationToken = default)
         {
-            var sprint = await _sprintRepository.GetByIdAsync(sprintId);
+            var sprint = await _sprintRepository.GetQueryable()
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => s.Id == sprintId, cancellationToken);
 
             if (sprint?.Status != SprintStatus.Completed)
                 throw new InvalidOperationException(
@@ -39,6 +41,7 @@ namespace TaskPilot.Services.Implementations
             // These tasks still have TaskItem.SprintId set because sprint completion
             // only clears SprintId on *unfinished* tasks.
             var doneTasks = await _taskRepository.GetQueryable()
+                .AsNoTracking()
                 .Include(t => t.Employee)
                 .Include(t => t.UserStory)
                 .Where(t => t.SprintId == sprintId && t.Status == TaskItemStatus.Done)
@@ -49,6 +52,7 @@ namespace TaskPilot.Services.Implementations
             // EmployeeId set to NULL. The ONLY remaining link is the SprintRiskAlert,
             // which preserves both AffectedTaskId and AffectedEmployeeId.
             var unfinishedAlerts = await _riskAlertRepository.GetQueryable()
+                .AsNoTracking()
                 .Include(a => a.AffectedTask).ThenInclude(t => t!.UserStory)
                 .Include(a => a.AffectedEmployee)   // ← employee saved before clearing
                 .Where(a => a.SprintId == sprintId
