@@ -63,7 +63,7 @@ namespace TaskPilot.Services
             _userRepository = userRepository;
         }
 
-        public async Task<Result<PagedResult<SprintListItemDto>>> GetAllSprintsPagedAsync(Guid projectId, Guid userId, int page, int pageSize, string? statusFilter, string? dateFrom, string? dateTo, CancellationToken cancellationToken = default)
+        public async Task<Result<PagedResult<SprintListItemDto>>> GetAllSprintsPagedAsync(Guid projectId, Guid userId, int page, int pageSize, string? statusFilter, string? dateFrom, string? dateTo, string lang = "en", CancellationToken cancellationToken = default)
         {
             if (projectId == Guid.Empty) return Result.Failure<PagedResult<SprintListItemDto>>(SprintErrors.InvalidProject);
 
@@ -108,10 +108,8 @@ namespace TaskPilot.Services
                 .Select(s => new SprintListItemDto
                 {
                     SprintId = s.Id,
-                    TitleEn = s.TitleEn,
-                    TitleAr = s.TitleAr,
-                    SprintGoalEn = s.SprintGoalEn,
-                    SprintGoalAr = s.SprintGoalAr,
+                    Title = lang == "ar" && !string.IsNullOrEmpty(s.TitleAr) ? s.TitleAr : s.TitleEn,
+                    SprintGoal = lang == "ar" && !string.IsNullOrEmpty(s.SprintGoalAr) ? s.SprintGoalAr : s.SprintGoalEn,
                     StartDate = s.StartDate,
                     EndDate = s.EndDate,
                     Status = s.Status.ToString(),

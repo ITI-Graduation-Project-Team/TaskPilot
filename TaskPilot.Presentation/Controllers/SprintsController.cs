@@ -179,7 +179,10 @@ namespace TaskPilot.Presentation.Controllers
             if (!Guid.TryParse(userIdStr, out Guid userId)) 
                 return HandleResult(Result.Failure<PagedResult<SprintListItemDto>>(CommonErrors.Unauthorized()));
 
-            var result = await _sprintLifecycleService.GetAllSprintsPagedAsync(projectId, userId, page, pageSize, statusFilter, dateFrom, dateTo, cancellationToken);
+            var lang = Request.Headers["lang"].ToString();
+            if (string.IsNullOrEmpty(lang)) lang = "en";
+
+            var result = await _sprintLifecycleService.GetAllSprintsPagedAsync(projectId, userId, page, pageSize, statusFilter, dateFrom, dateTo, lang, cancellationToken);
             return HandleResult(result);
         }
 
