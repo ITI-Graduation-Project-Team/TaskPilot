@@ -177,11 +177,14 @@ template: |
   - Never return explanations outside JSON.
   - Never wrap the response in code fences.
 
-  - TechStack arrays must contain concrete technologies with versions whenever appropriate.
-  Example:
-  "ASP.NET Core 10"
-  "Angular 20"
-  "SQL Server 2022"
+  - TechStack arrays must contain concrete technology names without version numbers or release years.
+  - This rule applies to both primaryStack.techStack and idealStack.techStack.
+  - Never infer, append, or recommend a major, minor, patch, SDK, or year-based version in a TechStack entry.
+  - Version selection is handled separately and must not be performed by this advisor.
+  Examples:
+  "ASP.NET Core"
+  "Angular"
+  "SQL Server"
 
   - Each reasoning field should provide comprehensive justification based on project requirements, constraints, and scalability.
 

@@ -35,7 +35,7 @@ namespace TaskPilot.Models.Entities
 
         /// <summary>
         /// Technologies recommended by TechStackAdvisorAgent and approved by PM.
-        /// Example: ["ASP.NET Core 8", "React 18", "SQL Server", "Redis", "Flutter"]
+        /// Example: ["ASP.NET Core", "React", "SQL Server", "Redis", "Flutter"]
         /// Populated after project creation via /api/projects/{id}/tech-stack/confirm
         /// </summary>
         public List<string> TechStack { get; set; } = new();
