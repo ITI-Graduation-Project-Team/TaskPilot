@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using TaskPilot.Data.Context;
+using TaskPilot.DTOs.Projects;
 using TaskPilot.Models.Enums;
 using TaskPilot.Services.Interfaces;
 using TaskPilot.Services.Helpers;
@@ -37,6 +38,8 @@ namespace TaskPilot.Services.BackgroundJobs
                 state.WbsStartedAt = DateTime.UtcNow;
                 state.WbsError = null;
                 await db.SaveChangesAsync();
+                await NotifyStatusChangedAsync(scope.ServiceProvider, initiatedByUserId, projectId,
+                    "Wbs", state.WbsStatus);
 
                 var generator = scope.ServiceProvider.GetRequiredService<IWbsGenerationService>();
                 var result = await generator.GenerateAsync(projectId);
@@ -50,6 +53,10 @@ namespace TaskPilot.Services.BackgroundJobs
                 state.WbsError = null;
                 state.SkillsStatus = BackgroundSetupStatus.Queued;
                 await db.SaveChangesAsync();
+                await NotifyStatusChangedAsync(scope.ServiceProvider, initiatedByUserId, projectId,
+                    "Wbs", state.WbsStatus);
+                await NotifyStatusChangedAsync(scope.ServiceProvider, initiatedByUserId, projectId,
+                    "SkillEnrichment", state.SkillsStatus);
 
                 state.SkillsJobId = jobs.Enqueue<WbsSkillEnrichmentJob>(job =>
                     job.ExecuteAsync(projectId, initiatedByUserId, null!));
@@ -73,12 +80,16 @@ namespace TaskPilot.Services.BackgroundJobs
             catch (Exception ex)
             {
                 var retryCount = context?.GetJobParameter<int>("RetryCount") ?? 0;
-                await RecordFailureAsync(projectId, ex.Message, retryCount >= 2);
+                await RecordFailureAsync(projectId, initiatedByUserId, ex.Message, retryCount >= 2);
                 throw;
             }
         }
 
-        private async Task RecordFailureAsync(Guid projectId, string message, bool finalAttempt)
+        private async Task RecordFailureAsync(
+            Guid projectId,
+            Guid initiatedByUserId,
+            string message,
+            bool finalAttempt)
         {
             try
             {
@@ -89,6 +100,8 @@ namespace TaskPilot.Services.BackgroundJobs
                 state.WbsStatus = finalAttempt ? BackgroundSetupStatus.Failed : BackgroundSetupStatus.Queued;
                 state.WbsError = finalAttempt ? message : "Generation is being retried automatically.";
                 await db.SaveChangesAsync();
+                await NotifyStatusChangedAsync(failureScope.ServiceProvider, initiatedByUserId, projectId,
+                    "Wbs", state.WbsStatus);
 
                 if (finalAttempt)
                 {
@@ -106,6 +119,32 @@ namespace TaskPilot.Services.BackgroundJobs
             catch (Exception notificationEx)
             {
                 logger.LogError(notificationEx, "Could not persist WBS failure state for project {ProjectId}", projectId);
+            }
+        }
+
+        private async Task NotifyStatusChangedAsync(
+            IServiceProvider services,
+            Guid userId,
+            Guid projectId,
+            string stage,
+            BackgroundSetupStatus status)
+        {
+            try
+            {
+                var notifier = services.GetRequiredService<IProjectSetupStatusNotifier>();
+                await notifier.NotifyAsync(userId, new ProjectSetupStatusChangedDto
+                {
+                    ProjectId = projectId,
+                    Stage = stage,
+                    Status = status.ToString(),
+                    OccurredAt = DateTime.UtcNow
+                });
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex,
+                    "Could not broadcast project setup status {Stage}/{Status} for project {ProjectId}",
+                    stage, status, projectId);
             }
         }
     }
