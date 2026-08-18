@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TaskPilot.Data.Context;
 
@@ -11,9 +12,11 @@ using TaskPilot.Data.Context;
 namespace TaskPilot.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260817181236_WalletSystemImplementation")]
+    partial class WalletSystemImplementation
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -279,13 +282,6 @@ namespace TaskPilot.Data.Migrations
                     b.HasIndex("UpdatedByAdminId");
 
                     b.ToTable("BillingSettings", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("11111111-1111-1111-1111-111111111111"),
-                            PricePerMillionTokens = 5.00m
-                        });
                 });
 
             modelBuilder.Entity("TaskPilot.Models.Entities.CalenderEvent", b =>
@@ -546,9 +542,6 @@ namespace TaskPilot.Data.Migrations
                     b.Property<decimal>("Amount")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<string>("ClientSecret")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2")
@@ -567,10 +560,6 @@ namespace TaskPilot.Data.Migrations
                     b.Property<string>("GatewayTransactionId")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("IdempotencyKey")
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
 
                     b.Property<bool>("IsDeleted")
                         .ValueGeneratedOnAdd()
@@ -596,9 +585,6 @@ namespace TaskPilot.Data.Migrations
 
                     b.Property<Guid>("ProjectManagerId")
                         .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("Purpose")
-                        .HasColumnType("int");
 
                     b.Property<string>("Status")
                         .IsRequired()
