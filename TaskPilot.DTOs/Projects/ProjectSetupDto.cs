@@ -14,6 +14,13 @@ namespace TaskPilot.DTOs.Projects
         public SetupJobDto Skills { get; set; } = new();
     }
 
+    public sealed class ProjectSetupStatusDto
+    {
+        public Guid ProjectId { get; set; }
+        public BackgroundSetupStatus WbsStatus { get; set; }
+        public bool IsReady => WbsStatus == BackgroundSetupStatus.Succeeded;
+    }
+
     public sealed class TeamContextDto
     {
         public int ActiveMemberCount { get; set; }

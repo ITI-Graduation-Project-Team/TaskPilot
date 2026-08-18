@@ -41,6 +41,44 @@ namespace TaskPilot.Services
             return Result.Success(ToDto(loaded.Project!, loaded.State!));
         }
 
+        public async Task<Result<ProjectSetupStatusDto>> GetStatusAsync(
+            Guid projectId,
+            CancellationToken cancellationToken = default)
+        {
+            var userId = _currentUser.UserId;
+            if (!userId.HasValue)
+                return Result.Failure<ProjectSetupStatusDto>(CommonErrors.Unauthorized());
+
+            var project = await _context.Projects
+                .AsNoTracking()
+                .Where(x => x.Id == projectId && !x.IsDeleted)
+                .Select(x => new
+                {
+                    x.ManagerId,
+                    WbsStatus = x.SetupState == null
+                        ? (BackgroundSetupStatus?)null
+                        : x.SetupState.WbsStatus,
+                    HasWbs = x.UserStories.Any(story => !story.IsDeleted)
+                })
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (project == null)
+                return Result.Failure<ProjectSetupStatusDto>(CommonErrors.NotFound("Project"));
+
+            if (project.ManagerId != userId.Value)
+                return Result.Failure<ProjectSetupStatusDto>(
+                    CommonErrors.Forbidden("Only the project manager can view project setup status."));
+
+            var wbsStatus = project.WbsStatus
+                ?? (project.HasWbs ? BackgroundSetupStatus.Succeeded : BackgroundSetupStatus.NotStarted);
+
+            return Result.Success(new ProjectSetupStatusDto
+            {
+                ProjectId = projectId,
+                WbsStatus = wbsStatus
+            });
+        }
+
         public async Task<Result<ProjectSetupDto>> GenerateTechStackSuggestionAsync(
             Guid projectId,
             bool regenerate,
