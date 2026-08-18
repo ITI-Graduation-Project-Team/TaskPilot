@@ -7,6 +7,7 @@ using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
 using TaskPilot.AI.Constants;
+using TaskPilot.AI.Extensions;
 using TaskPilot.AI.Plugins;
 using TaskPilot.AI.Services.Interfaces;
 
@@ -107,7 +108,7 @@ namespace TaskPilot.AI.Orchestrators
             var chatCompletionService = kernel.GetRequiredService<IChatCompletionService>();
 
             // 6. Execute model (NO tool calling for normal chat)
-            var aiResponse = await chatCompletionService.GetChatMessageContentAsync(
+            var aiResponse = await chatCompletionService.GetChatMessageContentWithTelemetryAsync(
                 chatHistory,
                 null,
                 kernel,
@@ -207,7 +208,7 @@ The current ProjectId is {projectId}. Use this exact ID for all create operation
             };
 
             // This will execute the tools
-            var response = await chatCompletionService.GetChatMessageContentAsync(
+            var response = await chatCompletionService.GetChatMessageContentWithTelemetryAsync(
                 chatHistory,
                 executionSettings,
                 kernel,

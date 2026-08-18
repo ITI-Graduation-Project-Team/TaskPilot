@@ -20,6 +20,7 @@ namespace TaskPilot.Models.Entities
         public string ModelName { get; set; } = string.Empty;
         
         public int PromptTokens { get; set; }
+        public int CachedPromptTokens { get; set; }
         public int CompletionTokens { get; set; }
         public int TotalTokens { get; set; }
         
@@ -27,6 +28,7 @@ namespace TaskPilot.Models.Entities
         public long ResponseTimeMs { get; set; }
         
         public string Status { get; set; } = string.Empty;
+        public string CalculationStatus { get; set; } = "Calculated";
         public string? ErrorMessage { get; set; }
         
         public DateTime Timestamp { get; set; } = DateTime.UtcNow;

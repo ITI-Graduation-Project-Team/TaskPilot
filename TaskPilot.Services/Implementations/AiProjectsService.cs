@@ -9,6 +9,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using TaskPilot.AI.Constants;
+using TaskPilot.AI.Extensions;
 using TaskPilot.AI.Services.Interfaces;
 using TaskPilot.Data;
 using TaskPilot.Data.Repositories;
@@ -167,7 +168,7 @@ Return your analysis as a JSON object with a single array property 'detectedGaps
 BRD Content:
 {extractedText}";
 
-                var aiResponse = await chatService.GetChatMessageContentAsync(prompt, null, kernel, cancellationToken);
+                var aiResponse = await chatService.GetChatMessageContentWithTelemetryAsync(prompt, null, kernel, cancellationToken);
                 var aiContent = aiResponse.Content ?? "{}";
                 
                 // Extract json from possible markdown
@@ -245,7 +246,7 @@ Output your response in JSON format exactly like this:
             }
             history.AddUserMessage(request.Message);
 
-            var aiResponse = await chatService.GetChatMessageContentAsync(history, null, kernel, cancellationToken);
+            var aiResponse = await chatService.GetChatMessageContentWithTelemetryAsync(history, null, kernel, cancellationToken);
             var aiContent = aiResponse.Content ?? "{}";
 
             if (aiContent.Contains("```json"))
@@ -469,7 +470,7 @@ Output your response in JSON format exactly like this:
             }
             history.AddUserMessage(message);
 
-            var aiResponse = await chatService.GetChatMessageContentAsync(history, null, kernel, cancellationToken);
+            var aiResponse = await chatService.GetChatMessageContentWithTelemetryAsync(history, null, kernel, cancellationToken);
             var reply = aiResponse.Content ?? "I have updated the backlog.";
 
             // 2. Save messages atomically via IProjectChatService

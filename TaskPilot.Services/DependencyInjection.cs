@@ -50,6 +50,10 @@ namespace TaskPilot.Services
             services.AddScoped<IProjectChatService, TaskPilot.Services.Implementations.ProjectChatService>();
             services.AddScoped<IAiProjectsService, TaskPilot.Services.Implementations.AiProjectsService>();
             services.AddScoped<IAiTelemetryService, AiTelemetryService>();
+            services.AddSingleton<IAiPricingService, AiPricingService>();
+            services.AddSingleton<IAiTelemetryQueue, AiTelemetryQueue>();
+            services.AddScoped<TaskPilot.AI.Services.Interfaces.IAiUsageRecorder, AiUsageRecorder>();
+            services.AddHostedService<BackgroundJobs.AiTelemetryPersistenceWorker>();
             services.AddScoped<IFunctionInvocationFilter, AiTelemetryFilter>();
             services.AddScoped<IFileValidatorService, FileValidatorService>();
             services.AddScoped<TaskPilot.AI.Services.Interfaces.IAiProjectChatService, TaskPilot.Services.Implementations.ProjectChatService>();

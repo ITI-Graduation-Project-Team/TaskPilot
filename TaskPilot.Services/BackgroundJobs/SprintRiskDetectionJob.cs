@@ -10,6 +10,7 @@ using TaskPilot.Models.Entities;
 using TaskPilot.Models.Enums;
 using TaskPilot.Services.Interfaces;
 using Hangfire;
+using TaskPilot.Services.Helpers;
 
 namespace TaskPilot.Services.BackgroundJobs
 {
@@ -33,20 +34,23 @@ namespace TaskPilot.Services.BackgroundJobs
             var riskService = scope.ServiceProvider.GetRequiredService<ISprintRiskService>();
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-            var activeSprintIds = await db.Set<Sprint>()
+            var activeSprints = await db.Set<Sprint>()
                 .Where(s => s.Status == SprintStatus.Active && !s.IsDeleted)
-                .Select(s => s.Id)
+                .Select(s => new { SprintId = s.Id, s.ProjectId, s.Project.ManagerId })
                 .ToListAsync(stoppingToken);
 
-            foreach (var sprintId in activeSprintIds)
+            foreach (var sprint in activeSprints)
             {
+                using var telemetryContext = AiTelemetryContext.SetContext(
+                    sprint.ManagerId,
+                    sprint.ProjectId);
                 try
                 {
-                    await riskService.DetectAndPersistRisksAsync(sprintId, stoppingToken);
+                    await riskService.DetectAndPersistRisksAsync(sprint.SprintId, stoppingToken);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Risk detection failed for sprint {SprintId}", sprintId);
+                    _logger.LogError(ex, "Risk detection failed for sprint {SprintId}", sprint.SprintId);
                 }
             }
         }

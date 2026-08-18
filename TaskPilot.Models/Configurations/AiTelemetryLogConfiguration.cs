@@ -22,8 +22,13 @@ namespace TaskPilot.Models.Configurations
                 .IsRequired()
                 .HasMaxLength(50);
 
+            builder.Property(log => log.CalculationStatus)
+                .IsRequired()
+                .HasMaxLength(50)
+                .HasDefaultValue("Legacy");
+
             builder.Property(log => log.EstimatedCostUsd)
-                .HasColumnType("decimal(18,6)");
+                .HasColumnType("decimal(20,12)");
 
             builder.Property(log => log.Timestamp)
                 .HasDefaultValueSql("GETUTCDATE()");

@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using TaskPilot.Data.Context;
 using TaskPilot.Models.Enums;
 using TaskPilot.Services.Interfaces;
+using TaskPilot.Services.Helpers;
 
 namespace TaskPilot.Services.BackgroundJobs
 {
@@ -14,8 +15,9 @@ namespace TaskPilot.Services.BackgroundJobs
         ILogger<WbsSkillEnrichmentJob> logger)
     {
         [AutomaticRetry(Attempts = 2, DelaysInSeconds = new[] { 30, 120 })]
-        public async Task ExecuteAsync(Guid projectId, PerformContext context)
+        public async Task ExecuteAsync(Guid projectId, Guid initiatedByUserId, PerformContext context)
         {
+            using var telemetryContext = AiTelemetryContext.SetContext(initiatedByUserId, projectId);
             try
             {
                 using var scope = scopeFactory.CreateScope();
