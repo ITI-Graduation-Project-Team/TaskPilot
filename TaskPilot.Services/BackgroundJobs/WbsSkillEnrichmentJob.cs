@@ -23,7 +23,7 @@ namespace TaskPilot.Services.BackgroundJobs
                 var state = await db.ProjectSetupStates.FirstOrDefaultAsync(x => x.ProjectId == projectId)
                     ?? throw new InvalidOperationException("Project setup state was not found.");
 
-                if (state.SkillsStatus == BackgroundSetupStatus.Succeeded)
+                if (state.SkillsStatus == BackgroundSetupStatus.Succeeded && state.TasksSkipped == 0)
                     return;
                 if (state.SkillsStatus == BackgroundSetupStatus.Running
                     && !string.Equals(state.SkillsJobId, context?.BackgroundJob?.Id, StringComparison.Ordinal))
@@ -40,15 +40,20 @@ namespace TaskPilot.Services.BackgroundJobs
                 if (result.IsFailure)
                     throw new InvalidOperationException(result.Error.Description ?? result.Error.Code);
 
-                state.SkillsStatus = result.Value.Warnings.Count > 0
-                    ? BackgroundSetupStatus.PartiallySucceeded
-                    : BackgroundSetupStatus.Succeeded;
+                state.SkillsStatus = result.Value.TasksSkipped == 0
+                    ? BackgroundSetupStatus.Succeeded
+                    : result.Value.TasksEnriched > 0
+                        ? BackgroundSetupStatus.PartiallySucceeded
+                        : BackgroundSetupStatus.Failed;
                 state.TasksProcessed = result.Value.TasksProcessed;
                 state.TasksEnriched = result.Value.TasksEnriched;
                 state.TasksSkipped = result.Value.TasksSkipped;
                 state.SkillsCreated = result.Value.SkillsCreated;
                 state.SkillsCompletedAt = DateTime.UtcNow;
-                state.SkillsError = result.Value.Warnings.Count > 0 ? string.Join(" ", result.Value.Warnings) : null;
+                state.SkillsError = result.Value.TasksSkipped > 0
+                    ? $"{result.Value.TasksSkipped} technical task(s) still need required skills. "
+                        + string.Join(" ", result.Value.Warnings.Take(5))
+                    : null;
                 await db.SaveChangesAsync();
 
                 var project = await db.Projects.AsNoTracking().FirstAsync(x => x.Id == projectId);
@@ -80,7 +85,7 @@ namespace TaskPilot.Services.BackgroundJobs
                 using var failureScope = scopeFactory.CreateScope();
                 var db = failureScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 var state = await db.ProjectSetupStates.FirstOrDefaultAsync(x => x.ProjectId == projectId);
-                if (state == null || state.SkillsStatus == BackgroundSetupStatus.Succeeded) return;
+                if (state == null || (state.SkillsStatus == BackgroundSetupStatus.Succeeded && state.TasksSkipped == 0)) return;
                 state.SkillsStatus = finalAttempt ? BackgroundSetupStatus.Failed : BackgroundSetupStatus.Queued;
                 state.SkillsError = finalAttempt ? message : "Skill enrichment is being retried automatically.";
                 await db.SaveChangesAsync();

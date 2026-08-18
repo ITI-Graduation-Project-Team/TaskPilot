@@ -36,6 +36,7 @@ namespace TaskPilot.DTOs.Projects
         public BackgroundSetupStatus Status { get; set; }
         public string? JobId { get; set; }
         public int AttemptCount { get; set; }
+        public int ItemsProcessed { get; set; }
         public int ItemsCreated { get; set; }
         public int SecondaryItemsCreated { get; set; }
         public int ItemsSkipped { get; set; }

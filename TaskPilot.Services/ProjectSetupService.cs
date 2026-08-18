@@ -169,7 +169,8 @@ namespace TaskPilot.Services
             if (state.WbsStatus != BackgroundSetupStatus.Succeeded)
                 return Result.Failure<ProjectSetupDto>(CommonErrors.Conflict("WBS_NOT_READY", "Generate the WBS before enriching task skills."));
 
-            if (state.SkillsStatus is BackgroundSetupStatus.Queued or BackgroundSetupStatus.Running or BackgroundSetupStatus.Succeeded)
+            if (state.SkillsStatus is BackgroundSetupStatus.Queued or BackgroundSetupStatus.Running
+                || (state.SkillsStatus == BackgroundSetupStatus.Succeeded && state.TasksSkipped == 0))
                 return Result.Success(ToDto(project, state));
 
             state.SkillsStatus = BackgroundSetupStatus.Queued;
@@ -285,6 +286,7 @@ namespace TaskPilot.Services
                     Status = state.SkillsStatus,
                     JobId = state.SkillsJobId,
                     AttemptCount = state.SkillsAttemptCount,
+                    ItemsProcessed = state.TasksProcessed,
                     ItemsCreated = state.TasksEnriched,
                     SecondaryItemsCreated = state.SkillsCreated,
                     ItemsSkipped = state.TasksSkipped,
@@ -343,7 +345,7 @@ namespace TaskPilot.Services
                 return ProjectSetupOverallStatus.WbsReady;
             if (state.SkillsStatus is BackgroundSetupStatus.Queued or BackgroundSetupStatus.Running)
                 return ProjectSetupOverallStatus.EnrichingSkills;
-            if (state.SkillsStatus == BackgroundSetupStatus.Succeeded)
+            if (state.SkillsStatus == BackgroundSetupStatus.Succeeded && state.TasksSkipped == 0)
                 return ProjectSetupOverallStatus.Ready;
             return ProjectSetupOverallStatus.ReadyWithWarnings;
         }

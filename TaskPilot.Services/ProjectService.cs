@@ -62,7 +62,7 @@ namespace TaskPilot.Services
                         : p.SetupState.WbsStatus == BackgroundSetupStatus.Failed || p.SetupState.TechStackStatus == TechStackSetupStatus.Failed
                             ? ProjectSetupOverallStatus.Failed
                             : p.SetupState.WbsStatus == BackgroundSetupStatus.Succeeded
-                                ? (p.SetupState.SkillsStatus == BackgroundSetupStatus.Succeeded ? ProjectSetupOverallStatus.Ready
+                                ? (p.SetupState.SkillsStatus == BackgroundSetupStatus.Succeeded && p.SetupState.TasksSkipped == 0 ? ProjectSetupOverallStatus.Ready
                                     : p.SetupState.SkillsStatus == BackgroundSetupStatus.Failed || p.SetupState.SkillsStatus == BackgroundSetupStatus.PartiallySucceeded ? ProjectSetupOverallStatus.ReadyWithWarnings
                                     : ProjectSetupOverallStatus.EnrichingSkills)
                                 : p.SetupState.WbsStatus == BackgroundSetupStatus.Running ? ProjectSetupOverallStatus.WbsGenerating

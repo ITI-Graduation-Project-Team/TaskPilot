@@ -10,6 +10,7 @@ using TaskPilot.AI.Models.Planning;
 using TaskPilot.Models.Common.Errors;
 using TaskPilot.Models.Common.Results;
 using TaskPilot.AI.Constants;
+using TaskPilot.Models.Enums;
 
 namespace TaskPilot.AI.Agents.Planning
 {
@@ -69,8 +70,7 @@ namespace TaskPilot.AI.Agents.Planning
             };
 
             const int maxAttempts = 3;
-            List<GeneratedRequiredSkill>? skills = null;
-            Exception? lastException = null;
+            string failureReason = "The AI returned no usable required skills.";
             string rawJson = string.Empty;
 
             for (int attempt = 1; attempt <= maxAttempts; attempt++)
@@ -87,41 +87,75 @@ namespace TaskPilot.AI.Agents.Planning
 
                     if (string.IsNullOrWhiteSpace(rawJson))
                     {
+                        failureReason = "The AI returned an empty response.";
+                        await DelayBeforeRetryAsync(attempt, maxAttempts, cancellationToken);
                         continue;
                     }
 
                     string jsonToParse = attempt == 1 ? rawJson : TryRepairJsonArray(rawJson);
                     
-                    skills = TaskPilot.AI.Extensions.AiResponseParser.Parse<List<GeneratedRequiredSkill>>(jsonToParse, 
+                    var parsedSkills = TaskPilot.AI.Extensions.AiResponseParser.Parse<List<GeneratedRequiredSkill>>(jsonToParse,
                         new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                    
-                    if (skills != null) break;
+
+                    var validSkills = ValidateSkills(parsedSkills);
+                    if (validSkills.Count > 0)
+                        return Result.Success(validSkills);
+
+                    failureReason = parsedSkills == null
+                        ? "The AI response was not a valid required-skills array."
+                        : "The AI returned no valid required skills.";
+                    await DelayBeforeRetryAsync(attempt, maxAttempts, cancellationToken);
                 }
                 catch (JsonException ex)
                 {
-                    lastException = ex;
-                    _logger.LogWarning("Required skills JSON parse failed on attempt {Attempt}/3. Raw output: {RawJson}", attempt, rawJson);
+                    failureReason = "The AI response contained malformed JSON.";
+                    _logger.LogWarning(ex, "Required skills JSON parse failed on attempt {Attempt}/{MaxAttempts}.", attempt, maxAttempts);
+                    await DelayBeforeRetryAsync(attempt, maxAttempts, cancellationToken);
                 }
-                catch (OperationCanceledException ex)
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
-                    _logger.LogWarning(ex, "AI skill enrichment invocation was canceled or timed out.");
-                    return Result.Failure<List<GeneratedRequiredSkill>>(new Error("EnrichmentCanceled", ErrorType.Failure, "AI invocation was canceled."));
+                    throw;
                 }
                 catch (Exception ex)
                 {
-                    lastException = ex;
+                    failureReason = $"The AI request failed: {ex.GetType().Name}.";
                     _logger.LogError(ex, "Failed to enrich required skills or parse JSON from AI.");
+                    await DelayBeforeRetryAsync(attempt, maxAttempts, cancellationToken);
                 }
             }
 
-            if (skills != null)
-            {
-                return Result.Success(skills);
-            }
+            _logger.LogWarning("Failed to generate valid skills for task '{Title}' after {Attempts} attempts. Reason={Reason}", titleEn, maxAttempts, failureReason);
+            return Result.Failure<List<GeneratedRequiredSkill>>(new Error(
+                "REQUIRED_SKILLS_NO_VALID_RESULT",
+                ErrorType.Failure,
+                failureReason));
+        }
 
-            _logger.LogWarning("Failed to generate skills for task '{Title}' after {Attempts} attempts. Returning empty list to prevent blocking.", titleEn, maxAttempts);
-            // Handle partial failure gracefully: return empty list so the user can manually enter skills instead of failing the whole project generation.
-            return Result.Success(new List<GeneratedRequiredSkill>());
+        internal static List<GeneratedRequiredSkill> ValidateSkills(List<GeneratedRequiredSkill>? skills)
+        {
+            if (skills == null || skills.Count == 0)
+                return new List<GeneratedRequiredSkill>();
+
+            return skills
+                .Where(skill => !string.IsNullOrWhiteSpace(skill.SkillName)
+                    && Enum.TryParse<SkillLevel>(skill.RequiredLevel, true, out _))
+                .Select(skill => new GeneratedRequiredSkill
+                {
+                    SkillName = skill.SkillName.Trim(),
+                    RequiredLevel = skill.RequiredLevel.Trim()
+                })
+                .GroupBy(skill => skill.SkillName, StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.First())
+                .ToList();
+        }
+
+        private static async Task DelayBeforeRetryAsync(int attempt, int maxAttempts, CancellationToken cancellationToken)
+        {
+            if (attempt >= maxAttempts)
+                return;
+
+            var delayMs = (250 * (1 << (attempt - 1))) + Random.Shared.Next(50, 151);
+            await Task.Delay(delayMs, cancellationToken);
         }
 
         private string TryRepairJsonArray(string raw)

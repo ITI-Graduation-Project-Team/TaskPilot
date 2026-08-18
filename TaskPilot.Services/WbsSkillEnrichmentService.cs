@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using TaskPilot.AI.Agents.Planning;
 using TaskPilot.Data.Repositories;
 using TaskPilot.Models.Common.Errors;
@@ -23,6 +24,7 @@ namespace TaskPilot.Services
         private readonly IRepository<TaskRequiredSkill> _taskRequiredSkillRepository;
         private readonly RequiredSkillsEnrichmentAgent _agent;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly ILogger<WbsSkillEnrichmentService> _logger;
 
         public WbsSkillEnrichmentService(
             IRepository<Project> projectRepository,
@@ -30,7 +32,8 @@ namespace TaskPilot.Services
             IRepository<Skill> skillRepository,
             IRepository<TaskRequiredSkill> taskRequiredSkillRepository,
             RequiredSkillsEnrichmentAgent agent,
-            IUnitOfWork unitOfWork)
+            IUnitOfWork unitOfWork,
+            ILogger<WbsSkillEnrichmentService> logger)
         {
             _projectRepository = projectRepository;
             _taskRepository = taskRepository;
@@ -38,6 +41,7 @@ namespace TaskPilot.Services
             _taskRequiredSkillRepository = taskRequiredSkillRepository;
             _agent = agent;
             _unitOfWork = unitOfWork;
+            _logger = logger;
         }
 
         public async Task<Result<SkillEnrichmentResult>> EnrichProjectTasksAsync(
@@ -49,13 +53,29 @@ namespace TaskPilot.Services
             if (project == null)
                 return Result.Failure<SkillEnrichmentResult>(WbsErrors.ProjectNotFound);
 
-            // 2. Load tasks that still need enrichment
-            var tasksToEnrich = (await _taskRepository.FindAsync(
-                t => t.UserStory != null && t.UserStory.ProjectId == projectId && !t.RequiredSkills.Any()))
+            // Load all project tasks so retries report cumulative coverage instead of
+            // replacing the counters with the size of the latest retry batch.
+            var projectTasks = (await _taskRepository.FindAsync(
+                t => t.UserStory != null && t.UserStory.ProjectId == projectId,
+                t => t.RequiredSkills))
+                .ToList();
+
+            var eligibleTasks = projectTasks
+                .Where(t => t.Type != TaskType.NonTechnical)
+                .ToList();
+            var alreadyEnriched = eligibleTasks.Count(t => t.RequiredSkills.Any());
+            var tasksToEnrich = eligibleTasks
+                .Where(t => !t.RequiredSkills.Any())
                 .ToList();
 
             if (!tasksToEnrich.Any())
-                return Result.Success(new SkillEnrichmentResult { TasksProcessed = 0, TasksEnriched = 0, TasksSkipped = 0, SkillsCreated = 0 });
+                return Result.Success(new SkillEnrichmentResult
+                {
+                    TasksProcessed = eligibleTasks.Count,
+                    TasksEnriched = alreadyEnriched,
+                    TasksSkipped = 0,
+                    SkillsCreated = 0
+                });
 
             // 3. Fix 4: bulk-load ALL existing skills once before any LLM call — no DB reads inside the loop
             var allSkills = await _skillRepository.GetAllAsync();
@@ -72,39 +92,36 @@ namespace TaskPilot.Services
             var newRequiredSkillsToSave = new ConcurrentBag<TaskRequiredSkill>();
             var processedTaskSkillPairs = new ConcurrentDictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
 
-            // Fix 2: failure tracking — collect instead of early-return inside parallel tasks
-            var firstFailure = new ConcurrentDictionary<int, Error>();
-
-            // Fix 2: SemaphoreSlim(10) — max 10 concurrent gpt-4o-mini calls; respects API rate limits
-            using var semaphore = new SemaphoreSlim(10, 10);
+            // Keep AI pressure bounded. Per-task retries add exponential backoff and jitter.
+            const int maxConcurrentAiCalls = 5;
+            using var semaphore = new SemaphoreSlim(maxConcurrentAiCalls, maxConcurrentAiCalls);
 
             int tasksEnriched = 0;
-            int tasksSkipped = 0;
+            var warnings = new List<string>();
 
             // Fix 2: Replace sequential foreach with Task.WhenAll over all technical tasks
-            var parallelTasks = tasksToEnrich.Select((task, idx) => ProcessSingleTaskAsync(
-                task, idx, availableSkillNames, skillDict, newSkillsToInsert,
-                newRequiredSkillsToSave, processedTaskSkillPairs, firstFailure,
+            var parallelTasks = tasksToEnrich.Select(task => ProcessSingleTaskAsync(
+                task, availableSkillNames, skillDict, newSkillsToInsert,
+                newRequiredSkillsToSave, processedTaskSkillPairs,
                 semaphore, cancellationToken));
 
             var perTaskResults = await Task.WhenAll(parallelTasks);
-
-            // Surface the first failure if any task failed
-            if (firstFailure.Any())
-                return Result.Failure<SkillEnrichmentResult>(firstFailure.Values.First());
 
             // Aggregate counts
             foreach (var r in perTaskResults)
             {
                 tasksEnriched += r.enriched ? 1 : 0;
-                tasksSkipped += r.skipped ? 1 : 0;
+                if (!string.IsNullOrWhiteSpace(r.warning))
+                    warnings.Add(r.warning);
             }
 
+            var totalEnriched = alreadyEnriched + tasksEnriched;
             var resultStats = new SkillEnrichmentResult
             {
-                TasksProcessed = tasksToEnrich.Count,
-                TasksEnriched = tasksEnriched,
-                TasksSkipped = tasksSkipped
+                TasksProcessed = eligibleTasks.Count,
+                TasksEnriched = totalEnriched,
+                TasksSkipped = eligibleTasks.Count - totalEnriched,
+                Warnings = warnings
             };
 
             // Fix 4: single bulk persist after Task.WhenAll — no SaveChangesAsync inside the loop
@@ -128,22 +145,20 @@ namespace TaskPilot.Services
 
         /// <summary>
         /// Fix 2: processes one task in parallel. No EF Core calls — only reads/writes to
-        /// thread-safe in-memory collections. Returns (enriched, skipped) flags.
+        /// thread-safe in-memory collections. Returns an enriched flag and an optional warning.
         /// </summary>
-        private async Task<(bool enriched, bool skipped)> ProcessSingleTaskAsync(
+        private async Task<(bool enriched, string? warning)> ProcessSingleTaskAsync(
             TaskItem task,
-            int taskIndex,
             List<string> availableSkillNames,
             ConcurrentDictionary<string, Skill> skillDict,
             ConcurrentDictionary<string, Skill> newSkillsToInsert,
             ConcurrentBag<TaskRequiredSkill> newRequiredSkillsToSave,
             ConcurrentDictionary<string, bool> processedTaskSkillPairs,
-            ConcurrentDictionary<int, Error> firstFailure,
             SemaphoreSlim semaphore,
             CancellationToken cancellationToken)
         {
             if (task.Type == TaskType.NonTechnical)
-                return (false, true);
+                return (false, null);
 
             await semaphore.WaitAsync(cancellationToken);
             try
@@ -158,13 +173,16 @@ namespace TaskPilot.Services
 
                 if (agentResult.IsFailure)
                 {
-                    firstFailure.TryAdd(taskIndex, agentResult.Error);
-                    return (false, false);
+                    _logger.LogWarning(
+                        "Required-skill enrichment skipped technical task {TaskId}. Reason={ReasonCode}",
+                        task.Id,
+                        agentResult.Error.Code);
+                    return (false, $"Task {task.Id}: {agentResult.Error.Code}");
                 }
 
                 var generatedSkills = agentResult.Value;
                 if (generatedSkills == null || !generatedSkills.Any())
-                    return (false, true);
+                    return (false, $"Task {task.Id}: REQUIRED_SKILLS_EMPTY");
 
                 bool enriched = false;
 
@@ -198,7 +216,13 @@ namespace TaskPilot.Services
                     }
                 }
 
-                return enriched ? (true, false) : (false, true);
+                if (enriched)
+                    return (true, null);
+
+                _logger.LogWarning(
+                    "Required-skill enrichment produced no persistable skills for technical task {TaskId}.",
+                    task.Id);
+                return (false, $"Task {task.Id}: INVALID_GENERATED_SKILL");
             }
             finally
             {
