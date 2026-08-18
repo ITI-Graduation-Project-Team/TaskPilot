@@ -31,10 +31,20 @@ namespace TaskPilot.Services
             string userLanguage,
             CancellationToken cancellationToken = default)
         {
+            var retrospective = await _retrospectiveRepository.GetQueryable()
+                .FirstOrDefaultAsync(sr => sr.SprintId == sprintId, cancellationToken);
+
             var data = await _dataCollectionService.CollectAsync(sprintId, cancellationToken);
 
-            var existing = await _retrospectiveRepository.FindAsync(sr => sr.SprintId == sprintId);
-            var retrospective = existing.FirstOrDefault();
+            // A completed sprint is immutable. Reuse its generated AI analysis instead
+            // of paying for another model round-trip on every POST request.
+            if (HasGeneratedContent(retrospective))
+            {
+                var cachedAnalysis = DeserializeAnalysis(retrospective!.AnalysisJson);
+                var cachedImprovements = DeserializeImprovements(retrospective.ImprovementsJson);
+
+                return MapToDto(retrospective, data, cachedAnalysis, cachedImprovements);
+            }
 
             var (analysis, improvements) = await _retrospectiveAgent.AnalyzeAsync(data, userLanguage, cancellationToken);
 
@@ -63,23 +73,40 @@ namespace TaskPilot.Services
             Guid sprintId,
             CancellationToken cancellationToken = default)
         {
-            var items = await _retrospectiveRepository.FindAsync(sr => sr.SprintId == sprintId);
-            var item = items.FirstOrDefault();
+            var item = await _retrospectiveRepository.GetQueryable()
+                .AsNoTracking()
+                .FirstOrDefaultAsync(sr => sr.SprintId == sprintId, cancellationToken);
 
             if (item is null)
                 return null;
 
             var data = await _dataCollectionService.CollectAsync(sprintId, cancellationToken);
 
-            var analysis = string.IsNullOrEmpty(item.AnalysisJson)
-                ? new SprintAnalysisDto()
-                : JsonSerializer.Deserialize<SprintAnalysisDto>(item.AnalysisJson) ?? new SprintAnalysisDto();
-
-            var improvements = string.IsNullOrEmpty(item.ImprovementsJson)
-                ? new List<SprintImprovementDto>()
-                : JsonSerializer.Deserialize<List<SprintImprovementDto>>(item.ImprovementsJson) ?? new List<SprintImprovementDto>();
+            var analysis = DeserializeAnalysis(item.AnalysisJson);
+            var improvements = DeserializeImprovements(item.ImprovementsJson);
 
             return MapToDto(item, data, analysis, improvements);
+        }
+
+        private static bool HasGeneratedContent(SprintRetrospective? retrospective)
+        {
+            return retrospective is not null
+                && !string.IsNullOrWhiteSpace(retrospective.AnalysisJson)
+                && !string.IsNullOrWhiteSpace(retrospective.ImprovementsJson);
+        }
+
+        private static SprintAnalysisDto DeserializeAnalysis(string json)
+        {
+            return string.IsNullOrWhiteSpace(json)
+                ? new SprintAnalysisDto()
+                : JsonSerializer.Deserialize<SprintAnalysisDto>(json) ?? new SprintAnalysisDto();
+        }
+
+        private static List<SprintImprovementDto> DeserializeImprovements(string json)
+        {
+            return string.IsNullOrWhiteSpace(json)
+                ? new List<SprintImprovementDto>()
+                : JsonSerializer.Deserialize<List<SprintImprovementDto>>(json) ?? new List<SprintImprovementDto>();
         }
 
         private static void PopulateEntity(
