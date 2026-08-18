@@ -668,6 +668,95 @@ namespace TaskPilot.Services
 
             return Result.Success<IEnumerable<SprintBoardTaskDto>>(tasks);
         }
+
+        public async Task<Result<PagedResult<SprintBoardTaskDto>>> GetSprintTasksPagedAsync(
+            Guid projectId,
+            Guid sprintId,
+            string? status,
+            int page,
+            int pageSize,
+            CancellationToken cancellationToken = default)
+        {
+            if (projectId == Guid.Empty) return Result.Failure<PagedResult<SprintBoardTaskDto>>(SprintErrors.InvalidProject);
+            if (sprintId == Guid.Empty) return Result.Failure<PagedResult<SprintBoardTaskDto>>(SprintErrors.InvalidSprint);
+            if (page < 1) page = 1;
+            if (pageSize < 1) pageSize = 8;
+            if (pageSize > 50) pageSize = 50;
+
+            var project = await _projectRepository.GetByIdAsync(projectId);
+            if (project == null)
+            {
+                return Result.Failure<PagedResult<SprintBoardTaskDto>>(SprintErrors.ProjectNotFound);
+            }
+
+            var sprint = await _sprintRepository.GetQueryable()
+                .AsNoTracking()
+                .Where(s => s.Id == sprintId)
+                .Select(s => new { s.Id, s.ProjectId })
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (sprint == null)
+            {
+                return Result.Failure<PagedResult<SprintBoardTaskDto>>(SprintErrors.SprintNotFound);
+            }
+
+            if (sprint.ProjectId != projectId)
+            {
+                return Result.Failure<PagedResult<SprintBoardTaskDto>>(SprintErrors.SprintDoesNotBelongToProject);
+            }
+
+            var query = _sprintRepository.GetQueryable()
+                .AsNoTracking()
+                .Where(s => s.Id == sprintId)
+                .SelectMany(s => s.Tasks);
+
+            if (!string.IsNullOrWhiteSpace(status) && !status.Equals("All", StringComparison.OrdinalIgnoreCase))
+            {
+                if (Enum.TryParse<TaskItemStatus>(status, true, out var parsedStatus))
+                {
+                    query = query.Where(t => t.Status == parsedStatus);
+                }
+            }
+
+            var totalItems = await query.CountAsync(cancellationToken);
+            var totalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
+            bool isArabic = _localizationService?.CurrentLanguage == "ar";
+
+            var tasks = await query
+                .OrderByDescending(t => t.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(t => new SprintBoardTaskDto
+                {
+                    TaskId = t.Id,
+                    UserStoryId = t.UserStoryId ?? Guid.Empty,
+                    TitleEn = t.TitleEn,
+                    TitleAr = t.TitleAr,
+                    DescriptionEn = t.DescriptionEn,
+                    DescriptionAr = t.DescriptionAr,
+                    AcceptanceCriteriaEn = t.AcceptanceCriteriaEn,
+                    AcceptanceCriteriaAr = t.AcceptanceCriteriaAr,
+                    EstimatedHours = t.EstimatedHours,
+                    ActualHours = t.ActualHours,
+                    Type = t.Type.ToString(),
+                    Priority = t.Priority.ToString(),
+                    Status = t.Status.ToString(),
+                    AssigneeId = t.EmployeeId,
+                    AssigneeName = t.Employee != null ? (isArabic ? $"{t.Employee.FirstNameAr} {t.Employee.LastNameAr}" : $"{t.Employee.FirstNameEn} {t.Employee.LastNameEn}") : null
+                })
+                .ToListAsync(cancellationToken);
+
+            return Result.Success(new PagedResult<SprintBoardTaskDto>
+            {
+                Items = tasks,
+                Page = page,
+                PageSize = pageSize,
+                TotalItems = totalItems,
+                TotalPages = totalPages,
+                HasNextPage = page < totalPages,
+                HasPreviousPage = page > 1
+            });
+        }
     }
 }
 

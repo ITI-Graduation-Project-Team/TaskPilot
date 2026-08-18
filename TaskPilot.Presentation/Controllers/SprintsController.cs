@@ -204,5 +204,19 @@ namespace TaskPilot.Presentation.Controllers
             var result = await _sprintLifecycleService.GetSprintTasksAsync(projectId, sprintId, cancellationToken);
             return HandleResult(result);
         }
+
+        [Authorize(Roles = "ProjectManager,Employee")]
+        [HttpGet("{sprintId:guid}/tasks/paged")]
+        public async Task<ActionResult> GetSprintTasksPaged(
+            Guid projectId,
+            Guid sprintId,
+            [FromQuery] string? status = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 8,
+            CancellationToken cancellationToken = default)
+        {
+            var result = await _sprintLifecycleService.GetSprintTasksPagedAsync(projectId, sprintId, status, page, pageSize, cancellationToken);
+            return HandleResult(result);
+        }
     }
 }
