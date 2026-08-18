@@ -12,5 +12,9 @@ namespace TaskPilot.Presentation.Controllers
         [HttpGet]
         public async Task<ActionResult> Get(Guid projectId, CancellationToken cancellationToken)
             => HandleResult(await setupService.GetAsync(projectId, cancellationToken));
+
+        [HttpGet("status")]
+        public async Task<ActionResult> GetStatus(Guid projectId, CancellationToken cancellationToken)
+            => HandleResult(await setupService.GetStatusAsync(projectId, cancellationToken));
     }
 }
