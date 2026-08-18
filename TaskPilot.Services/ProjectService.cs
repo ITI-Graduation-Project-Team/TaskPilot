@@ -366,9 +366,16 @@ namespace TaskPilot.Services
             if (!companyExists)
                 return Result.Failure<ProjectDto>(CompanyErrors.NotFound);
 
+            var normalizedName = dto.NameEn.Trim().ToUpper();
+            var nameExists = await _projectRepo.AnyAsync(p =>
+                p.CompanyId == dto.CompanyId && p.NameEn.Trim().ToUpper() == normalizedName);
+
+            if (nameExists)
+                return Result.Failure<ProjectDto>(ProjectErrors.NameAlreadyExists);
+
             var project = new Project
             {
-                NameEn = dto.NameEn,
+                NameEn = dto.NameEn.Trim(),
                 NameAr = dto.NameAr,
                 DescriptionEn = dto.DescriptionEn,
                 DescriptionAr = dto.DescriptionAr,
@@ -401,7 +408,16 @@ namespace TaskPilot.Services
             if (existing is null)
                 return Result.Failure(ProjectErrors.NotFound);
 
-            existing.NameEn = dto.NameEn;
+            var normalizedName = dto.NameEn.Trim().ToUpper();
+            var nameExists = await _projectRepo.AnyAsync(p =>
+                p.CompanyId == existing.CompanyId &&
+                p.Id != existing.Id &&
+                p.NameEn.Trim().ToUpper() == normalizedName);
+
+            if (nameExists)
+                return Result.Failure(ProjectErrors.NameAlreadyExists);
+
+            existing.NameEn = dto.NameEn.Trim();
             existing.NameAr = dto.NameAr;
             existing.DescriptionEn = dto.DescriptionEn;
             existing.DescriptionAr = dto.DescriptionAr;

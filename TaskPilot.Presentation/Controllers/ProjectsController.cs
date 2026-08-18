@@ -6,6 +6,10 @@ using TaskPilot.Services.Interfaces;
 using TaskPilot.DTOs.Projects;
 using System.Security.Claims;
 using TaskPilot.DTOs.AI.ProjectPolicies;
+using Microsoft.EntityFrameworkCore;
+using TaskPilot.Models.Common.Errors;
+using TaskPilot.Models.Common.Results;
+using TaskPilot.Services;
 
 namespace TaskPilot.Presentation.Controllers
 {
@@ -60,7 +64,14 @@ namespace TaskPilot.Presentation.Controllers
 
             if (result.IsSuccess)
             {
-                await _unitOfWork.SaveChangesAsync();
+                try
+                {
+                    await _unitOfWork.SaveChangesAsync();
+                }
+                catch (DbUpdateException ex) when (ProjectDuplicateNameDetector.IsDuplicateNameViolation(ex))
+                {
+                    return HandleCreated(Result.Failure<ProjectDto>(ProjectErrors.NameAlreadyExists), SuccessCodes.Project.Created);
+                }
 
                 if (project.RequirementSessionId.HasValue)
                 {
@@ -86,7 +97,16 @@ namespace TaskPilot.Presentation.Controllers
             var result = await _projectService.UpdateAsync(project);
 
             if (result.IsSuccess)
-                await _unitOfWork.SaveChangesAsync();
+            {
+                try
+                {
+                    await _unitOfWork.SaveChangesAsync();
+                }
+                catch (DbUpdateException ex) when (ProjectDuplicateNameDetector.IsDuplicateNameViolation(ex))
+                {
+                    return HandleResult(Result.Failure(ProjectErrors.NameAlreadyExists), SuccessCodes.Project.Updated);
+                }
+            }
 
             return HandleResult(result, SuccessCodes.Project.Updated);
         }

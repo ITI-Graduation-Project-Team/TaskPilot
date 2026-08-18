@@ -56,8 +56,13 @@ namespace TaskPilot.Models.Configurations
                 });
             builder.HasIndex(p => p.CompanyId);
             builder.HasIndex(p => p.ManagerId);
-            builder.HasIndex(p => new { p.CompanyId, p.NameEn })
-                .IsUnique();
+            builder.Property<string>("NormalizedNameEn")
+                .HasMaxLength(200)
+                .HasComputedColumnSql("UPPER(LTRIM(RTRIM([NameEn])))", stored: true);
+
+            builder.HasIndex("CompanyId", "NormalizedNameEn")
+                .IsUnique()
+                .HasFilter("[IsDeleted] = 0");
 
             builder.Property(x => x.TechStack)
                 .HasConversion(

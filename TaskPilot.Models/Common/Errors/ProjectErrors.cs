@@ -8,5 +8,6 @@ namespace TaskPilot.Models.Common.Errors
         public static readonly Error ProjectAlreadyCompleted = new("PROJECT_ALREADY_COMPLETED", ErrorType.Conflict, "Project.AlreadyCompleted");
         public static readonly Error ProjectAlreadyArchived = new("PROJECT_ALREADY_ARCHIVED", ErrorType.Conflict, "Project.AlreadyArchived");
         public static readonly Error InvalidStatusTransition = new("INVALID_STATUS_TRANSITION", ErrorType.Validation, "Project.InvalidStatusTransition");
+        public static readonly Error NameAlreadyExists = new("PROJECT_NAME_ALREADY_EXISTS", ErrorType.Conflict);
     }
 }
