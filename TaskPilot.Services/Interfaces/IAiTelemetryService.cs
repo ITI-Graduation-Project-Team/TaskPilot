@@ -4,21 +4,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using TaskPilot.DTOs.Telemetry;
 using TaskPilot.Models.Common.Results;
+using TaskPilot.AI.Models.Telemetry;
 
 namespace TaskPilot.Services.Interfaces
 {
     public interface IAiTelemetryService
     {
-        Task LogTelemetryAsync(
-            Guid userId,
-            Guid? projectId,
-            string operationType,
-            string modelName,
-            int promptTokens,
-            int completionTokens,
-            long responseTimeMs,
-            string status,
-            string? errorMessage = null,
+        Task LogTelemetryBatchAsync(
+            IReadOnlyCollection<AiUsageRecord> records,
             CancellationToken cancellationToken = default);
 
         Task<Result<EmployeeAiSummaryDto>> GetEmployeeSummaryAsync(Guid userId, CancellationToken cancellationToken = default);

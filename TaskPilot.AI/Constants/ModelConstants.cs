@@ -26,7 +26,5 @@ namespace TaskPilot.AI.Constants
         public const string GeminiFast =
              "gemini-2.5-flash";
 
-        public const string GeminiPro =
-            "gemini-1.5-pro";
     }
 }

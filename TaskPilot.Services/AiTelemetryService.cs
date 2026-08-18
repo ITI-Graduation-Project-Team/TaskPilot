@@ -9,6 +9,7 @@ using TaskPilot.DTOs.Telemetry;
 using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Entities;
 using TaskPilot.Services.Interfaces;
+using TaskPilot.AI.Models.Telemetry;
 
 namespace TaskPilot.Services
 {
@@ -21,44 +22,40 @@ namespace TaskPilot.Services
             _context = context;
         }
 
-        public async Task LogTelemetryAsync(
-            Guid userId,
-            Guid? projectId,
-            string operationType,
-            string modelName,
-            int promptTokens,
-            int completionTokens,
-            long responseTimeMs,
-            string status,
-            string? errorMessage = null,
+        public async Task LogTelemetryBatchAsync(
+            IReadOnlyCollection<AiUsageRecord> records,
             CancellationToken cancellationToken = default)
         {
-            decimal cost = CalculateCost(modelName, promptTokens, completionTokens);
+            if (records.Count == 0)
+                return;
 
-            var log = new AiTelemetryLog
+            var timestamp = DateTime.UtcNow;
+            var logs = records.Select(record => new AiTelemetryLog
             {
-                UserId = userId,
-                ProjectId = projectId,
-                OperationType = operationType,
-                ModelName = modelName,
-                PromptTokens = promptTokens,
-                CompletionTokens = completionTokens,
-                TotalTokens = promptTokens + completionTokens,
-                EstimatedCostUsd = cost,
-                ResponseTimeMs = responseTimeMs,
-                Status = status,
-                ErrorMessage = errorMessage,
-                Timestamp = DateTime.UtcNow
-            };
+                UserId = record.UserId,
+                ProjectId = record.ProjectId,
+                OperationType = record.OperationType,
+                ModelName = record.ModelName,
+                PromptTokens = record.PromptTokens,
+                CachedPromptTokens = record.CachedPromptTokens,
+                CompletionTokens = record.CompletionTokens,
+                TotalTokens = record.PromptTokens + record.CompletionTokens,
+                EstimatedCostUsd = record.EstimatedCostUsd,
+                ResponseTimeMs = record.ResponseTimeMs,
+                Status = record.Status,
+                CalculationStatus = record.CalculationStatus,
+                ErrorMessage = record.ErrorMessage,
+                Timestamp = timestamp
+            });
 
-            _context.AiTelemetryLogs.Add(log);
+            _context.AiTelemetryLogs.AddRange(logs);
             await _context.SaveChangesAsync(cancellationToken);
         }
 
         public async Task<Result<EmployeeAiSummaryDto>> GetEmployeeSummaryAsync(Guid userId, CancellationToken cancellationToken = default)
         {
             var logs = await _context.AiTelemetryLogs
-                .Where(l => l.UserId == userId)
+                .Where(l => l.UserId == userId && l.CalculationStatus == "Calculated")
                 .ToListAsync(cancellationToken);
 
             if (!logs.Any())
@@ -97,7 +94,7 @@ namespace TaskPilot.Services
             }
 
             var logs = await _context.AiTelemetryLogs
-                .Where(l => l.ProjectId == projectId)
+                .Where(l => l.ProjectId == projectId && l.CalculationStatus == "Calculated")
                 .ToListAsync(cancellationToken);
 
             if (!logs.Any())
@@ -130,7 +127,7 @@ namespace TaskPilot.Services
         {
             var logs = await _context.AiTelemetryLogs
                 .Include(l => l.User)
-                .Where(l => l.ProjectId == projectId)
+                .Where(l => l.ProjectId == projectId && l.CalculationStatus == "Calculated")
                 .ToListAsync(cancellationToken);
 
             var breakdown = logs.GroupBy(l => l.UserId)
@@ -166,7 +163,9 @@ namespace TaskPilot.Services
 
         public async Task<Result<AdminAiDashboardDto>> GetAdminDashboardAsync(CancellationToken cancellationToken = default)
         {
-            var logs = await _context.AiTelemetryLogs.ToListAsync(cancellationToken);
+            var logs = await _context.AiTelemetryLogs
+                .Where(l => l.CalculationStatus == "Calculated")
+                .ToListAsync(cancellationToken);
 
             if (!logs.Any())
             {
@@ -283,19 +282,5 @@ namespace TaskPilot.Services
             };
         }
 
-        private decimal CalculateCost(string modelName, int promptTokens, int completionTokens)
-        {
-            return modelName.ToLower() switch
-            {
-                "gpt-4.1"          => (promptTokens * 0.0000025m) + (completionTokens * 0.000010m),
-                "gpt-4.1-mini"     => (promptTokens * 0.00000015m) + (completionTokens * 0.0000006m),
-                "gpt-4o"           => (promptTokens * 0.0000025m) + (completionTokens * 0.000010m),
-                "gpt-4o-mini"      => (promptTokens * 0.00000015m) + (completionTokens * 0.0000006m),
-                "gemini-2.5-flash" => (promptTokens * 0.000000075m) + (completionTokens * 0.0000003m),
-                "gemini-1.5-pro"   => (promptTokens * 0.00000125m) + (completionTokens * 0.000005m),
-                "text-embedding-3-small" => (promptTokens * 0.00000002m),
-                _ => 0m
-            };
-        }
     }
 }

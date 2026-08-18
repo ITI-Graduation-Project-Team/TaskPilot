@@ -8,6 +8,7 @@ using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
 using TaskPilot.AI.Constants;
+using TaskPilot.AI.Extensions;
 using TaskPilot.AI.Models.Requirements;
 using TaskPilot.AI.Services.Interfaces;
 using TaskPilot.Models.Enums;
@@ -137,7 +138,7 @@ namespace TaskPilot.AI.Agents.Requirements
             };
 
             var sw = System.Diagnostics.Stopwatch.StartNew();
-            var response = await chatCompletionService.GetChatMessageContentAsync(chat, settings, kernel, cancellationToken);
+            var response = await chatCompletionService.GetChatMessageContentWithTelemetryAsync(chat, settings, kernel, cancellationToken);
             sw.Stop();
 
             _telemetry.RecordCall(response.Metadata, sw.ElapsedMilliseconds, "RequirementAnalysisAgent", ModelConstants.PowerfulModel, _logger);
@@ -208,7 +209,7 @@ namespace TaskPilot.AI.Agents.Requirements
             };
 
             var sw = System.Diagnostics.Stopwatch.StartNew();
-            var response = await chatCompletionService.GetChatMessageContentAsync(chat, settings, kernel, cancellationToken);
+            var response = await chatCompletionService.GetChatMessageContentWithTelemetryAsync(chat, settings, kernel, cancellationToken);
             sw.Stop();
 
             _telemetry.RecordCall(response.Metadata, sw.ElapsedMilliseconds, "RequirementAnalysisAgent", ModelConstants.PowerfulModel, _logger);

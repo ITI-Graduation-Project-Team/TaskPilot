@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using TaskPilot.AI.Constants;
+using TaskPilot.AI.Extensions;
 using TaskPilot.AI.Models.Requirements;
 using TaskPilot.AI.Services.Interfaces;
 
@@ -47,7 +48,8 @@ namespace TaskPilot.AI.Agents.Requirements
             chatHistory.Add(chatMessage);
 
             var sw = System.Diagnostics.Stopwatch.StartNew();
-            var reply = await chatCompletion.GetChatMessageContentAsync(chatHistory, cancellationToken: cancellationToken);
+            var reply = await chatCompletion.GetChatMessageContentWithTelemetryAsync(
+                chatHistory, null, kernel, cancellationToken);
             sw.Stop();
 
             _telemetry.RecordCall(reply?.Metadata, sw.ElapsedMilliseconds, "VisualAnalysisAgent", ModelConstants.PowerfulModel, _logger);

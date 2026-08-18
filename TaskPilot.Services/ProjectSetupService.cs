@@ -184,7 +184,8 @@ namespace TaskPilot.Services
                 _context.ChangeTracker.Clear();
                 return await GetAsync(projectId, cancellationToken);
             }
-            state.WbsJobId = _jobs.Enqueue<WbsGenerationJob>(job => job.ExecuteAsync(projectId, null!));
+            state.WbsJobId = _jobs.Enqueue<WbsGenerationJob>(job =>
+                job.ExecuteAsync(projectId, _currentUser.UserId!.Value, null!));
             try
             {
                 await _context.SaveChangesAsync(cancellationToken);
@@ -222,7 +223,8 @@ namespace TaskPilot.Services
                 _context.ChangeTracker.Clear();
                 return await GetAsync(projectId, cancellationToken);
             }
-            state.SkillsJobId = _jobs.Enqueue<WbsSkillEnrichmentJob>(job => job.ExecuteAsync(projectId, null!));
+            state.SkillsJobId = _jobs.Enqueue<WbsSkillEnrichmentJob>(job =>
+                job.ExecuteAsync(projectId, _currentUser.UserId!.Value, null!));
             try
             {
                 await _context.SaveChangesAsync(cancellationToken);

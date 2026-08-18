@@ -55,6 +55,14 @@ namespace TaskPilot.AI.Services
                     apiKey: apiKey!);
             }
 
+            builder.Services.AddSingleton(new AiKernelModelDescriptor(modelId));
+
+            var usageRecorder = _serviceProvider.GetService<IAiUsageRecorder>();
+            if (usageRecorder != null)
+            {
+                builder.Services.AddSingleton(usageRecorder);
+            }
+
             var filter = _serviceProvider.GetService<IFunctionInvocationFilter>();
             if (filter != null)
             {
@@ -75,6 +83,14 @@ namespace TaskPilot.AI.Services
             builder.AddGoogleAIGeminiChatCompletion(
                 modelId: modelId,
                 apiKey: apiKey!);
+
+            builder.Services.AddSingleton(new AiKernelModelDescriptor(modelId));
+
+            var usageRecorder = _serviceProvider.GetService<IAiUsageRecorder>();
+            if (usageRecorder != null)
+            {
+                builder.Services.AddSingleton(usageRecorder);
+            }
 
             var filter = _serviceProvider.GetService<IFunctionInvocationFilter>();
             if (filter != null)
