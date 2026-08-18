@@ -139,6 +139,16 @@ namespace TaskPilot.Services
                 return Result.Failure<FinalizeRequirementsResponse>(CommonErrors.InvalidInput("Company owner is missing or invalid. Cannot assign a project manager."));
             }
 
+            var normalizedProjectName = request.ProjectNameEn.Trim().ToUpper();
+            var nameExists = await _projectRepository.AnyAsync(project =>
+                project.CompanyId == request.CompanyId &&
+                project.NameEn.Trim().ToUpper() == normalizedProjectName);
+
+            if (nameExists)
+            {
+                return Result.Failure<FinalizeRequirementsResponse>(ProjectErrors.NameAlreadyExists);
+            }
+
             // Use the stored completeness report for the gate check.
             // RequirementDiscoveryOrchestrator already stores the authoritative deterministic score
             // on every chat turn. Only recompute if the session has never been through a chat turn
@@ -185,7 +195,7 @@ namespace TaskPilot.Services
             {
                 CompanyId = company.Id,
                 ManagerId = company.OwnerId,
-                NameEn = request.ProjectNameEn,
+                NameEn = request.ProjectNameEn.Trim(),
                 NameAr = request.ProjectNameAr ?? string.Empty,
                 DescriptionEn = request.DescriptionEn,
                 DescriptionAr = request.DescriptionAr,
@@ -215,6 +225,13 @@ namespace TaskPilot.Services
                 
                 _logger.LogInformation("Requirement session finalized successfully.\nSessionId: {SessionId}\nProjectId: {ProjectId}\nCompanyId: {CompanyId}\nDocumentIds transferred: {Count}", 
                     sessionId, project.Id, request.CompanyId, project.DocumentIds.Count);
+            }
+            catch (Microsoft.EntityFrameworkCore.DbUpdateException ex) when (ProjectDuplicateNameDetector.IsDuplicateNameViolation(ex))
+            {
+                session.Status = RequirementSessionStatus.Planning;
+                session.ProjectId = null;
+                await _sessionStore.SaveAsync(session, cancellationToken);
+                return Result.Failure<FinalizeRequirementsResponse>(ProjectErrors.NameAlreadyExists);
             }
             catch (Exception ex)
             {
