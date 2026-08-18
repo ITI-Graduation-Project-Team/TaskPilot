@@ -1,205 +1,184 @@
-using System;
-using System.Collections.Generic;
+using System.Diagnostics;
 using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
-using TaskPilot.AI.Services.Interfaces;
+using TaskPilot.AI.Constants;
 using TaskPilot.AI.Models.Planning;
+using TaskPilot.AI.Services.Interfaces;
 using TaskPilot.Models.Common.Errors;
 using TaskPilot.Models.Common.Results;
-using TaskPilot.AI.Constants;
 using TaskPilot.Models.Enums;
 
-namespace TaskPilot.AI.Agents.Planning
+namespace TaskPilot.AI.Agents.Planning;
+
+public class RequiredSkillsEnrichmentAgent
 {
-    public class RequiredSkillsEnrichmentAgent
+    private readonly IAiKernelService _kernelService;
+    private readonly IPromptLoaderService _promptLoader;
+    private readonly ILogger<RequiredSkillsEnrichmentAgent> _logger;
+    private readonly ITelemetryAccumulator _telemetry;
+    private readonly object _functionLock = new();
+    private Task<KernelFunction>? _functionTask;
+
+    public RequiredSkillsEnrichmentAgent(
+        IAiKernelService kernelService,
+        IPromptLoaderService promptLoader,
+        ILogger<RequiredSkillsEnrichmentAgent> logger,
+        ITelemetryAccumulator telemetry)
     {
-        private readonly IAiKernelService _kernelService;
-        private readonly IPromptLoaderService _promptLoader;
-        private readonly ILogger<RequiredSkillsEnrichmentAgent> _logger;
-        private readonly ITelemetryAccumulator _telemetry;
+        _kernelService = kernelService;
+        _promptLoader = promptLoader;
+        _logger = logger;
+        _telemetry = telemetry;
+    }
 
-        // Fix 3: cached once per scoped lifetime — avoids 50× disk reads + Kernel builds
-        private KernelFunction? _cachedFunction;
-        private Kernel? _cachedKernel;
+    public virtual async Task<Result<List<GeneratedTaskRequiredSkills>>> EnrichBatchAsync(
+        IReadOnlyCollection<SkillEnrichmentTaskInput> tasks,
+        IReadOnlyCollection<string> availableSkills,
+        CancellationToken cancellationToken = default)
+    {
+        if (tasks.Count == 0)
+            return Result.Success(new List<GeneratedTaskRequiredSkills>());
 
-        public RequiredSkillsEnrichmentAgent(
-            IAiKernelService kernelService,
-            IPromptLoaderService promptLoader,
-            ILogger<RequiredSkillsEnrichmentAgent> logger,
-            ITelemetryAccumulator telemetry)
+        try
         {
-            _kernelService = kernelService;
-            _promptLoader = promptLoader;
-            _logger = logger;
-            _telemetry = telemetry;
-        }
-
-        public virtual async Task<Result<List<GeneratedRequiredSkill>>> EnrichAsync(
-            string titleEn,
-            string descriptionEn,
-            string taskType,
-            List<string> availableSkills,
-            CancellationToken cancellationToken = default)
-        {
-            if (taskType?.Equals("NonTechnical", StringComparison.OrdinalIgnoreCase) == true)
-            {
-                return Result.Success(new List<GeneratedRequiredSkill>());
-            }
-
-            // Fix 3: lazy-init — load YAML + build Kernel only once per request lifetime
-            if (_cachedFunction == null)
-            {
-                var promptYaml = await _promptLoader.LoadAsync("Planning/RequiredSkillsEnrichment.yaml");
-                _cachedFunction = KernelFunctionYaml.FromPromptYaml(promptYaml);
-            }
-            if (_cachedKernel == null)
-            {
-                _cachedKernel = _kernelService.CreateKernel(ModelConstants.CheapModel);
-            }
-            var function = _cachedFunction;
-            var kernel = _cachedKernel;
-
+            var function = await GetFunctionAsync();
+            // Parallel batches never share mutable Kernel state.
+            var kernel = _kernelService.CreateKernel(ModelConstants.CheapModel);
             var arguments = new KernelArguments
             {
-                ["title"] = titleEn,
-                ["description"] = descriptionEn,
-                ["availableSkills"] = JsonSerializer.Serialize(availableSkills)
+                ["tasks"] = JsonSerializer.Serialize(tasks, JsonOptions),
+                ["availableSkills"] = JsonSerializer.Serialize(availableSkills, JsonOptions)
             };
 
-            const int maxAttempts = 3;
-            string failureReason = "The AI returned no usable required skills.";
-            string rawJson = string.Empty;
+            var stopwatch = Stopwatch.StartNew();
+            var response = await kernel.InvokeAsync(function, arguments, cancellationToken);
+            stopwatch.Stop();
 
-            for (int attempt = 1; attempt <= maxAttempts; attempt++)
-            {
-                try
+            _telemetry.RecordCall(
+                response.Metadata,
+                stopwatch.ElapsedMilliseconds,
+                nameof(RequiredSkillsEnrichmentAgent),
+                ModelConstants.CheapModel,
+                _logger);
+
+            var rawJson = response.GetValue<string>() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(rawJson))
+                return Failure("The AI returned an empty response.");
+
+            var parsed = TaskPilot.AI.Extensions.AiResponseParser.Parse<List<GeneratedTaskRequiredSkills>>(
+                TryRepairJsonArray(rawJson),
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            if (parsed == null)
+                return Failure("The AI response was not a valid batched required-skills array.");
+
+            var validResults = parsed
+                .Where(item => item.TaskId != Guid.Empty)
+                .GroupBy(item => item.TaskId)
+                .Select(group => new GeneratedTaskRequiredSkills
                 {
-                    var sw = System.Diagnostics.Stopwatch.StartNew();
-                    var response = await kernel.InvokeAsync(function, arguments, cancellationToken);
-                    sw.Stop();
-
-                    _telemetry.RecordCall(response.Metadata, sw.ElapsedMilliseconds, "RequiredSkillsEnrichmentAgent", ModelConstants.CheapModel, _logger);
-
-                    rawJson = response.GetValue<string>() ?? string.Empty;
-
-                    if (string.IsNullOrWhiteSpace(rawJson))
-                    {
-                        failureReason = "The AI returned an empty response.";
-                        await DelayBeforeRetryAsync(attempt, maxAttempts, cancellationToken);
-                        continue;
-                    }
-
-                    string jsonToParse = attempt == 1 ? rawJson : TryRepairJsonArray(rawJson);
-                    
-                    var parsedSkills = TaskPilot.AI.Extensions.AiResponseParser.Parse<List<GeneratedRequiredSkill>>(jsonToParse,
-                        new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-
-                    var validSkills = ValidateSkills(parsedSkills);
-                    if (validSkills.Count > 0)
-                        return Result.Success(validSkills);
-
-                    failureReason = parsedSkills == null
-                        ? "The AI response was not a valid required-skills array."
-                        : "The AI returned no valid required skills.";
-                    await DelayBeforeRetryAsync(attempt, maxAttempts, cancellationToken);
-                }
-                catch (JsonException ex)
-                {
-                    failureReason = "The AI response contained malformed JSON.";
-                    _logger.LogWarning(ex, "Required skills JSON parse failed on attempt {Attempt}/{MaxAttempts}.", attempt, maxAttempts);
-                    await DelayBeforeRetryAsync(attempt, maxAttempts, cancellationToken);
-                }
-                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-                {
-                    throw;
-                }
-                catch (Exception ex)
-                {
-                    failureReason = $"The AI request failed: {ex.GetType().Name}.";
-                    _logger.LogError(ex, "Failed to enrich required skills or parse JSON from AI.");
-                    await DelayBeforeRetryAsync(attempt, maxAttempts, cancellationToken);
-                }
-            }
-
-            _logger.LogWarning("Failed to generate valid skills for task '{Title}' after {Attempts} attempts. Reason={Reason}", titleEn, maxAttempts, failureReason);
-            return Result.Failure<List<GeneratedRequiredSkill>>(new Error(
-                "REQUIRED_SKILLS_NO_VALID_RESULT",
-                ErrorType.Failure,
-                failureReason));
-        }
-
-        internal static List<GeneratedRequiredSkill> ValidateSkills(List<GeneratedRequiredSkill>? skills)
-        {
-            if (skills == null || skills.Count == 0)
-                return new List<GeneratedRequiredSkill>();
-
-            return skills
-                .Where(skill => !string.IsNullOrWhiteSpace(skill.SkillName)
-                    && Enum.TryParse<SkillLevel>(skill.RequiredLevel, true, out _))
-                .Select(skill => new GeneratedRequiredSkill
-                {
-                    SkillName = skill.SkillName.Trim(),
-                    RequiredLevel = skill.RequiredLevel.Trim()
+                    TaskId = group.Key,
+                    Skills = ValidateSkills(group.SelectMany(item => item.Skills ?? new List<GeneratedRequiredSkill>()).ToList())
                 })
-                .GroupBy(skill => skill.SkillName, StringComparer.OrdinalIgnoreCase)
-                .Select(group => group.First())
+                .Where(item => item.Skills.Count > 0)
                 .ToList();
+
+            return Result.Success(validResults);
         }
-
-        private static async Task DelayBeforeRetryAsync(int attempt, int maxAttempts, CancellationToken cancellationToken)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            if (attempt >= maxAttempts)
-                return;
-
-            var delayMs = (250 * (1 << (attempt - 1))) + Random.Shared.Next(50, 151);
-            await Task.Delay(delayMs, cancellationToken);
+            throw;
         }
-
-        private string TryRepairJsonArray(string raw)
+        catch (JsonException ex)
         {
-            raw = raw.Trim();
-            
-            // Remove markdown fences if present
-            if (raw.StartsWith("```"))
-            {
-                var lines = raw.Split('\n').ToList();
-                if (lines.Count > 0 && lines[0].StartsWith("```")) lines.RemoveAt(0);
-                if (lines.Count > 0 && lines[lines.Count - 1].StartsWith("```")) lines.RemoveAt(lines.Count - 1);
-                raw = string.Join('\n', lines).Trim();
-            }
-
-            if (!raw.StartsWith("[")) return raw; 
-            if (raw.EndsWith("]")) return raw;
-
-            int lastClosingBrace = -1;
-            int depth = 0;
-            bool inString = false;
-            bool escape = false;
-
-            for (int i = 0; i < raw.Length; i++)
-            {
-                char c = raw[i];
-                if (escape) { escape = false; continue; }
-                if (c == '\\' && inString) { escape = true; continue; }
-                if (c == '"') { inString = !inString; continue; }
-                if (inString) continue;
-
-                if (c == '{') depth++;
-                else if (c == '}')
-                {
-                    depth--;
-                    if (depth == 0) // root level object in the array
-                        lastClosingBrace = i;
-                }
-            }
-
-            if (lastClosingBrace == -1) return "[]"; // could not even parse one object, return empty array
-
-            string repaired = raw.Substring(0, lastClosingBrace + 1) + "\n]";
-            return repaired;
+            _logger.LogWarning(ex, "Required-skills batch response contained malformed JSON.");
+            return Failure("The AI response contained malformed JSON.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Required-skills batch request failed.");
+            return Failure($"The AI request failed: {ex.GetType().Name}.");
         }
     }
+
+    internal static List<GeneratedRequiredSkill> ValidateSkills(List<GeneratedRequiredSkill>? skills)
+    {
+        if (skills == null || skills.Count == 0)
+            return new List<GeneratedRequiredSkill>();
+
+        return skills
+            .Where(skill => !string.IsNullOrWhiteSpace(skill.SkillName)
+                && Enum.TryParse<SkillLevel>(skill.RequiredLevel, true, out _))
+            .Select(skill => new GeneratedRequiredSkill
+            {
+                SkillName = skill.SkillName.Trim(),
+                RequiredLevel = skill.RequiredLevel.Trim()
+            })
+            .GroupBy(skill => skill.SkillName, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .ToList();
+    }
+
+    private Task<KernelFunction> GetFunctionAsync()
+    {
+        lock (_functionLock)
+        {
+            return _functionTask ??= LoadFunctionAsync();
+        }
+    }
+
+    private async Task<KernelFunction> LoadFunctionAsync()
+    {
+        var promptYaml = await _promptLoader.LoadAsync("Planning/RequiredSkillsEnrichment.yaml");
+        return KernelFunctionYaml.FromPromptYaml(promptYaml);
+    }
+
+    private static Result<List<GeneratedTaskRequiredSkills>> Failure(string reason) =>
+        Result.Failure<List<GeneratedTaskRequiredSkills>>(new Error(
+            "REQUIRED_SKILLS_NO_VALID_RESULT",
+            ErrorType.Failure,
+            reason));
+
+    private static string TryRepairJsonArray(string raw)
+    {
+        raw = raw.Trim();
+        if (raw.StartsWith("```", StringComparison.Ordinal))
+        {
+            var lines = raw.Split('\n').ToList();
+            if (lines.Count > 0 && lines[0].StartsWith("```", StringComparison.Ordinal)) lines.RemoveAt(0);
+            if (lines.Count > 0 && lines[^1].TrimStart().StartsWith("```", StringComparison.Ordinal)) lines.RemoveAt(lines.Count - 1);
+            raw = string.Join('\n', lines).Trim();
+        }
+
+        if (!raw.StartsWith("[", StringComparison.Ordinal) || raw.EndsWith("]", StringComparison.Ordinal))
+            return raw;
+
+        var lastClosingBrace = FindLastCompleteRootObject(raw);
+        return lastClosingBrace < 0 ? "[]" : raw[..(lastClosingBrace + 1)] + "]";
+    }
+
+    private static int FindLastCompleteRootObject(string raw)
+    {
+        var depth = 0;
+        var inString = false;
+        var escape = false;
+        var lastClosingBrace = -1;
+
+        for (var index = 0; index < raw.Length; index++)
+        {
+            var character = raw[index];
+            if (escape) { escape = false; continue; }
+            if (character == '\\' && inString) { escape = true; continue; }
+            if (character == '"') { inString = !inString; continue; }
+            if (inString) continue;
+
+            if (character == '{') depth++;
+            else if (character == '}' && --depth == 0) lastClosingBrace = index;
+        }
+
+        return lastClosingBrace;
+    }
+
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 }
