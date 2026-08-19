@@ -33,6 +33,8 @@ template: |
   The snapshot and Q&A context are ALWAYS relevant — use them fully.
 
   ## Summary Requirements
+  Write a concise summary in the requested language only. Keep it focused enough to
+  read quickly, normally 4-6 short paragraphs or bullet groups.
   Include:
   - What this task is about (grounded in context)
   - Why it exists (business purpose from requirements)
@@ -40,12 +42,12 @@ template: |
   - Technical context, constraints, and stack requirements
   - Relevant integrations or dependencies
 
-  ## Bilingual Requirement
-  Generate BOTH summaryEn (English) and summaryAr (Arabic) in one pass.
-  Both must be complete and natural. lang controls display only — generate both regardless.
+  ## Language Requirement
+  Generate only the language specified by lang. Do not translate or duplicate the
+  summary into the other language.
 
   ## Output Format
-  Return ONLY valid YAML matching the schema. No markdown fences. No preamble.
+  Return ONLY valid JSON matching the schema. No markdown fences. No preamble.
   If context is insufficient, say so — do not fabricate requirements.
 
   ## Task to Summarize
@@ -68,34 +70,13 @@ template: |
   {{$context_chunks}}
 
   ## Instructions
-  Generate a bilingual technical summary grounded in the sources above.
+  Generate one concise technical summary grounded in the sources above.
   Priority: PM Q&A > Snapshot > BRD chunks > User Story context.
   Focus only on "{{$task_title}}". Discard any BRD chunk about other features.
-  Display language (generate both En and Ar regardless): {{$lang}}
+  Output language: {{$lang}}
 
   Return ONLY a valid JSON object — no markdown fences, no preamble, no explanation — with this exact structure:
-  {
-    "summaryEn": {
-      "content": "string",
-      "citations": [
-        {
-          "sourceDocument": "string",
-          "sourceDocumentDisplayName": "string",
-          "chunkExcerpt": "string"
-        }
-      ]
-    },
-    "summaryAr": {
-      "content": "string",
-      "citations": [
-        {
-          "sourceDocument": "string",
-          "sourceDocumentDisplayName": "string",
-          "chunkExcerpt": "string"
-        }
-      ]
-    }
-  }
+  {"content":"string"}
   Return ONLY valid JSON. No markdown fences. No preamble. No trailing text.
 input_variables:
   - name: task_title
@@ -105,7 +86,7 @@ input_variables:
   - name: context_chunks
     description: The retrieved BRD chunks from Qdrant, formatted as a numbered list with the source document name prepended to each chunk.
   - name: lang
-    description: "'en' or 'ar' — indicates the display language; both summaryEn and summaryAr must always be generated."
+    description: "'en' or 'ar' — generate only this language."
   - name: snapshot_context
     description: "LLM-extracted requirements snapshot from the project (Business, Technical, Constraints, Integrations, Scale)"
   - name: qa_context

@@ -43,10 +43,17 @@ namespace TaskPilot.Services.Implementations
 
         private async Task<Result<TaskItem>> GetAndValidateTaskOwnershipAsync(Guid taskId, CancellationToken cancellationToken)
         {
+            var currentUserId = _currentUserService.UserId;
+            if (currentUserId == null)
+            {
+                return Result.Failure<TaskItem>(CommonErrors.Unauthorized());
+            }
+            var userId = currentUserId.Value;
+
             var task = await _taskRepository.GetQueryable()
                 .Include(t => t.UserStory)
-                    .ThenInclude(us => us.Project)
-                        .ThenInclude(p => p.ProjectEmployees)
+                    .ThenInclude(us => us!.Project)
+                        .ThenInclude(p => p.ProjectEmployees.Where(pe => pe.EmployeeId == userId))
                 .FirstOrDefaultAsync(t => t.Id == taskId, cancellationToken);
 
             if (task == null)
@@ -60,15 +67,9 @@ namespace TaskPilot.Services.Implementations
                 return Result.Failure<TaskItem>(CommonErrors.InvalidInput("Task is not associated with a project."));
             }
 
-            var currentUserId = _currentUserService.UserId;
-            if (currentUserId == null)
-            {
-                return Result.Failure<TaskItem>(CommonErrors.Unauthorized());
-            }
-
-            var isAssigned = task.EmployeeId == currentUserId;
-            var isManager = project.ManagerId == currentUserId;
-            var isParticipant = project.ProjectEmployees?.Any(pe => pe.EmployeeId == currentUserId) ?? false;
+            var isAssigned = task.EmployeeId == userId;
+            var isManager = project.ManagerId == userId;
+            var isParticipant = project.ProjectEmployees?.Any(pe => pe.EmployeeId == userId) ?? false;
 
             if (!isAssigned && !isManager && !isParticipant)
             {
@@ -90,15 +91,17 @@ namespace TaskPilot.Services.Implementations
 
             var task = taskResult.Value!;
             
-            if (task.TechnicalSummaryEn != null)
-            {
-                var content = lang == "ar" ? task.TechnicalSummaryAr : task.TechnicalSummaryEn;
+            var cachedContent = lang == "ar"
+                ? task.TechnicalSummaryAr
+                : task.TechnicalSummaryEn;
 
+            if (!string.IsNullOrWhiteSpace(cachedContent))
+            {
                 var responseSummary = new AgileCoachSummaryResponse
                 {
                     Id = task.Id,
                     TaskItemId = task.Id,
-                    Content = content ?? string.Empty,
+                    Content = cachedContent,
                     GeneratedAt = DateTime.UtcNow,
                     IsNewlyGenerated = false
                 };
@@ -126,7 +129,9 @@ namespace TaskPilot.Services.Implementations
             try
             {
                 var session = await _chatSessionRepository.GetQueryable()
-                    .Include(s => s.Messages)
+                    .Include(s => s.Messages
+                        .OrderByDescending(m => m.SequenceIndex)
+                        .Take(20))
                     .FirstOrDefaultAsync(s => s.ProjectId == task.UserStory!.Project.Id, cancellationToken);
                 var qaContext       = BuildQAPairsContext(session);
                 var snapshotContext = BuildSnapshotContext(task.UserStory!.Project);
@@ -139,16 +144,16 @@ namespace TaskPilot.Services.Implementations
                     lang,
                     snapshotContext,
                     qaContext,
-                    userStoryContext);
+                    userStoryContext,
+                    cancellationToken);
 
-                if (aiResult.SummaryEn != null)
+                if (lang == "ar")
                 {
-                    task.TechnicalSummaryEn = aiResult.SummaryEn.Content;
+                    task.TechnicalSummaryAr = aiResult.Content;
                 }
-                
-                if (aiResult.SummaryAr != null)
+                else
                 {
-                    task.TechnicalSummaryAr = aiResult.SummaryAr.Content;
+                    task.TechnicalSummaryEn = aiResult.Content;
                 }
 
                 // NOTE: We do not call SaveChangesAsync here. The Controller will do it.
@@ -316,6 +321,7 @@ namespace TaskPilot.Services.Implementations
                 .ToList();
 
             var pairs = new StringBuilder();
+            var pairCount = 0;
             for (int i = 0; i < messages.Count - 1; i++)
             {
                 var current = messages[i];
@@ -324,9 +330,12 @@ namespace TaskPilot.Services.Implementations
                 if (current.Role == "Assistant" && next.Role == "User"
                     && next.Content?.Length >= 30)
                 {
-                    pairs.AppendLine($"Q: {current.Content.Trim()}");
-                    pairs.AppendLine($"A: {next.Content.Trim()}");
-                    pairs.AppendLine();
+                    var pair = $"Q: {current.Content.Trim()}\nA: {next.Content.Trim()}\n\n";
+                    if (pairCount >= 5 || pairs.Length + pair.Length > 6000)
+                        break;
+
+                    pairs.Append(pair);
+                    pairCount++;
                     i++;
                 }
             }
