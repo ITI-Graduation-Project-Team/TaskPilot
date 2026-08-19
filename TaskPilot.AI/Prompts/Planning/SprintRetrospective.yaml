@@ -4,7 +4,7 @@ template_format: semantic-kernel
 execution_settings:
   default:
     temperature: 0.2
-    max_tokens: 2000
+    max_tokens: 1200
 input_variables:
   - name: sprintTitle
     description: Title of the completed sprint
@@ -53,6 +53,7 @@ template: |
 
   ## Output Rules
   - Return ONLY valid JSON — no markdown, no explanation
+  - NEVER mention velocity or velocityRatio in summaryEn, summaryAr, whatWentWellEn, or whatWentWellAr
   - Maximum 3 items in whatWentWell
   - Maximum 3 items in whatNeedsImprovement
   - Maximum 2 riskSignals

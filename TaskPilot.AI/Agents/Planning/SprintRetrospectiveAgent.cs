@@ -24,7 +24,9 @@ namespace TaskPilot.AI.Agents.Planning
             string userLanguage = "English",
             CancellationToken cancellationToken = default)
         {
-            var kernel = _kernelService.CreateKernel(ModelConstants.PowerfulModel);
+            // Retrospectives are structured summaries, so the smaller model keeps
+            // generation responsive without requiring deep reasoning.
+            var kernel = _kernelService.CreateKernel(ModelConstants.CheapModel);
 
             var prompt = await _promptLoader.LoadAsync("Planning/SprintRetrospective.yaml");
 
@@ -50,7 +52,7 @@ namespace TaskPilot.AI.Agents.Planning
                     assignedTasks     = d.AssignedTasks,
                     completedTasks    = d.CompletedTasks
                 }),
-                unfinishedTaskDetails = data.UnfinishedTasks.Select(t => new
+                unfinishedTaskDetails = data.UnfinishedTasks.Take(10).Select(t => new
                 {
                     title          = t.TitleEn,
                     estimatedHours = t.EstimatedHours,
