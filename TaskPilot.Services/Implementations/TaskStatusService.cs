@@ -159,10 +159,10 @@ namespace TaskPilot.Services.Implementations
                     int workingDaysMask = 62; // Default Mon-Fri
                     decimal allocationPercentage = 100m;
 
-                    var project = await _projectRepository.GetByIdAsync(task.Sprint.ProjectId);
-                    if (project != null)
+                    var capacityProject = await _projectRepository.GetByIdAsync(task.Sprint.ProjectId);
+                    if (capacityProject != null)
                     {
-                        var company = await _companyRepository.GetByIdAsync(project.CompanyId);
+                        var company = await _companyRepository.GetByIdAsync(capacityProject.CompanyId);
                         if (company != null)
                         {
                             hoursPerDay = company.WorkingHoursPerDay;
@@ -193,13 +193,33 @@ namespace TaskPilot.Services.Implementations
             }
 
             task.Status = request.Status;
+            var shouldShowInSprintActivity = ShouldShowInSprintActivity(previousStatus, task.Status);
+            var shouldNotifyReview = previousStatus != TaskItemStatus.Review && task.Status == TaskItemStatus.Review;
+            Project? project = null;
+
+            if (shouldShowInSprintActivity || shouldNotifyReview)
+            {
+                project = await _projectRepository.GetByIdAsync(task.Sprint.ProjectId);
+            }
+
+            if (shouldShowInSprintActivity)
+            {
+                _taskRepository.AddOverrideLog(new TaskStatusOverrideLog
+                {
+                    TaskId = task.Id,
+                    PerformedByPmId = currentUserId,
+                    FromStatus = previousStatus,
+                    ToStatus = task.Status,
+                    ReasonEn = $"Status changed from {previousStatus} to {task.Status}",
+                    OverrideType = "StatusChange"
+                });
+            }
 
             _logger.LogInformation("Task {TaskId} in Project {ProjectId} (Sprint {SprintId}) status updated from {PreviousStatus} to {NewStatus} by {EmployeeId}. Actual hours: {ActualHours}", 
                 task.Id, task.Sprint.ProjectId, task.SprintId, previousStatus.ToString(), task.Status.ToString(), currentUserId, task.ActualHours);
 
-            if (previousStatus != TaskItemStatus.Review && task.Status == TaskItemStatus.Review)
+            if (shouldNotifyReview)
             {
-                var project = await _projectRepository.GetByIdAsync(task.Sprint.ProjectId);
                 if (project != null && project.ManagerId != Guid.Empty)
                 {
                     await _notificationService.SendAsync(
@@ -215,6 +235,10 @@ namespace TaskPilot.Services.Implementations
             var result = new TaskStatusUpdateResult
             {
                 TaskId = task.Id,
+                ProjectId = task.Sprint.ProjectId,
+                SprintId = task.Sprint.Id,
+                ProjectManagerId = project?.ManagerId,
+                EmployeeId = task.EmployeeId,
                 TitleEn = task.TitleEn,
                 PreviousStatus = previousStatus,
                 NewStatus = task.Status,
@@ -274,10 +298,15 @@ namespace TaskPilot.Services.Implementations
             };
 
             _taskRepository.AddOverrideLog(log);
+            var project = await _projectRepository.GetByIdAsync(task.Sprint.ProjectId);
 
             var result = new TaskStatusUpdateResult
             {
                 TaskId = task.Id,
+                ProjectId = task.Sprint.ProjectId,
+                SprintId = task.Sprint.Id,
+                ProjectManagerId = project?.ManagerId,
+                EmployeeId = task.EmployeeId,
                 TitleEn = task.TitleEn,
                 PreviousStatus = previousStatus,
                 NewStatus = task.Status,
@@ -337,10 +366,15 @@ namespace TaskPilot.Services.Implementations
             };
 
             _taskRepository.AddOverrideLog(log);
+            var project = await _projectRepository.GetByIdAsync(task.Sprint.ProjectId);
 
             var result = new TaskStatusUpdateResult
             {
                 TaskId = task.Id,
+                ProjectId = task.Sprint.ProjectId,
+                SprintId = task.Sprint.Id,
+                ProjectManagerId = project?.ManagerId,
+                EmployeeId = task.EmployeeId,
                 TitleEn = task.TitleEn,
                 PreviousStatus = previousStatus,
                 NewStatus = task.Status,
@@ -600,6 +634,11 @@ namespace TaskPilot.Services.Implementations
                     
                 return Result.Failure(TaskErrors.InvalidTaskStatusTransition);
             }
+        }
+
+        private static bool ShouldShowInSprintActivity(TaskItemStatus fromStatus, TaskItemStatus toStatus)
+        {
+            return fromStatus != toStatus;
         }
     }
 }

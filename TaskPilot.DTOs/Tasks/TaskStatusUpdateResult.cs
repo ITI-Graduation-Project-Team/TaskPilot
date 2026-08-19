@@ -7,6 +7,14 @@ namespace TaskPilot.DTOs.Tasks
     {
         public Guid TaskId { get; set; }
 
+        public Guid ProjectId { get; set; }
+
+        public Guid SprintId { get; set; }
+
+        public Guid? ProjectManagerId { get; set; }
+
+        public Guid? EmployeeId { get; set; }
+
         public string TitleEn { get; set; } = string.Empty;
 
         public TaskItemStatus PreviousStatus { get; set; }

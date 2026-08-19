@@ -537,40 +537,77 @@ namespace TaskPilot.Services
                 .Where(pe => pe.Employee != null)
                 .ToDictionary(pe => pe.EmployeeId, pe => pe.Employee);
 
-            var recentTasks = await _context.Set<TaskItem>()
+            var recentStatusChanges = await _context.Set<TaskStatusOverrideLog>()
                 .AsNoTracking()
-                .Where(t =>
-                    t.SprintId == sprintId &&
-                    !t.IsDeleted &&
-                    t.ModifiedAt.HasValue &&
-                    (t.Status == TaskItemStatus.InProgress || t.Status == TaskItemStatus.Review))
-                .OrderByDescending(t => t.ModifiedAt)
+                .Include(log => log.Task)
+                .Where(log =>
+                    log.Task.SprintId == sprintId &&
+                    !log.Task.IsDeleted &&
+                    log.OverrideType == "StatusChange")
+                .OrderByDescending(log => log.CreatedAt)
                 .Take(10)
-                .Select(t => new
+                .Select(log => new
                 {
-                    t.Id,
-                    t.TitleEn,
-                    t.Status,
-                    t.EmployeeId,
-                    ModifiedAt = t.ModifiedAt!.Value
+                    log.Id,
+                    log.ToStatus,
+                    log.CreatedAt,
+                    TaskTitle = log.Task.TitleEn,
+                    log.Task.EmployeeId
                 })
                 .ToListAsync(ct);
 
-            var activities = recentTasks.Select(t =>
+            var activities = recentStatusChanges.Select(change =>
             {
-                employeesById.TryGetValue(t.EmployeeId ?? Guid.Empty, out var emp);
+                employeesById.TryGetValue(change.EmployeeId ?? Guid.Empty, out var emp);
                 return new ActivityFeedItemDto
                 {
-                    Id = t.Id,
+                    Id = change.Id,
                     Initials = emp != null ? GetInitials(emp.FirstNameEn, emp.LastNameEn) : "TP",
                     Name = emp != null ? $"{emp.FirstNameEn} {emp.LastNameEn}" : "TaskPilot",
-                    ActionType = GetTaskActivityType(t.Status),
-                    Description = GetTaskActivityDescription(t.Status, t.TitleEn),
-                    Timestamp = t.ModifiedAt,
-                    TimeAgo = GetTimeAgo(t.ModifiedAt),
+                    ActionType = GetTaskActivityType(change.ToStatus),
+                    Description = GetTaskActivityDescription(change.ToStatus, change.TaskTitle),
+                    Timestamp = change.CreatedAt,
+                    TimeAgo = GetTimeAgo(change.CreatedAt),
                     AgentTag = ""
                 };
             }).ToList();
+
+            if (activities.Count == 0)
+            {
+                var legacyActivities = await _context.Set<TaskItem>()
+                    .AsNoTracking()
+                    .Where(task =>
+                        task.SprintId == sprintId &&
+                        !task.IsDeleted &&
+                        task.ModifiedAt.HasValue)
+                    .OrderByDescending(task => task.ModifiedAt)
+                    .Take(10)
+                    .Select(task => new
+                    {
+                        task.Id,
+                        task.Status,
+                        task.ModifiedAt,
+                        task.TitleEn,
+                        task.EmployeeId
+                    })
+                    .ToListAsync(ct);
+
+                activities = legacyActivities.Select(task =>
+                {
+                    employeesById.TryGetValue(task.EmployeeId ?? Guid.Empty, out var emp);
+                    return new ActivityFeedItemDto
+                    {
+                        Id = task.Id,
+                        Initials = emp != null ? GetInitials(emp.FirstNameEn, emp.LastNameEn) : "TP",
+                        Name = emp != null ? $"{emp.FirstNameEn} {emp.LastNameEn}" : "TaskPilot",
+                        ActionType = GetTaskActivityType(task.Status),
+                        Description = GetTaskActivityDescription(task.Status, task.TitleEn),
+                        Timestamp = task.ModifiedAt!.Value,
+                        TimeAgo = GetTimeAgo(task.ModifiedAt.Value),
+                        AgentTag = ""
+                    };
+                }).ToList();
+            }
 
             return Result<List<ActivityFeedItemDto>>.Success(activities);
         }
@@ -595,6 +632,15 @@ namespace TaskPilot.Services
                 .Where(t => t.SprintId == sprintId && !t.IsDeleted)
                 .ToListAsync(ct);
 
+            var statusChanges = await _context.Set<TaskStatusOverrideLog>()
+                .AsNoTracking()
+                .Include(log => log.Task)
+                .Where(log =>
+                    log.Task.SprintId == sprintId &&
+                    !log.Task.IsDeleted &&
+                    log.OverrideType == "StatusChange")
+                .ToListAsync(ct);
+
             var activities = new List<ActivityFeedItemDto>();
             
             foreach(var a in alerts)
@@ -610,22 +656,27 @@ namespace TaskPilot.Services
                     AgentTag = "Agile Coach"
                 });
             }
+
+            foreach (var change in statusChanges)
+            {
+                var emp = sprint.Project.ProjectEmployees.FirstOrDefault(pe => pe.EmployeeId == change.Task.EmployeeId)?.Employee;
+
+                activities.Add(new ActivityFeedItemDto
+                {
+                    Id = change.Id,
+                    Initials = emp != null ? GetInitials(emp.FirstNameEn, emp.LastNameEn) : "TP",
+                    Name = emp != null ? $"{emp.FirstNameEn} {emp.LastNameEn}" : "TaskPilot",
+                    ActionType = GetTaskActivityType(change.ToStatus),
+                    Description = GetTaskActivityDescription(change.ToStatus, change.Task.TitleEn),
+                    Timestamp = change.CreatedAt,
+                    TimeAgo = GetTimeAgo(change.CreatedAt),
+                    AgentTag = ""
+                });
+            }
             
             foreach(var t in tasks)
             {
                 var emp = sprint.Project.ProjectEmployees.FirstOrDefault(pe => pe.EmployeeId == t.EmployeeId)?.Employee;
-                
-                // Add creation activity
-                activities.Add(new ActivityFeedItemDto {
-                    Id = Guid.NewGuid(), // synthetic id for activity
-                    Initials = emp != null ? $"{emp.FirstNameEn.FirstOrDefault()}{emp.LastNameEn.FirstOrDefault()}" : "UK",
-                    Name = emp != null ? $"{emp.FirstNameEn} {emp.LastNameEn}" : "Unknown",
-                    ActionType = "INFO",
-                    Description = $"Added task: {t.TitleEn}",
-                    Timestamp = t.CreatedAt,
-                    TimeAgo = GetTimeAgo(t.CreatedAt),
-                    AgentTag = ""
-                });
 
                 // If done, add completion activity
                 if (t.Status == TaskItemStatus.Done && t.ModifiedAt.HasValue)
@@ -1026,11 +1077,14 @@ namespace TaskPilot.Services
         {
             return status switch
             {
+                TaskItemStatus.ToDo => $"Moved back to to do: {title}",
                 TaskItemStatus.Review => $"Moved to review: {title}",
                 TaskItemStatus.InProgress => $"Started progress: {title}",
+                TaskItemStatus.Done => $"Completed task: {title}",
                 _ => $"Updated task: {title}"
             };
         }
+
 
         private static string GetInitials(string? firstName, string? lastName)
         {

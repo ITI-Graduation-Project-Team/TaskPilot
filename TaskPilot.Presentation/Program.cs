@@ -64,6 +64,7 @@ namespace TaskPilot.Presentation
             builder.Services.AddTaskPilotSignalR(builder.Configuration);
             builder.Services.AddScoped<TaskPilot.Services.Interfaces.INotificationNotifier, TaskPilot.Presentation.Services.NotificationNotifier>();
             builder.Services.AddScoped<TaskPilot.Services.Interfaces.IProjectSetupStatusNotifier, TaskPilot.Presentation.Services.ProjectSetupStatusNotifier>();
+            builder.Services.AddScoped<TaskPilot.Services.Interfaces.ITaskStatusChangeNotifier, TaskPilot.Presentation.Services.TaskStatusChangeNotifier>();
 
             builder.Services.AddScoped<TaskPilot.Services.Interfaces.External.IGoogleCalendarService, TaskPilot.Infrastructure.Services.Google.GoogleCalendarService>();
             builder.Services.AddControllers(options =>

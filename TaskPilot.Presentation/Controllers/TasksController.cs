@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Security.Claims;
 using System.Threading;
 using System.Threading.Tasks;
@@ -19,13 +20,16 @@ namespace TaskPilot.Presentation.Controllers
     {
         private readonly ITaskStatusService _taskStatusService;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly ITaskStatusChangeNotifier _taskStatusChangeNotifier;
 
         public TasksController(
             ITaskStatusService taskStatusService,
-            IUnitOfWork unitOfWork)
+            IUnitOfWork unitOfWork,
+            ITaskStatusChangeNotifier taskStatusChangeNotifier)
         {
             _taskStatusService = taskStatusService;
             _unitOfWork = unitOfWork;
+            _taskStatusChangeNotifier = taskStatusChangeNotifier;
         }
 
         [HttpGet("projects/{projectId:guid}/tasks/my-tasks")]
@@ -51,9 +55,53 @@ namespace TaskPilot.Presentation.Controllers
             if (result.IsSuccess)
             {
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+                await NotifyTaskStatusChangedAsync(result.Value);
             }
 
             return HandleResult(result, SuccessCodes.Task.StatusUpdated);
+        }
+
+        private static bool ShouldNotifyTaskStatusChanged(
+            TaskPilot.Models.Enums.TaskItemStatus previousStatus,
+            TaskPilot.Models.Enums.TaskItemStatus newStatus)
+        {
+            return previousStatus != newStatus;
+        }
+
+        private async Task NotifyTaskStatusChangedAsync(TaskStatusUpdateResult statusUpdate)
+        {
+            if (!ShouldNotifyTaskStatusChanged(statusUpdate.PreviousStatus, statusUpdate.NewStatus))
+            {
+                return;
+            }
+
+            var recipients = new HashSet<Guid>();
+            if (statusUpdate.ProjectManagerId.HasValue && statusUpdate.ProjectManagerId.Value != Guid.Empty)
+            {
+                recipients.Add(statusUpdate.ProjectManagerId.Value);
+            }
+
+            if (statusUpdate.EmployeeId.HasValue && statusUpdate.EmployeeId.Value != Guid.Empty)
+            {
+                recipients.Add(statusUpdate.EmployeeId.Value);
+            }
+
+            var message = new TaskStatusChangedDto
+            {
+                ProjectId = statusUpdate.ProjectId,
+                SprintId = statusUpdate.SprintId,
+                TaskId = statusUpdate.TaskId,
+                TaskTitle = statusUpdate.TitleEn,
+                PreviousStatus = statusUpdate.PreviousStatus,
+                NewStatus = statusUpdate.NewStatus,
+                OccurredAt = DateTime.UtcNow
+            };
+
+            foreach (var recipientId in recipients)
+            {
+                await _taskStatusChangeNotifier.NotifyAsync(recipientId, message);
+            }
         }
 
         [HttpPatch("tasks/{taskId:guid}/actual-hours")]
@@ -68,6 +116,7 @@ namespace TaskPilot.Presentation.Controllers
             if (result.IsSuccess)
             {
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
+                await NotifyTaskStatusChangedAsync(result.Value);
             }
 
             return HandleResult(result, SuccessCodes.Task.ActualHoursUpdated);
@@ -96,6 +145,7 @@ namespace TaskPilot.Presentation.Controllers
             if (result.IsSuccess)
             {
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
+                await NotifyTaskStatusChangedAsync(result.Value);
             }
 
             return HandleResult(result, SuccessCodes.Task.TaskRejected);
