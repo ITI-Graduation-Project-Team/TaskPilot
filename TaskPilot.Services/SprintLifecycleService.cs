@@ -675,6 +675,8 @@ namespace TaskPilot.Services
             string? status,
             int page,
             int pageSize,
+            Guid? assignedToEmployeeId = null,
+            Guid? prioritizeEmployeeId = null,
             CancellationToken cancellationToken = default)
         {
             if (projectId == Guid.Empty) return Result.Failure<PagedResult<SprintBoardTaskDto>>(SprintErrors.InvalidProject);
@@ -710,6 +712,11 @@ namespace TaskPilot.Services
                 .Where(s => s.Id == sprintId)
                 .SelectMany(s => s.Tasks);
 
+            if (assignedToEmployeeId.HasValue && assignedToEmployeeId.Value != Guid.Empty)
+            {
+                query = query.Where(t => t.EmployeeId == assignedToEmployeeId.Value);
+            }
+
             if (!string.IsNullOrWhiteSpace(status) && !status.Equals("All", StringComparison.OrdinalIgnoreCase))
             {
                 if (Enum.TryParse<TaskItemStatus>(status, true, out var parsedStatus))
@@ -722,8 +729,13 @@ namespace TaskPilot.Services
             var totalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
             bool isArabic = _localizationService?.CurrentLanguage == "ar";
 
-            var tasks = await query
-                .OrderByDescending(t => t.CreatedAt)
+            var orderedQuery = prioritizeEmployeeId.HasValue && prioritizeEmployeeId.Value != Guid.Empty
+                ? query
+                    .OrderByDescending(t => t.EmployeeId == prioritizeEmployeeId.Value)
+                    .ThenByDescending(t => t.CreatedAt)
+                : query.OrderByDescending(t => t.CreatedAt);
+
+            var tasks = await orderedQuery
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .Select(t => new SprintBoardTaskDto

@@ -213,10 +213,20 @@ namespace TaskPilot.Presentation.Controllers
             [FromQuery] string? status = null,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 8,
+            [FromQuery] bool assignedToMe = false,
             CancellationToken cancellationToken = default)
         {
-            var result = await _sprintLifecycleService.GetSprintTasksPagedAsync(projectId, sprintId, status, page, pageSize, cancellationToken);
+            var currentUserId = GetCurrentUserId();
+            var assignedToEmployeeId = assignedToMe ? currentUserId : (Guid?)null;
+            var prioritizeEmployeeId = User.IsInRole("Employee") ? currentUserId : (Guid?)null;
+            var result = await _sprintLifecycleService.GetSprintTasksPagedAsync(projectId, sprintId, status, page, pageSize, assignedToEmployeeId, prioritizeEmployeeId, cancellationToken);
             return HandleResult(result);
+        }
+
+        private Guid GetCurrentUserId()
+        {
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            return Guid.TryParse(userIdClaim, out var userId) ? userId : Guid.Empty;
         }
     }
 }
