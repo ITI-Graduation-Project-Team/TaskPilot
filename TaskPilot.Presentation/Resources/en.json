@@ -285,5 +285,6 @@
   "SPRINT_UNASSIGNED_TASKS_EXIST": "Cannot start the sprint. Ensure all tasks are assigned.",
   "TASK_OVERRIDE_REASON_REQUIRED": "A reason is required to reject or reopen this task.",
   "TASK_REJECTED": "Task rejected successfully.",
-  "TASK_REOPENED": "Task reopened successfully."
+  "TASK_REOPENED": "Task reopened successfully.",
+  "NO_POLICIES_UPLOADED": "Please upload a policy document first before asking questions."
 }

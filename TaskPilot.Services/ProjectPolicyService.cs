@@ -17,6 +17,7 @@ using TaskPilot.Models.Enums;
 using TaskPilot.Models.Extensions;
 using TaskPilot.Services.Interfaces;
 using TaskPilot.Services.Interfaces.ExternalServicesInterfaces;
+using TaskPilot.Models.Common;
 
 namespace TaskPilot.Services
 {
@@ -32,6 +33,7 @@ namespace TaskPilot.Services
         private readonly IFileStorageService _fileStorage;
         private readonly IFileValidatorService _fileValidator;
         private readonly ILogger<ProjectPolicyService> _logger;
+        private readonly ILocalizationService _localizationService;
 
         private static readonly ConcurrentDictionary<Guid, SemaphoreSlim> _tenantLocks = new();
 
@@ -45,7 +47,8 @@ namespace TaskPilot.Services
             IRepository<Project> projectRepository,
             IFileStorageService fileStorage,
             IFileValidatorService fileValidator,
-            ILogger<ProjectPolicyService> logger)
+            ILogger<ProjectPolicyService> logger,
+            ILocalizationService localizationService)
         {
             _extractors = extractors;
             _categorizationAgent = categorizationAgent;
@@ -57,6 +60,7 @@ namespace TaskPilot.Services
             _fileStorage = fileStorage;
             _fileValidator = fileValidator;
             _logger = logger;
+            _localizationService = localizationService;
         }
 
         public async Task<Result<UploadProjectPolicyResponse>> IngestAsync(
@@ -259,6 +263,20 @@ namespace TaskPilot.Services
                 {
                     return Result.Failure<ProjectPolicyAnswerResponse>(ProjectErrors.NotFound);
                 }
+            }
+
+            bool hasDocuments = request.ProjectId.HasValue 
+                ? await _policyRepository.AnyAsync(p => p.ProjectId == request.ProjectId.Value && p.Scope == PolicyScope.Project)
+                : await _policyRepository.AnyAsync(p => p.RequirementSessionId == request.RequirementSessionId!.Value && p.Scope == PolicyScope.Project);
+
+            if (!hasDocuments)
+            {
+                var msg = _localizationService.GetString("NO_POLICIES_UPLOADED");
+                return Result.Success(new ProjectPolicyAnswerResponse
+                {
+                    Answer = msg,
+                    Sources = new List<ProjectPolicySourceDto>()
+                });
             }
 
             var collectionType = KnowledgeCollectionType.ProjectPolicies;

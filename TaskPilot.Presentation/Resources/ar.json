@@ -271,5 +271,6 @@
   "SPRINT_UNASSIGNED_TASKS_EXIST": "لا يمكن بدء السبرينت. تأكد من إسناد جميع المهام.",
   "TASK_OVERRIDE_REASON_REQUIRED": "سبب الرفض أو إعادة الفتح مطلوب.",
   "TASK_REJECTED": "تم رفض المهمة بنجاح.",
-  "TASK_REOPENED": "تم إعادة فتح المهمة بنجاح."
+  "TASK_REOPENED": "تم إعادة فتح المهمة بنجاح.",
+  "NO_POLICIES_UPLOADED": "يرجى رفع مستند سياسات أولاً قبل طرح الأسئلة."
 }

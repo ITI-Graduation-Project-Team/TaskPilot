@@ -16,6 +16,7 @@ using TaskPilot.Models.Enums;
 using TaskPilot.Models.Extensions;
 using TaskPilot.Services.Interfaces;
 using TaskPilot.Services.Interfaces.ExternalServicesInterfaces;
+using TaskPilot.Models.Common;
 
 namespace TaskPilot.Services
 {
@@ -31,6 +32,7 @@ namespace TaskPilot.Services
         private readonly IUnitOfWork _unitOfWork;
         private readonly IFileStorageService _fileStorage;
         private readonly ILogger<CompanyPolicyService> _logger;
+        private readonly ILocalizationService _localizationService;
 
         private static readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, SemaphoreSlim> _companyLocks = new();
 
@@ -44,7 +46,8 @@ namespace TaskPilot.Services
             IRepository<Company> companyRepository,
             IUnitOfWork unitOfWork,
             IFileStorageService fileStorage,
-            ILogger<CompanyPolicyService> logger)
+            ILogger<CompanyPolicyService> logger,
+            ILocalizationService localizationService)
         {
             _extractors = extractors;
             _categorizationAgent = categorizationAgent;
@@ -56,6 +59,7 @@ namespace TaskPilot.Services
             _unitOfWork = unitOfWork;
             _fileStorage = fileStorage;
             _logger = logger;
+            _localizationService = localizationService;
         }
 
         public async Task<Result<UploadCompanyPolicyResponse>> IngestAsync(IngestCompanyPolicyRequest request, Func<CancellationToken, Task> saveChangesAsync, CancellationToken cancellationToken = default)
@@ -195,6 +199,17 @@ namespace TaskPilot.Services
             if (company == null)
             {
                 return Result.Failure<CompanyPolicyAnswerResponse>(CommonErrors.NotFound("Company"));
+            }
+
+            var hasDocuments = await _policyRepository.AnyAsync(p => p.CompanyId == request.CompanyId && p.Scope == PolicyScope.Company);
+            if (!hasDocuments)
+            {
+                var msg = _localizationService.GetString("NO_POLICIES_UPLOADED");
+                return Result.Success(new CompanyPolicyAnswerResponse
+                {
+                    Answer = msg,
+                    Sources = new List<CompanyPolicySourceDto>()
+                });
             }
 
             var collectionType = KnowledgeCollectionType.CompanyPolicies;
