@@ -330,11 +330,12 @@ namespace TaskPilot.Services
             decimal capacityBuffer = company?.DefaultCapacityBufferPercentage > 0 ? company.DefaultCapacityBufferPercentage : 1m;
 
             int totalWorkingDays = Math.Max(1, CountWorkingDays(sprint.StartDate.Date, sprint.EndDate.Date, workingDaysMask));
-            int elapsedWorkingDays = sprint.Status == SprintStatus.Completed
-                ? totalWorkingDays
-                : CountWorkingDays(sprint.StartDate.Date, now.Date > sprint.EndDate.Date ? sprint.EndDate.Date : now.Date, workingDaysMask);
-            elapsedWorkingDays = Math.Clamp(elapsedWorkingDays, 0, totalWorkingDays);
-            int timeUsedPercent = (int)Math.Round((elapsedWorkingDays * 100m) / totalWorkingDays);
+            decimal totalWorkingHours = Math.Max(workingHoursPerDay, totalWorkingDays * workingHoursPerDay);
+            decimal elapsedWorkingHours = sprint.Status == SprintStatus.Completed
+                ? totalWorkingHours
+                : CalculateWorkingHours(sprint.StartDate, now > sprint.EndDate ? sprint.EndDate : now, workingDaysMask, workingHoursPerDay);
+            elapsedWorkingHours = Math.Clamp(elapsedWorkingHours, 0, totalWorkingHours);
+            int timeUsedPercent = (int)Math.Round((elapsedWorkingHours * 100m) / totalWorkingHours);
             int workingDaysLeft = sprint.Status == SprintStatus.Completed
                 ? 0
                 : CountWorkingDays(now.Date > sprint.StartDate.Date ? now.Date : sprint.StartDate.Date, sprint.EndDate.Date, workingDaysMask);
@@ -406,8 +407,7 @@ namespace TaskPilot.Services
                     usagePercent,
                     memberStuckCount,
                     memberEstimateExceededCount,
-                    memberHighPriorityCount,
-                    memberReviewCount);
+                    memberHighPriorityCount);
 
                 return new TeamPulseMemberDto
                 {
@@ -463,7 +463,7 @@ namespace TaskPilot.Services
                 .Take(6)
                 .ToList();
 
-            var risks = BuildRiskSummary(overloadedCount, scheduleGap, capacityUsagePercent, stuckTasksCount, estimateExceededCount, reviewTasksCount, reviewEstimatedHours, remainingHours);
+            var risks = BuildRiskSummary(overloadedCount, scheduleGap, timeUsedPercent, effortProgressPercent, capacityUsagePercent, stuckTasksCount, estimateExceededCount, reviewTasksCount, reviewEstimatedHours, remainingHours);
             int highLoadAverage = memberDtos.Any()
                 ? (int)Math.Round(memberDtos.Average(m => Math.Min(m.UsagePercent, 100)))
                 : 0;
@@ -764,14 +764,12 @@ namespace TaskPilot.Services
             int usagePercent,
             int stuckTasksCount,
             int estimateExceededCount,
-            int highPriorityTasksCount,
-            int reviewTasksCount)
+            int highPriorityTasksCount)
         {
             var pressure = Math.Clamp(usagePercent, 0, 120);
             pressure += Math.Min(20, stuckTasksCount * 10);
             pressure += Math.Min(15, estimateExceededCount * 8);
             pressure += Math.Min(10, highPriorityTasksCount * 3);
-            pressure += Math.Min(10, reviewTasksCount * 3);
             return Math.Clamp(pressure, 0, 100);
         }
 
@@ -945,6 +943,8 @@ namespace TaskPilot.Services
         private static List<SprintHealthRiskDto> BuildRiskSummary(
             int overloadedCount,
             int scheduleGap,
+            int timeUsedPercent,
+            int effortProgressPercent,
             int capacityUsagePercent,
             int stuckTasksCount,
             int estimateExceededCount,
@@ -968,11 +968,9 @@ namespace TaskPilot.Services
             risks.Add(new SprintHealthRiskDto
             {
                 Type = "Schedule",
-                Severity = scheduleGap >= 30 ? "Critical" : scheduleGap >= 15 ? "High" : scheduleGap > 0 ? "Medium" : "Low",
+                Severity = scheduleGap >= 30 ? "Critical" : scheduleGap >= 20 ? "High" : scheduleGap >= 10 ? "Medium" : "Low",
                 Label = "Schedule risk",
-                Description = scheduleGap > 0
-                    ? $"Time used is {scheduleGap}% ahead of completed work"
-                    : "Progress is aligned with elapsed sprint time",
+                Description = $"Time used: {timeUsedPercent}% | Work completed: {effortProgressPercent}%. {GetScheduleRiskMessage(scheduleGap)}",
                 Count = Math.Max(0, scheduleGap)
             });
 
@@ -998,6 +996,14 @@ namespace TaskPilot.Services
             });
 
             return risks;
+        }
+
+        private static string GetScheduleRiskMessage(int scheduleGap)
+        {
+            if (scheduleGap >= 30) return "Delivery is seriously behind sprint time.";
+            if (scheduleGap >= 20) return "Delivery is behind sprint time.";
+            if (scheduleGap >= 10) return "Delivery is slightly behind sprint time.";
+            return "Progress is aligned with sprint time.";
         }
 
         private static string FormatHours(decimal hours)
