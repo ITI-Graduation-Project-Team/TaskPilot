@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using Microsoft.SemanticKernel;
 using TaskPilot.AI.Constants;
@@ -12,6 +13,10 @@ namespace TaskPilot.AI.Agents.Planning
 {
     public class WBSGenerationAgent
     {
+        private const int MaxBrdContextTokens = 30_000;
+        private const int TranslationBatchSize = 30;
+        private const int MaxConcurrentTranslationBatches = 3;
+
         private readonly IAiKernelService _kernelService;
         private readonly IPromptLoaderService _promptLoader;
         private readonly IVectorStore _vectorStore;
@@ -47,17 +52,25 @@ namespace TaskPilot.AI.Agents.Planning
             Guid sessionId,
             CancellationToken cancellationToken = default)
         {
+            var totalStopwatch = Stopwatch.StartNew();
             var brdContext = await GetBrdContextAsync(sessionId, cancellationToken);
 
-            var kernel = _kernelService.CreateKernel(
+            var storyKernel = _kernelService.CreateKernel(
                 ModelConstants.MorePowerfulModel,
                 "LongRunningAiClient");
 
             // Phase 1: Generate Stories (English only — Arabic stripped in Fix 1)
-            var stories = await GenerateStoriesAsync(kernel, snapshot, techStack, platformTargets, projectType, availableSkills, brdContext, cancellationToken);
+            var phaseStopwatch = Stopwatch.StartNew();
+            var stories = await GenerateStoriesAsync(storyKernel, snapshot, techStack, platformTargets, projectType, availableSkills, brdContext, cancellationToken);
+            _logger.LogInformation("WBS phase completed: Phase=Stories Count={Count} ElapsedMs={ElapsedMs}", stories.Count, phaseStopwatch.ElapsedMilliseconds);
             
             // Phase 2: Generate Tasks in Batches (English only, parallel batches)
-            var storyTasks = await GenerateTasksBatchedAsync(kernel, stories, techStack, availableSkills, cancellationToken);
+            var taskKernel = _kernelService.CreateKernel(
+                ModelConstants.PowerfulModel,
+                "LongRunningAiClient");
+            phaseStopwatch.Restart();
+            var storyTasks = await GenerateTasksBatchedAsync(taskKernel, stories, techStack, availableSkills, cancellationToken);
+            _logger.LogInformation("WBS phase completed: Phase=Tasks BatchResults={Count} ElapsedMs={ElapsedMs}", storyTasks.Count, phaseStopwatch.ElapsedMilliseconds);
 
             // Merge Tasks into Stories
             foreach (var story in stories)
@@ -68,7 +81,13 @@ namespace TaskPilot.AI.Agents.Planning
             }
 
             // Phase 3: Translate English content to Arabic (Fix 1 — separate lightweight call)
-            await TranslateWbsAsync(kernel, stories, cancellationToken);
+            phaseStopwatch.Restart();
+            await TranslateWbsAsync(stories, cancellationToken);
+            _logger.LogInformation("WBS phase completed: Phase=Translation ElapsedMs={ElapsedMs}", phaseStopwatch.ElapsedMilliseconds);
+
+            totalStopwatch.Stop();
+            _logger.LogInformation("WBS generation completed: Stories={StoryCount} Tasks={TaskCount} ElapsedMs={ElapsedMs}",
+                stories.Count, stories.Sum(story => story.Tasks.Count), totalStopwatch.ElapsedMilliseconds);
 
             return new GeneratedWbs { UserStories = stories };
         }
@@ -89,12 +108,11 @@ namespace TaskPilot.AI.Agents.Planning
                         chunks.AddRange(docChunks);
                     }
 
-                    const int MaxContextTokens = 100000;
                     int totalTokens = TaskPilot.AI.Helpers.TokenHelper.EstimateTokens(string.Join(" ", chunks.Select(c => c.Content)));
                     
-                    _logger.LogInformation("WBSGenerationAgent: Total tokens estimated for session {SessionId} is {TotalTokens}. MaxContextTokens={MaxContextTokens}", sessionId, totalTokens, MaxContextTokens);
+                    _logger.LogInformation("WBSGenerationAgent: Total tokens estimated for session {SessionId} is {TotalTokens}. MaxContextTokens={MaxContextTokens}", sessionId, totalTokens, MaxBrdContextTokens);
 
-                    if (totalTokens > MaxContextTokens)
+                    if (totalTokens > MaxBrdContextTokens)
                     {
                         _logger.LogInformation("WBSGenerationAgent: Token limit exceeded. Falling back to RAG.");
                         var dynamicQuery = string.Join(" ", session.Knowledge.Documents.Select(d => $"{d.Category} {d.FileName}"));
@@ -113,7 +131,7 @@ namespace TaskPilot.AI.Agents.Planning
 
                         chunks = relevantChunks.ToList();
 
-                        while (chunks.Count > 0 && TaskPilot.AI.Helpers.TokenHelper.EstimateTokens(string.Join(" ", chunks.Select(c => c.Content))) > MaxContextTokens)
+                        while (chunks.Count > 0 && TaskPilot.AI.Helpers.TokenHelper.EstimateTokens(string.Join(" ", chunks.Select(c => c.Content))) > MaxBrdContextTokens)
                         {
                             chunks.RemoveAt(chunks.Count - 1);
                         }
@@ -298,7 +316,7 @@ namespace TaskPilot.AI.Agents.Planning
                     var invokeResult = await kernel.InvokeAsync(function, arguments, cancellationToken);
                     sw.Stop();
 
-                    _telemetry.RecordCall(invokeResult.Metadata, sw.ElapsedMilliseconds, "WBSGenerationAgent_Tasks", ModelConstants.MorePowerfulModel, _logger);
+                    _telemetry.RecordCall(invokeResult.Metadata, sw.ElapsedMilliseconds, "WBSGenerationAgent_Tasks", ModelConstants.PowerfulModel, _logger);
 
                     var rawJson = invokeResult.ToString();
                     var jsonToParse = TryRepairJson(rawJson, isTasks: true);
@@ -328,7 +346,6 @@ namespace TaskPilot.AI.Agents.Planning
         /// and leaves Ar fields as empty strings so persistence is not blocked.
         /// </summary>
         private async Task TranslateWbsAsync(
-            Kernel kernel,
             List<GeneratedUserStory> stories,
             CancellationToken cancellationToken)
         {
@@ -338,8 +355,6 @@ namespace TaskPilot.AI.Agents.Planning
                 var translationFunction = KernelFunctionYaml.FromPromptYaml(translationPrompt);
 
                 // Use cheap/fast model for translation — create a new kernel for gpt-4o-mini
-                var translationKernel = _kernelService.CreateKernel(ModelConstants.CheapModel, "LongRunningAiClient");
-
                 var translationSettings = new Microsoft.SemanticKernel.Connectors.OpenAI.OpenAIPromptExecutionSettings
                 {
                     MaxTokens = 16384,
@@ -353,57 +368,83 @@ namespace TaskPilot.AI.Agents.Planning
                 var storyMap = new Dictionary<string, GeneratedUserStory>();
                 var taskMap = new Dictionary<string, GeneratedTask>();
 
-                foreach (var story in stories)
+                for (var storyIndex = 0; storyIndex < stories.Count; storyIndex++)
                 {
+                    var story = stories[storyIndex];
                     var sid = $"S_{story.Id}";
                     items.Add(new { id = sid, type = "story", titleEn = story.TitleEn, descriptionEn = story.DescriptionEn, acceptanceCriteriaEn = story.AcceptanceCriteriaEn });
                     storyMap[sid] = story;
 
-                    foreach (var task in story.Tasks)
+                    for (var taskIndex = 0; taskIndex < story.Tasks.Count; taskIndex++)
                     {
-                        var tid = $"T_{story.Id}_{task.TitleEn?.GetHashCode():X}";
+                        var task = story.Tasks[taskIndex];
+                        var tid = $"T_{storyIndex}_{taskIndex}";
                         items.Add(new { id = tid, type = "task", titleEn = task.TitleEn, descriptionEn = task.DescriptionEn, acceptanceCriteriaEn = task.AcceptanceCriteriaEn });
                         taskMap[tid] = task;
                     }
                 }
 
                 // Translate in batches of 30 items to stay under 16k max_tokens
-                const int translationBatchSize = 30;
                 var translationBatches = items.Select((item, idx) => new { item, idx })
-                    .GroupBy(x => x.idx / translationBatchSize)
+                    .GroupBy(x => x.idx / TranslationBatchSize)
                     .Select(g => g.Select(x => x.item).ToList())
                     .ToList();
 
-                foreach (var batch in translationBatches)
+                using var semaphore = new SemaphoreSlim(MaxConcurrentTranslationBatches, MaxConcurrentTranslationBatches);
+                var translationTasks = translationBatches.Select(async batch =>
                 {
-                    var batchJson = System.Text.Json.JsonSerializer.Serialize(batch);
-                    var args = new KernelArguments(translationSettings) { ["itemsBatch"] = batchJson };
-
-                    var invokeResult = await translationKernel.InvokeAsync(translationFunction, args, cancellationToken);
-                    _telemetry.RecordCall(invokeResult.Metadata, 0, "WBSGenerationAgent_Translation", ModelConstants.CheapModel, _logger);
-
-                    var rawJson = invokeResult.ToString();
-                    var translations = System.Text.Json.JsonSerializer.Deserialize<WbsTranslationBatch>(
-                        rawJson, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-
-                    if (translations?.Translations == null) continue;
-
-                    foreach (var t in translations.Translations)
+                    await semaphore.WaitAsync(cancellationToken);
+                    try
                     {
-                        if (storyMap.TryGetValue(t.Id, out var story))
-                        {
-                            story.TitleAr = t.TitleAr ?? story.TitleAr;
-                            story.DescriptionAr = t.DescriptionAr ?? story.DescriptionAr;
-                            story.AcceptanceCriteriaAr = t.AcceptanceCriteriaAr ?? story.AcceptanceCriteriaAr;
-                        }
-                        else if (taskMap.TryGetValue(t.Id, out var task))
-                        {
-                            task.TitleAr = t.TitleAr ?? task.TitleAr;
-                            task.DescriptionAr = t.DescriptionAr ?? task.DescriptionAr;
-                            task.AcceptanceCriteriaAr = t.AcceptanceCriteriaAr ?? task.AcceptanceCriteriaAr;
-                        }
+                        // Keep concurrent invocations isolated from mutable Kernel state.
+                        var translationKernel = _kernelService.CreateKernel(ModelConstants.CheapModel, "LongRunningAiClient");
+                        var batchJson = JsonSerializer.Serialize(batch);
+                        var args = new KernelArguments(translationSettings) { ["itemsBatch"] = batchJson };
+                        var stopwatch = Stopwatch.StartNew();
+                        var invokeResult = await translationKernel.InvokeAsync(translationFunction, args, cancellationToken);
+                        stopwatch.Stop();
+                        _telemetry.RecordCall(invokeResult.Metadata, stopwatch.ElapsedMilliseconds, "WBSGenerationAgent_Translation", ModelConstants.CheapModel, _logger);
+
+                        return JsonSerializer.Deserialize<WbsTranslationBatch>(
+                            invokeResult.ToString(),
+                            new JsonSerializerOptions { PropertyNameCaseInsensitive = true })?.Translations
+                            ?? new List<WbsTranslationItem>();
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        throw;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "WBSGenerationAgent: One Arabic translation batch failed; other batches will continue.");
+                        return new List<WbsTranslationItem>();
+                    }
+                    finally
+                    {
+                        semaphore.Release();
+                    }
+                });
+
+                var translatedBatches = await Task.WhenAll(translationTasks);
+                foreach (var translation in translatedBatches.SelectMany(batch => batch))
+                {
+                    if (storyMap.TryGetValue(translation.Id, out var story))
+                    {
+                        story.TitleAr = translation.TitleAr ?? story.TitleAr;
+                        story.DescriptionAr = translation.DescriptionAr ?? story.DescriptionAr;
+                        story.AcceptanceCriteriaAr = translation.AcceptanceCriteriaAr ?? story.AcceptanceCriteriaAr;
+                    }
+                    else if (taskMap.TryGetValue(translation.Id, out var task))
+                    {
+                        task.TitleAr = translation.TitleAr ?? task.TitleAr;
+                        task.DescriptionAr = translation.DescriptionAr ?? task.DescriptionAr;
+                        task.AcceptanceCriteriaAr = translation.AcceptanceCriteriaAr ?? task.AcceptanceCriteriaAr;
                     }
                 }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {
