@@ -19,7 +19,7 @@ namespace TaskPilot.Services
         private readonly IEmailBodyService _emailBodyService;
         private readonly ITokenService _tokenService;
         private readonly IGoogleAuthService _googleAuthService;
-        private readonly IRepository<SubscriptionPlan> _planRepo;
+
         private readonly IRepository<EmployeeInvitation> _invitationRepository;
         private readonly TaskPilot.Models.Common.ILocalizationService _localizationService;
 
@@ -30,7 +30,7 @@ namespace TaskPilot.Services
             IEmailBodyService emailBodyService,
             ITokenService tokenService,
             IGoogleAuthService googleAuthService,
-            IRepository<SubscriptionPlan> planRepo,
+
             IRepository<EmployeeInvitation> invitationRepository,
             TaskPilot.Models.Common.ILocalizationService localizationService,
             IRefreshTokenService refreshTokenService)
@@ -40,7 +40,7 @@ namespace TaskPilot.Services
             _emailBodyService = emailBodyService;
             _tokenService = tokenService;
             _googleAuthService = googleAuthService;
-            _planRepo = planRepo;
+
             _invitationRepository = invitationRepository;
             _localizationService = localizationService;
             _refreshTokenService = refreshTokenService;
@@ -74,20 +74,6 @@ namespace TaskPilot.Services
                     UserName = RegisterRequest.Email,
                 };
 
-                var freePlan = await _planRepo.FindSingleAsync(p => p.Name == "Free");
-                if (freePlan != null)
-                {
-                    pm.Subscriptions.Add(new UserSubscription
-                    {
-                        SubscriptionPlanId = freePlan.Id,
-                        StartDate = DateTime.UtcNow,
-                        EndDate = DateTime.UtcNow.AddYears(10), // Treat Free as practically infinite
-                        BillingCycle = BillingCycle.Monthly,
-                        Status = SubscriptionStatus.Active,
-                        AutoRenew = true,
-                        IsTrial = false
-                    });
-                }
 
                 user = pm;
             }
