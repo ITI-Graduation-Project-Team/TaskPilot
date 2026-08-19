@@ -11,6 +11,7 @@ namespace TaskPilot.Services.Interfaces
     public interface INotificationService
     {
         Task<Result> SendAsync(Guid userId, NotificationType type, string messageEn, string messageAr, string? url = null);
+        Task<Result> SendManyAsync(IReadOnlyCollection<CreateNotificationRequest> requests, CancellationToken cancellationToken = default);
         Task<Result<List<NotificationDto>>> GetUserNotificationsAsync(Guid userId, bool? isUnread = null);
         Task<Result> MarkAsReadAsync(Guid userId, Guid notificationId);
         Task<Result> MarkAllAsReadAsync(Guid userId);

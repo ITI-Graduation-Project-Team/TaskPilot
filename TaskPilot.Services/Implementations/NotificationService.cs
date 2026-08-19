@@ -55,6 +55,44 @@ namespace TaskPilot.Services.Implementations
             return Result.Success();
         }
 
+        public async Task<Result> SendManyAsync(
+            IReadOnlyCollection<CreateNotificationRequest> requests,
+            CancellationToken cancellationToken = default)
+        {
+            if (requests.Count == 0)
+            {
+                return Result.Success();
+            }
+
+            var notifications = requests.Select(request => new Notification
+            {
+                UserId = request.UserId,
+                Type = request.Type,
+                MessageEn = request.MessageEn,
+                MessageAr = request.MessageAr,
+                Url = request.Url,
+                IsRead = false,
+                CreatedAt = DateTime.UtcNow
+            }).ToList();
+
+            await _context.Notifications.AddRangeAsync(notifications, cancellationToken);
+            await _context.SaveChangesAsync(cancellationToken);
+
+            await Task.WhenAll(notifications.Select(notification =>
+                _notifier.NotifyAsync(notification.UserId, new NotificationDto
+                {
+                    Id = notification.Id,
+                    MessageEn = notification.MessageEn,
+                    MessageAr = notification.MessageAr,
+                    Type = notification.Type,
+                    IsRead = notification.IsRead,
+                    Url = notification.Url,
+                    CreatedAt = notification.CreatedAt
+                })));
+
+            return Result.Success();
+        }
+
         public async Task<Result<List<NotificationDto>>> GetUserNotificationsAsync(Guid userId, bool? isUnread = null)
         {
             var query = _context.Notifications.Where(n => n.UserId == userId);

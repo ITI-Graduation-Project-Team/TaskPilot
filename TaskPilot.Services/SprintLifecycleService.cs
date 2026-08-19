@@ -9,12 +9,12 @@ using TaskPilot.Data.Repositories;
 using TaskPilot.Data.Repositories.Interfaces;
 using TaskPilot.DTOs.Sprints;
 using TaskPilot.DTOs.Backlog;
+using TaskPilot.DTOs.Notifications;
 using TaskPilot.Models.Common.Errors;
 using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Entities;
 using TaskPilot.Models.Enums;
 using TaskPilot.Services.Interfaces;
-using TaskPilot.Services.Interfaces.External;
 using TaskPilot.Services.BackgroundJobs;
 using TaskPilot.Models.Common;
 using Hangfire;
@@ -30,10 +30,8 @@ namespace TaskPilot.Services
         private readonly ILogger<SprintLifecycleService> _logger;
         private readonly INotificationService _notificationService;
         private readonly ICalenderService _calenderService;
-        private readonly IGoogleCalendarService _googleCalendarService;
         private readonly ILocalizationService _localizationService;
         private readonly IBackgroundJobClient _backgroundJobClient;
-        private readonly IRepository<User> _userRepository;
 
         public SprintLifecycleService(
             ISprintRepository sprintRepository,
@@ -43,11 +41,9 @@ namespace TaskPilot.Services
             INotificationService notificationService = null!,
             ICalenderService calenderService = null!,
             IRepository<UserStory> userStoryRepository = null!,
-            IGoogleCalendarService googleCalendarService = null!,
             IProjectEmployeeRepository projectEmployeeRepository = null!,
             ILocalizationService localizationService = null!,
-            IBackgroundJobClient backgroundJobClient = null!,
-            IRepository<User> userRepository = null!)
+            IBackgroundJobClient backgroundJobClient = null!)
         {
             _sprintRepository = sprintRepository;
             _projectRepository = projectRepository;
@@ -57,10 +53,8 @@ namespace TaskPilot.Services
             _logger = logger;
             _notificationService = notificationService;
             _calenderService = calenderService;
-            _googleCalendarService = googleCalendarService;
             _localizationService = localizationService;
             _backgroundJobClient = backgroundJobClient;
-            _userRepository = userRepository;
         }
 
         public async Task<Result<PagedResult<SprintListItemDto>>> GetAllSprintsPagedAsync(Guid projectId, Guid userId, int page, int pageSize, string? statusFilter, string? dateFrom, string? dateTo, string lang = "en", CancellationToken cancellationToken = default)
@@ -151,7 +145,7 @@ namespace TaskPilot.Services
                 }
             }
 
-            var sprint = await _sprintRepository.GetSprintWithTasksAsync(sprintId);
+            var sprint = await _sprintRepository.GetSprintWithTasksAsync(sprintId, cancellationToken);
             //var sprint = await _sprintRepository.GetByIdAsync(sprintId);
             if (sprint == null)
             {
@@ -210,58 +204,23 @@ namespace TaskPilot.Services
                     new DateTimeOffset(DateTime.SpecifyKind(sprint.EndDate.AddDays(-1), DateTimeKind.Utc)));
             }
 
-            // --- add Google calendar to PM as sprint event ---
-            try
-            {
-                if (_googleCalendarService != null && sprint.Project?.ManagerId != null)
-                {
-                    await _googleCalendarService.AddEventToCalendarAsync(
-                        sprint.Project.ManagerId,
-                        $"Sprint beginning: {sprint.TitleEn}",
-                        $"Sprint goals: {sprint.SprintGoalEn}",
-                        sprint.StartDate,
-                        sprint.EndDate
-                    );
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning($"event didn't get added: {ex.Message}");
-            }
+            await _calenderService.StageEventsForAssignedTasksAsync(
+                projectId,
+                sprint.Tasks.ToList(),
+                sprint.StartDate,
+                cancellationToken);
 
-            //addd to calendar
-            foreach (var task in sprint.Tasks)
+            var notificationRequests = sprint.Tasks.Select(task => new CreateNotificationRequest
             {
-                await _calenderService.GenerateEventsForAssignedTaskAsync(task, task.EmployeeId.Value, DateTime.UtcNow);
-                try
-                {
-                    if (_googleCalendarService != null && task.EmployeeId.HasValue)
-                    {
-                        var startTime = DateTime.UtcNow;
-                        var endTime = startTime.AddHours((double)task.EstimatedHours);
+                UserId = task.EmployeeId!.Value,
+                Type = NotificationType.TaskAssigned,
+                MessageEn = $"You have been assigned to task '{task.TitleEn}'.",
+                MessageAr = $"تم تكليفك بمهمة '{task.TitleAr ?? task.TitleEn}'.",
+                Url = $"/projects/{projectId}/board/tasks/{task.Id}"
+            }).ToList();
 
-                        await _googleCalendarService.AddEventToCalendarAsync(
-                            task.EmployeeId.Value,
-                            $"Task: {task.TitleEn}",
-                            task.DescriptionEn ?? "No description available",
-                            startTime,
-                            endTime
-                        );
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning($"event didn't get added: {ex.Message}");
-                }
-                await _notificationService.SendAsync(
-               userId: task.EmployeeId.Value,
-               type: NotificationType.TaskAssigned,
-               messageEn: $"You have been assigned to task '{task.TitleEn}'.",
-               messageAr: $"تم تكليفك بمهمة '{task.TitleAr ?? task.TitleEn}'.",
-               url: $"/projects/{projectId}/board/tasks/{task.Id}"
-           );
+            await _notificationService.SendManyAsync(notificationRequests, cancellationToken);
 
-            }
             _logger.LogInformation("Sprint {SprintId} started for Project {ProjectId}", sprintId, projectId);
 
             return Result.Success(new SprintStatusDto

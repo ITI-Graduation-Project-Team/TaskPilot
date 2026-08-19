@@ -91,6 +91,103 @@ namespace TaskPilot.Services
             return Result.Success();
         }
 
+        public async Task<Result> StageEventsForAssignedTasksAsync(
+            Guid projectId,
+            IReadOnlyCollection<TaskItem> tasks,
+            DateTime startDate,
+            CancellationToken cancellationToken = default)
+        {
+            if (tasks.Count == 0)
+            {
+                return Result.Success();
+            }
+
+            var companyConfig = await _context.Projects
+                .Where(project => project.Id == projectId)
+                .Select(project => new
+                {
+                    project.Company.WorkingDaysMask,
+                    project.Company.WorkingHoursPerDay
+                })
+                .FirstOrDefaultAsync(cancellationToken);
+
+            var employeeIds = tasks
+                .Where(task => task.EmployeeId.HasValue)
+                .Select(task => task.EmployeeId!.Value)
+                .Distinct()
+                .ToList();
+
+            var allocations = await _context.ProjectEmployees
+                .Where(projectEmployee =>
+                    projectEmployee.ProjectId == projectId &&
+                    employeeIds.Contains(projectEmployee.EmployeeId))
+                .ToDictionaryAsync(
+                    projectEmployee => projectEmployee.EmployeeId,
+                    projectEmployee => projectEmployee.AllocationPercentage,
+                    cancellationToken);
+
+            var workingDaysMask = companyConfig?.WorkingDaysMask ?? 62;
+            var hoursPerDay = companyConfig?.WorkingHoursPerDay ?? 8.0m;
+            var events = new List<CalenderEvent>();
+
+            foreach (var task in tasks)
+            {
+                if (!task.EmployeeId.HasValue)
+                {
+                    continue;
+                }
+
+                var employeeId = task.EmployeeId.Value;
+                var allocationPercentage = allocations.GetValueOrDefault(employeeId, 100m);
+                var maxMinutesPerDay = (double)hoursPerDay * (double)(allocationPercentage / 100m) * 60;
+                if (maxMinutesPerDay <= 0)
+                {
+                    maxMinutesPerDay = WorkMinutesPerDay;
+                }
+
+                var remainingMinutes = (double)task.EstimatedHours * 60;
+                var currentDay = startDate.Date;
+
+                while (!IsWorkingDay(currentDay.DayOfWeek, workingDaysMask))
+                {
+                    currentDay = currentDay.AddDays(1);
+                }
+
+                while (remainingMinutes > 0)
+                {
+                    var workStart = currentDay.Add(WorkDayStart);
+                    var minutesToSchedule = Math.Min(remainingMinutes, maxMinutesPerDay);
+
+                    events.Add(new CalenderEvent
+                    {
+                        Id = Guid.NewGuid(),
+                        EmployeeId = employeeId,
+                        Title = task.TitleEn,
+                        StartDate = workStart,
+                        EndDate = workStart.AddMinutes(minutesToSchedule),
+                        Description = _localizationService.CurrentLanguage == "en"
+                            ? task.DescriptionEn
+                            : task.DescriptionAr,
+                        Type = CalenderEventType.AssignedTask,
+                        TaskPriority = task.Priority,
+                        Status = TaskItemStatus.ToDo,
+                        RelatedTaskId = task.Id
+                    });
+
+                    remainingMinutes -= minutesToSchedule;
+                    currentDay = currentDay.AddDays(1);
+
+                    while (!IsWorkingDay(currentDay.DayOfWeek, workingDaysMask))
+                    {
+                        currentDay = currentDay.AddDays(1);
+                    }
+                }
+            }
+
+            await _context.CalenderEvents.AddRangeAsync(events, cancellationToken);
+            return Result.Success();
+        }
+
         private bool IsWorkingDay(DayOfWeek day, int mask)
         {
             return (mask & (1 << (int)day)) != 0;
