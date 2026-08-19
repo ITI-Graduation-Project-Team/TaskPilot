@@ -298,7 +298,11 @@ namespace TaskPilot.Services
         public async Task<Result<TeamPulseDto>> GetTeamPulseAsync(Guid sprintId, CancellationToken ct = default)
         {
             var sprint = await _context.Set<Sprint>()
+                .AsNoTracking()
+                .AsSplitQuery()
                 .Include(s => s.Tasks)
+                .Include(s => s.Project)
+                .ThenInclude(p => p.Company)
                 .Include(s => s.Project)
                 .ThenInclude(p => p.ProjectEmployees)
                 .ThenInclude(pe => pe.Employee)
@@ -307,233 +311,268 @@ namespace TaskPilot.Services
             if (sprint == null)
                 return Result<TeamPulseDto>.Failure(SprintRiskErrors.SprintNotFound);
 
-            // Force real-time AI burnout analysis before returning the pulse data
-            await AnalyzeSprintBurnoutAsync(sprintId, ct);
-
-            var latestSnapshots = await _context.Set<SprintBurnoutSnapshot>()
-                .Include(s => s.Employee)
-                .Where(s => s.SprintId == sprintId)
-                .GroupBy(s => s.EmployeeId)
-                .Select(g => g.OrderByDescending(s => s.AnalyzedAt).FirstOrDefault())
-                .ToListAsync(ct);
-
-            var historySnapshots = await _context.Set<SprintBurnoutSnapshot>()
-                .Where(s => s.SprintId == sprintId && s.AnalyzedAt >= DateTime.UtcNow.AddDays(-7))
-                .OrderBy(s => s.AnalyzedAt)
-                .ToListAsync(ct);
-
-            var activeAlertsCount = await _context.Set<SprintRiskAlert>()
-                .CountAsync(a => a.SprintId == sprintId && !a.IsDismissed, ct);
-
-            // KPI 1: Progress
-            int totalTasks = sprint.Tasks.Count(t => !t.IsDeleted);
-            int completedTasks = sprint.Tasks.Count(t => !t.IsDeleted && t.Status == TaskItemStatus.Done);
-            int approachingDeadline = sprint.Tasks.Count(t => !t.IsDeleted && t.Status != TaskItemStatus.Done && (sprint.EndDate - DateTime.UtcNow).TotalDays < 2);
-            
-            // KPI 2: Velocity
-            int totalVelocity = (int)sprint.Tasks.Where(t => !t.IsDeleted).Sum(t => t.ActualHours);
-            int targetVelocity = (int)sprint.Project.ProjectEmployees.Sum(pe => pe.Employee.MaxSprintHours ?? 40);
-            
-            // KPI 3: Health
-            int overdueTasksCount = sprint.Tasks.Count(t => !t.IsDeleted && t.Status != TaskItemStatus.Done && t.ActualHours > t.EstimatedHours);
-            int healthScore = Math.Max(0, 100 - (activeAlertsCount * 10) - (overdueTasksCount * 5));
-            
-            // KPI 4: Burnout
-            int teamBurnoutAvg = latestSnapshots.Any(s => s != null) ? (int)latestSnapshots.Where(s => s != null).Average(s => s!.BurnoutScore) : 0;
-            int highRiskCount = latestSnapshots.Count(s => s != null && s.RiskLevel == "High");
-
-            // Activity Feed (Alerts & Task Completions)
-            var alerts = await _context.Set<SprintRiskAlert>()
-                .Include(a => a.AffectedEmployee)
-                .Where(a => a.SprintId == sprintId)
-                .OrderByDescending(a => a.CreatedAt)
-                .Take(5)
-                .ToListAsync(ct);
-
-            var doneTasks = sprint.Tasks
-                .Where(t => t.Status == TaskItemStatus.Done && t.ModifiedAt != null)
-                .OrderByDescending(t => t.ModifiedAt)
-                .Take(5)
+            var now = DateTime.UtcNow;
+            var tasks = sprint.Tasks.Where(t => !t.IsDeleted).ToList();
+            var unfinishedTasks = tasks.Where(t => t.Status != TaskItemStatus.Done).ToList();
+            var activeMembers = sprint.Project.ProjectEmployees
+                .Where(pe => pe.IsActive && !pe.Employee.IsDeactivated)
                 .ToList();
+            var allocationByEmployeeId = activeMembers.ToDictionary(
+                pe => pe.EmployeeId,
+                pe => Math.Clamp(pe.AllocationPercentage, 0, 100) / 100m);
 
-            var activities = new List<ActivityFeedItemDto>();
-            
-            foreach(var a in alerts)
+            int totalTasks = tasks.Count;
+            int completedTasks = tasks.Count(t => t.Status == TaskItemStatus.Done);
+            int progressPercent = totalTasks == 0 ? 100 : (int)Math.Round((completedTasks * 100m) / totalTasks);
+            var company = sprint.Project.Company;
+            int workingDaysMask = company?.WorkingDaysMask ?? 62;
+            decimal workingHoursPerDay = company?.WorkingHoursPerDay > 0 ? company.WorkingHoursPerDay : 8m;
+            decimal capacityBuffer = company?.DefaultCapacityBufferPercentage > 0 ? company.DefaultCapacityBufferPercentage : 1m;
+
+            int totalWorkingDays = Math.Max(1, CountWorkingDays(sprint.StartDate.Date, sprint.EndDate.Date, workingDaysMask));
+            int elapsedWorkingDays = sprint.Status == SprintStatus.Completed
+                ? totalWorkingDays
+                : CountWorkingDays(sprint.StartDate.Date, now.Date > sprint.EndDate.Date ? sprint.EndDate.Date : now.Date, workingDaysMask);
+            elapsedWorkingDays = Math.Clamp(elapsedWorkingDays, 0, totalWorkingDays);
+            int timeUsedPercent = (int)Math.Round((elapsedWorkingDays * 100m) / totalWorkingDays);
+            int workingDaysLeft = sprint.Status == SprintStatus.Completed
+                ? 0
+                : CountWorkingDays(now.Date > sprint.StartDate.Date ? now.Date : sprint.StartDate.Date, sprint.EndDate.Date, workingDaysMask);
+            workingDaysLeft = Math.Clamp(workingDaysLeft, 0, totalWorkingDays);
+
+            decimal GetTaskRemainingHours(TaskItem task)
             {
-                activities.Add(new ActivityFeedItemDto {
-                    Id = a.Id,
-                    Initials = a.AffectedEmployee != null ? $"{a.AffectedEmployee.FirstNameEn.FirstOrDefault()}{a.AffectedEmployee.LastNameEn.FirstOrDefault()}" : "AI",
-                    Name = a.AffectedEmployee != null ? $"{a.AffectedEmployee.FirstNameEn} {a.AffectedEmployee.LastNameEn}" : "System",
-                    ActionType = a.Severity == RiskSeverity.Critical ? "CRITICAL" : "ALERT",
-                    Description = a.MessageEn,
-                    Timestamp = a.CreatedAt,
-                    TimeAgo = GetTimeAgo(a.CreatedAt),
-                    AgentTag = "Agile Coach"
-                });
-            }
-            
-            foreach(var t in doneTasks)
-            {
-                var emp = sprint.Project.ProjectEmployees.FirstOrDefault(pe => pe.EmployeeId == t.EmployeeId)?.Employee;
-                activities.Add(new ActivityFeedItemDto {
-                    Id = t.Id,
-                    Initials = emp != null ? $"{emp.FirstNameEn.FirstOrDefault()}{emp.LastNameEn.FirstOrDefault()}" : "UK",
-                    Name = emp != null ? $"{emp.FirstNameEn} {emp.LastNameEn}" : "Unknown",
-                    ActionType = "SUCCESS",
-                    Description = $"Completed task: {t.TitleEn}",
-                    Timestamp = t.ModifiedAt ?? DateTime.UtcNow,
-                    TimeAgo = GetTimeAgo(t.ModifiedAt ?? DateTime.UtcNow),
-                    AgentTag = ""
-                });
+                if (task.Status == TaskItemStatus.Done) return 0;
+                return task.EstimatedHours;
             }
 
-            // --- CHARTS CALCULATIONS ---
-            
-            // 1. Top Contributors
-            var topContributors = sprint.Tasks
-                .Where(t => t.Status == TaskItemStatus.Done && !t.IsDeleted && t.EmployeeId.HasValue)
-                .GroupBy(t => t.EmployeeId)
-                .Select(g => new {
-                    EmployeeId = g.Key,
-                    CompletedHours = g.Sum(t => t.ActualHours),
-                    CompletedTasksCount = g.Count()
-                })
-                .OrderByDescending(x => x.CompletedHours)
-                .Take(3)
-                .ToList();
-                
-            var topContributorDtos = topContributors.Select(tc => {
-                var emp = sprint.Project.ProjectEmployees.FirstOrDefault(pe => pe.EmployeeId == tc.EmployeeId)?.Employee;
-                return new TopContributorDto
+            decimal remainingHours = unfinishedTasks.Sum(GetTaskRemainingHours);
+            decimal totalEstimatedHours = tasks.Sum(t => t.EstimatedHours);
+            decimal completedEstimatedHours = tasks
+                .Where(t => t.Status == TaskItemStatus.Done)
+                .Sum(t => t.EstimatedHours);
+            int effortProgressPercent = totalEstimatedHours <= 0
+                ? (totalTasks == 0 ? 100 : 0)
+                : (int)Math.Round((completedEstimatedHours * 100m) / totalEstimatedHours);
+            int unassignedHighPriorityCount = unfinishedTasks.Count(t =>
+                !t.EmployeeId.HasValue && (t.Priority == TaskPriority.High || t.Priority == TaskPriority.Critical));
+
+            decimal GetEffectiveActualHours(TaskItem task)
+            {
+                if (task.Status != TaskItemStatus.InProgress || !task.InProgressAt.HasValue)
                 {
-                    Initials = emp != null ? $"{emp.FirstNameEn.FirstOrDefault()}{emp.LastNameEn.FirstOrDefault()}" : "UK",
-                    Name = emp != null ? $"{emp.FirstNameEn} {emp.LastNameEn}" : "Unknown",
-                    CompletedHours = (int)tc.CompletedHours,
-                    CompletedTasksCount = tc.CompletedTasksCount
-                };
-            }).ToList();
+                    return task.ActualHours;
+                }
 
-            // 2. Workload Distribution
-            var activeTasksWorkload = sprint.Tasks
-                .Where(t => t.Status != TaskItemStatus.Done && !t.IsDeleted && t.EmployeeId.HasValue)
-                .Select(t => new { 
-                    t.EstimatedHours, 
-                    JobTitle = sprint.Project.ProjectEmployees.FirstOrDefault(pe => pe.EmployeeId == t.EmployeeId)?.Employee?.JobTitle ?? "Unspecified" 
-                })
-                .GroupBy(x => x.JobTitle)
-                .Select(g => new { JobTitle = g.Key, TotalHours = g.Sum(x => x.EstimatedHours) })
+                var allocationRatio = task.EmployeeId.HasValue && allocationByEmployeeId.TryGetValue(task.EmployeeId.Value, out var ratio)
+                    ? ratio
+                    : 1m;
+                var runningHours = CalculateWorkingHours(task.InProgressAt.Value, now, workingDaysMask, workingHoursPerDay);
+                return task.ActualHours + Math.Round(runningHours * allocationRatio, 2);
+            }
+
+            int estimateExceededCount = unfinishedTasks.Count(t => t.EstimatedHours > 0 && GetEffectiveActualHours(t) > t.EstimatedHours);
+            int stuckTasksCount = unfinishedTasks.Count(t => IsTaskStuck(t, now, workingDaysMask, workingHoursPerDay));
+            int reviewTasksCount = unfinishedTasks.Count(t => t.Status == TaskItemStatus.Review);
+            decimal reviewEstimatedHours = unfinishedTasks
+                .Where(t => t.Status == TaskItemStatus.Review)
+                .Sum(t => t.EstimatedHours);
+
+            var memberDtos = activeMembers.Select(pe =>
+            {
+                var emp = pe.Employee;
+                decimal allocationRatio = Math.Clamp(pe.AllocationPercentage, 0, 100) / 100m;
+                decimal availableRemaining = sprint.Status == SprintStatus.Completed
+                    ? 0
+                    : Math.Round(workingHoursPerDay * workingDaysLeft * allocationRatio * capacityBuffer, 1);
+                decimal assignedRemaining = unfinishedTasks
+                    .Where(t => t.EmployeeId == emp.Id)
+                    .Sum(GetTaskRemainingHours);
+                var assignedUnfinished = unfinishedTasks
+                    .Where(t => t.EmployeeId == emp.Id)
+                    .ToList();
+                int memberStuckCount = assignedUnfinished.Count(t => IsTaskStuck(t, now, workingDaysMask, workingHoursPerDay));
+                int memberEstimateExceededCount = assignedUnfinished.Count(t => t.EstimatedHours > 0 && GetEffectiveActualHours(t) > t.EstimatedHours);
+                int memberHighPriorityCount = assignedUnfinished.Count(t => t.Priority == TaskPriority.High || t.Priority == TaskPriority.Critical);
+                int memberReviewCount = assignedUnfinished.Count(t => t.Status == TaskItemStatus.Review);
+                decimal completedByMember = tasks
+                    .Where(t => t.EmployeeId == emp.Id && t.Status == TaskItemStatus.Done)
+                    .Sum(t => t.EstimatedHours);
+                int usagePercent = availableRemaining <= 0
+                    ? (assignedRemaining > 0 ? 100 : 0)
+                    : (int)Math.Round((assignedRemaining * 100m) / availableRemaining);
+                string loadStatus = GetLoadStatus(assignedRemaining, availableRemaining, usagePercent);
+                int workloadPressurePercent = CalculateWorkloadPressure(
+                    usagePercent,
+                    memberStuckCount,
+                    memberEstimateExceededCount,
+                    memberHighPriorityCount,
+                    memberReviewCount);
+
+                return new TeamPulseMemberDto
+                {
+                    EmployeeId = emp.Id,
+                    Initials = GetInitials(emp.FirstNameEn, emp.LastNameEn),
+                    Name = $"{emp.FirstNameEn} {emp.LastNameEn}",
+                    JobTitle = emp.JobTitle ?? "Software Engineer",
+                    RiskLevel = loadStatus,
+                    BurnoutScore = workloadPressurePercent,
+                    AssignedRemainingHours = Math.Round(assignedRemaining, 1),
+                    AvailableRemainingHours = availableRemaining,
+                    RemainingCapacityDeltaHours = Math.Round(availableRemaining - assignedRemaining, 1),
+                    CompletedEstimatedHours = Math.Round(completedByMember, 1),
+                    UsagePercent = usagePercent,
+                    WorkloadPressurePercent = workloadPressurePercent,
+                    ActiveTasksCount = assignedUnfinished.Count,
+                    HighPriorityTasksCount = memberHighPriorityCount,
+                    StuckTasksCount = memberStuckCount,
+                    EstimateExceededTasksCount = memberEstimateExceededCount,
+                    ReviewTasksCount = memberReviewCount,
+                    LoadStatus = loadStatus,
+                    RiskFactors = new RiskFactorsDto
+                    {
+                        Workload = Math.Clamp(usagePercent, 0, 100),
+                        Pace = memberEstimateExceededCount > 0 ? 70 : 0,
+                        Engagement = memberStuckCount > 0 ? 60 : 0
+                    },
+                    TrendDirection = "Stable",
+                    History = new List<int> { workloadPressurePercent }
+                };
+            })
+            .OrderByDescending(m => m.WorkloadPressurePercent)
+            .ThenByDescending(m => m.UsagePercent)
+            .ThenBy(m => m.Name)
+            .ToList();
+
+            int overloadedCount = memberDtos.Count(m => m.UsagePercent > 110);
+            decimal teamRemainingCapacity = memberDtos.Sum(m => m.AvailableRemainingHours);
+            decimal teamDailyCapacity = activeMembers.Sum(pe =>
+                workingHoursPerDay * (Math.Clamp(pe.AllocationPercentage, 0, 100) / 100m) * capacityBuffer);
+            decimal estimatedWorkingDaysNeeded = teamDailyCapacity <= 0 || remainingHours <= 0
+                ? 0
+                : Math.Round(remainingHours / teamDailyCapacity, 1);
+            int capacityUsagePercent = teamRemainingCapacity <= 0
+                ? (remainingHours > 0 ? 100 : 0)
+                : (int)Math.Round((remainingHours * 100m) / teamRemainingCapacity);
+
+            int scheduleGap = timeUsedPercent - effortProgressPercent;
+            string deliveryStatus = GetDeliveryStatus(scheduleGap, capacityUsagePercent, overloadedCount, stuckTasksCount, workingDaysLeft, remainingHours);
+            int healthScore = CalculateHealthScore(scheduleGap, capacityUsagePercent, overloadedCount, stuckTasksCount, estimateExceededCount);
+
+            var needsAttention = BuildNeedsAttention(memberDtos, unfinishedTasks, scheduleGap, capacityUsagePercent, workingDaysLeft, remainingHours, reviewTasksCount, reviewEstimatedHours, GetEffectiveActualHours, now, workingDaysMask, workingHoursPerDay)
+                .Take(6)
                 .ToList();
+
+            var risks = BuildRiskSummary(overloadedCount, scheduleGap, capacityUsagePercent, stuckTasksCount, estimateExceededCount, reviewTasksCount, reviewEstimatedHours, remainingHours);
+            int highLoadAverage = memberDtos.Any()
+                ? (int)Math.Round(memberDtos.Average(m => Math.Min(m.UsagePercent, 100)))
+                : 0;
 
             var workloadDistribution = new WorkloadDistributionDto
             {
-                Labels = activeTasksWorkload.Select(w => w.JobTitle).ToList(),
-                Series = activeTasksWorkload.Select(w => (int)w.TotalHours).ToList()
-            };
-
-            // 3. Sprint Burndown (Simulated for visualization)
-            int totalSprintEstimatedHours = (int)sprint.Tasks.Where(t => !t.IsDeleted).Sum(t => t.EstimatedHours);
-            int sprintDurationDays = (sprint.EndDate - sprint.StartDate).Days > 0 ? (sprint.EndDate - sprint.StartDate).Days : 1;
-            int daysPassed = (DateTime.UtcNow - sprint.StartDate).Days;
-            daysPassed = Math.Clamp(daysPassed, 0, sprintDurationDays);
-            
-            var burndownLabels = new List<string>();
-            var idealTrend = new List<int>();
-            var actualTrend = new List<int>();
-            
-            int remainingHoursNow = (int)sprint.Tasks.Where(t => !t.IsDeleted && t.Status != TaskItemStatus.Done).Sum(t => t.EstimatedHours);
-            
-            for (int i = 0; i <= sprintDurationDays; i++)
-            {
-                DateTime currentDay = sprint.StartDate.AddDays(i);
-                burndownLabels.Add(currentDay.ToString("ddd")); // e.g. Mon, Tue
-                
-                int idealRemaining = totalSprintEstimatedHours - (totalSprintEstimatedHours / sprintDurationDays * i);
-                idealTrend.Add(Math.Max(0, idealRemaining));
-                
-                if (i <= daysPassed)
-                {
-                    if (i == daysPassed) actualTrend.Add(remainingHoursNow);
-                    else if (i == 0) actualTrend.Add(totalSprintEstimatedHours);
-                    else
-                    {
-                        int diff = totalSprintEstimatedHours - remainingHoursNow;
-                        int simulatedBurn = totalSprintEstimatedHours - (diff / (daysPassed == 0 ? 1 : daysPassed) * i);
-                        actualTrend.Add(simulatedBurn);
-                    }
-                }
-            }
-            
-            var burndownDto = new SprintBurndownDto
-            {
-                Labels = burndownLabels,
-                IdealTrend = idealTrend,
-                ActualTrend = actualTrend
+                Labels = memberDtos.Select(m => m.Name).ToList(),
+                Series = memberDtos.Select(m => (int)Math.Round(m.AssignedRemainingHours)).ToList()
             };
 
             var teamPulse = new TeamPulseDto
             {
-                TeamBurnoutRisk = teamBurnoutAvg,
+                TeamBurnoutRisk = highLoadAverage,
+                Summary = new SprintHealthSummaryDto
+                {
+                    DeliveryStatus = deliveryStatus,
+                    ProgressPercent = progressPercent,
+                    EffortProgressPercent = effortProgressPercent,
+                    DoneTasks = completedTasks,
+                    TotalTasks = totalTasks,
+                    CompletedEstimatedHours = (int)Math.Round(completedEstimatedHours),
+                    TotalEstimatedHours = (int)Math.Round(totalEstimatedHours),
+                    RemainingHours = (int)Math.Round(remainingHours),
+                    WorkingDaysLeft = workingDaysLeft,
+                    TeamRemainingCapacity = (int)Math.Round(teamRemainingCapacity),
+                    CapacityUsagePercent = capacityUsagePercent,
+                    EstimatedWorkingDaysNeeded = estimatedWorkingDaysNeeded,
+                    SpareCapacityHours = (int)Math.Round(teamRemainingCapacity - remainingHours),
+                    OverloadedCount = overloadedCount,
+                    UnassignedHighPriorityCount = unassignedHighPriorityCount,
+                    StuckTasksCount = stuckTasksCount,
+                    EstimateExceededCount = estimateExceededCount,
+                    ReviewTasksCount = reviewTasksCount
+                },
                 Kpis = new DashboardKpisDto {
                     SprintProgressValue = $"{completedTasks} / {totalTasks}",
-                    SprintProgressSubtext = $"{approachingDeadline} approaching deadline",
-                    SprintVelocityValue = totalVelocity,
-                    SprintVelocitySubtext = $"Target: {targetVelocity} hrs/sprint",
+                    SprintProgressSubtext = $"{progressPercent}% done",
+                    SprintVelocityValue = (int)Math.Round(remainingHours),
+                    SprintVelocitySubtext = $"{workingDaysLeft} working days left",
                     SprintHealthValue = healthScore,
-                    SprintHealthSubtext = healthScore < 70 ? "Below 70% threshold" : "On track",
-                    TeamBurnoutRiskValue = teamBurnoutAvg,
-                    TeamBurnoutRiskSubtext = $"{highRiskCount} members at HIGH risk"
+                    SprintHealthSubtext = deliveryStatus,
+                    TeamBurnoutRiskValue = capacityUsagePercent,
+                    TeamBurnoutRiskSubtext = $"{overloadedCount} overloaded members"
                 },
-                LiveActivity = activities.OrderByDescending(a => a.Timestamp).Take(10).ToList(),
+                LiveActivity = new List<ActivityFeedItemDto>(),
+                Members = memberDtos,
+                NeedsAttention = needsAttention,
+                Risks = risks,
                 Charts = new TeamPulseChartsDto
                 {
-                    TopContributors = topContributorDtos,
                     Workload = workloadDistribution,
-                    Burndown = burndownDto
                 },
-                Members = sprint.Project.ProjectEmployees.Select(pe => {
-                    var emp = pe.Employee;
-                    var s = latestSnapshots.FirstOrDefault(snap => snap?.EmployeeId == emp.Id);
-                    
-                    if (s != null)
-                    {
-                        return new TeamPulseMemberDto
-                        {
-                            EmployeeId = emp.Id,
-                            Initials = $"{emp.FirstNameEn.FirstOrDefault()}{emp.LastNameEn.FirstOrDefault()}",
-                            Name = $"{emp.FirstNameEn} {emp.LastNameEn}",
-                            JobTitle = emp.JobTitle ?? "Software Engineer",
-                            RiskLevel = s.RiskLevel,
-                            BurnoutScore = s.BurnoutScore,
-                            RiskFactors = new RiskFactorsDto
-                            {
-                                Workload = s.WorkloadScore,
-                                Pace = s.PaceScore,
-                                Engagement = s.EngagementScore
-                            },
-                            TrendDirection = s.TrendDirection,
-                            History = historySnapshots.Where(h => h.EmployeeId == emp.Id).Select(h => h.BurnoutScore).ToList()
-                        };
-                    }
-                    else
-                    {
-                        // Fallback for members who haven't been analyzed yet
-                        return new TeamPulseMemberDto
-                        {
-                            EmployeeId = emp.Id,
-                            Initials = $"{emp.FirstNameEn.FirstOrDefault()}{emp.LastNameEn.FirstOrDefault()}",
-                            Name = $"{emp.FirstNameEn} {emp.LastNameEn}",
-                            JobTitle = emp.JobTitle ?? "Software Engineer",
-                            RiskLevel = "Healthy",
-                            BurnoutScore = 0,
-                            RiskFactors = new RiskFactorsDto { Workload = 0, Pace = 0, Engagement = 0 },
-                            TrendDirection = "Stable",
-                            History = new List<int> { 0 }
-                        };
-                    }
-                }).ToList()
             };
 
             return Result<TeamPulseDto>.Success(teamPulse);
+        }
+
+        public async Task<Result<List<ActivityFeedItemDto>>> GetRecentActivityAsync(Guid sprintId, CancellationToken ct = default)
+        {
+            var sprint = await _context.Set<Sprint>()
+                .AsNoTracking()
+                .Include(s => s.Project)
+                .ThenInclude(p => p.ProjectEmployees)
+                .ThenInclude(pe => pe.Employee)
+                .FirstOrDefaultAsync(s => s.Id == sprintId, ct);
+
+            if (sprint == null)
+                return Result<List<ActivityFeedItemDto>>.Failure(SprintRiskErrors.SprintNotFound);
+
+            var employeesById = sprint.Project.ProjectEmployees
+                .Where(pe => pe.Employee != null)
+                .ToDictionary(pe => pe.EmployeeId, pe => pe.Employee);
+
+            var recentTasks = await _context.Set<TaskItem>()
+                .AsNoTracking()
+                .Where(t =>
+                    t.SprintId == sprintId &&
+                    !t.IsDeleted &&
+                    t.ModifiedAt.HasValue &&
+                    (t.Status == TaskItemStatus.InProgress || t.Status == TaskItemStatus.Review))
+                .OrderByDescending(t => t.ModifiedAt)
+                .Take(10)
+                .Select(t => new
+                {
+                    t.Id,
+                    t.TitleEn,
+                    t.Status,
+                    t.EmployeeId,
+                    ModifiedAt = t.ModifiedAt!.Value
+                })
+                .ToListAsync(ct);
+
+            var activities = recentTasks.Select(t =>
+            {
+                employeesById.TryGetValue(t.EmployeeId ?? Guid.Empty, out var emp);
+                return new ActivityFeedItemDto
+                {
+                    Id = t.Id,
+                    Initials = emp != null ? GetInitials(emp.FirstNameEn, emp.LastNameEn) : "TP",
+                    Name = emp != null ? $"{emp.FirstNameEn} {emp.LastNameEn}" : "TaskPilot",
+                    ActionType = GetTaskActivityType(t.Status),
+                    Description = GetTaskActivityDescription(t.Status, t.TitleEn),
+                    Timestamp = t.ModifiedAt,
+                    TimeAgo = GetTimeAgo(t.ModifiedAt),
+                    AgentTag = ""
+                };
+            }).ToList();
+
+            return Result<List<ActivityFeedItemDto>>.Success(activities);
         }
 
         public async Task<Result<List<ActivityFeedItemDto>>> GetFullAuditLogAsync(Guid sprintId, CancellationToken ct = default)
@@ -606,6 +645,392 @@ namespace TaskPilot.Services
 
             var sortedActivities = activities.OrderByDescending(a => a.Timestamp).ToList();
             return Result<List<ActivityFeedItemDto>>.Success(sortedActivities);
+        }
+
+        private static int CountWorkingDays(DateTime startDate, DateTime endDate, int workingDaysMask)
+        {
+            if (endDate < startDate) return 0;
+
+            var count = 0;
+            for (var day = startDate.Date; day <= endDate.Date; day = day.AddDays(1))
+            {
+                if ((workingDaysMask & (1 << (int)day.DayOfWeek)) != 0)
+                {
+                    count++;
+                }
+            }
+
+            return count;
+        }
+
+        private static decimal CalculateWorkingHours(DateTime start, DateTime end, int workingDaysMask, decimal hoursPerDay)
+        {
+            if (start >= end || hoursPerDay <= 0)
+            {
+                return 0;
+            }
+
+            const int startHour = 9;
+            var firstDay = start.Date;
+            var lastDay = end.Date;
+
+            if (firstDay == lastDay)
+            {
+                return IsWorkingDay(firstDay.DayOfWeek, workingDaysMask)
+                    ? CalculateSingleDayHours(start, end, startHour, hoursPerDay)
+                    : 0;
+            }
+
+            decimal totalHours = 0;
+
+            if (IsWorkingDay(firstDay.DayOfWeek, workingDaysMask))
+            {
+                totalHours += CalculateSingleDayHours(start, firstDay.AddHours(startHour + (double)hoursPerDay), startHour, hoursPerDay);
+            }
+
+            for (var day = firstDay.AddDays(1); day < lastDay; day = day.AddDays(1))
+            {
+                if (IsWorkingDay(day.DayOfWeek, workingDaysMask))
+                {
+                    totalHours += hoursPerDay;
+                }
+            }
+
+            if (IsWorkingDay(lastDay.DayOfWeek, workingDaysMask))
+            {
+                totalHours += CalculateSingleDayHours(lastDay.AddHours(startHour), end, startHour, hoursPerDay);
+            }
+
+            return Math.Round(totalHours, 2);
+        }
+
+        private static bool IsWorkingDay(DayOfWeek day, int workingDaysMask)
+        {
+            return (workingDaysMask & (1 << (int)day)) != 0;
+        }
+
+        private static decimal CalculateSingleDayHours(DateTime dayStart, DateTime dayEnd, int startHour, decimal hoursPerDay)
+        {
+            var workStart = dayStart.Date.AddHours(startHour);
+            var workEnd = dayStart.Date.AddHours(startHour + (double)hoursPerDay);
+            var actualStart = dayStart > workStart ? dayStart : workStart;
+            var actualEnd = dayEnd < workEnd ? dayEnd : workEnd;
+
+            return actualStart < actualEnd ? (decimal)(actualEnd - actualStart).TotalHours : 0;
+        }
+
+        private static string GetLoadStatus(decimal assignedRemainingHours, decimal availableRemainingHours, int usagePercent)
+        {
+            if (assignedRemainingHours <= 0) return "Underused";
+            if (availableRemainingHours <= 0) return "Overloaded";
+            if (usagePercent > 110) return "Overloaded";
+            if (usagePercent >= 90) return "NearLimit";
+            if (usagePercent >= 70) return "Healthy";
+            return "Available";
+        }
+
+        private static bool IsTaskStuck(TaskItem task, DateTime now, int workingDaysMask, decimal workingHoursPerDay)
+        {
+            if (task.Status != TaskItemStatus.InProgress)
+            {
+                return false;
+            }
+
+            return GetTaskInProgressWorkingDays(task, now, workingDaysMask) >= GetTaskStuckThresholdWorkingDays(task, workingHoursPerDay);
+        }
+
+        private static int GetTaskInProgressWorkingDays(TaskItem task, DateTime now, int workingDaysMask)
+        {
+            var startedAt = task.InProgressAt ?? task.ModifiedAt;
+            if (!startedAt.HasValue)
+            {
+                return 0;
+            }
+
+            return CountWorkingDays(startedAt.Value.Date, now.Date, workingDaysMask);
+        }
+
+        private static int GetTaskStuckThresholdWorkingDays(TaskItem task, decimal workingHoursPerDay)
+        {
+            var dailyHours = workingHoursPerDay > 0 ? workingHoursPerDay : 8m;
+            var expectedWorkingDays = task.EstimatedHours <= 0
+                ? 1
+                : (int)Math.Ceiling(task.EstimatedHours / dailyHours);
+
+            return Math.Max(2, expectedWorkingDays + 1);
+        }
+
+        private static int CalculateWorkloadPressure(
+            int usagePercent,
+            int stuckTasksCount,
+            int estimateExceededCount,
+            int highPriorityTasksCount,
+            int reviewTasksCount)
+        {
+            var pressure = Math.Clamp(usagePercent, 0, 120);
+            pressure += Math.Min(20, stuckTasksCount * 10);
+            pressure += Math.Min(15, estimateExceededCount * 8);
+            pressure += Math.Min(10, highPriorityTasksCount * 3);
+            pressure += Math.Min(10, reviewTasksCount * 3);
+            return Math.Clamp(pressure, 0, 100);
+        }
+
+        private static string GetDeliveryStatus(
+            int scheduleGap,
+            int capacityUsagePercent,
+            int overloadedCount,
+            int stuckTasksCount,
+            int workingDaysLeft,
+            decimal remainingHours)
+        {
+            if (remainingHours <= 0) return "On Track";
+
+            var critical = scheduleGap >= 30 ||
+                           capacityUsagePercent > 120 ||
+                           (workingDaysLeft <= 1 && remainingHours > 0) ||
+                           stuckTasksCount >= 3;
+
+            if (critical) return "Critical";
+
+            var atRisk = scheduleGap >= 15 ||
+                         capacityUsagePercent > 100 ||
+                         overloadedCount > 0 ||
+                         stuckTasksCount > 0;
+
+            return atRisk ? "At Risk" : "On Track";
+        }
+
+        private static int CalculateHealthScore(
+            int scheduleGap,
+            int capacityUsagePercent,
+            int overloadedCount,
+            int stuckTasksCount,
+            int estimateExceededCount)
+        {
+            var score = 100;
+            if (scheduleGap > 0) score -= Math.Min(30, scheduleGap);
+            if (capacityUsagePercent > 100) score -= Math.Min(25, capacityUsagePercent - 100);
+            score -= Math.Min(20, overloadedCount * 8);
+            score -= Math.Min(15, stuckTasksCount * 5);
+            score -= Math.Min(10, estimateExceededCount * 3);
+            return Math.Clamp(score, 0, 100);
+        }
+
+        private static List<NeedsAttentionItemDto> BuildNeedsAttention(
+            List<TeamPulseMemberDto> members,
+            List<TaskItem> unfinishedTasks,
+            int scheduleGap,
+            int capacityUsagePercent,
+            int workingDaysLeft,
+            decimal remainingHours,
+            int reviewTasksCount,
+            decimal reviewEstimatedHours,
+            Func<TaskItem, decimal> getEffectiveActualHours,
+            DateTime now,
+            int workingDaysMask,
+            decimal workingHoursPerDay)
+        {
+            var items = new List<NeedsAttentionItemDto>();
+
+            foreach (var member in members.Where(m => m.UsagePercent > 110).Take(3))
+            {
+                items.Add(new NeedsAttentionItemDto
+                {
+                    Type = "Capacity",
+                    Severity = "High",
+                    Title = $"{member.Name} is overloaded",
+                    Description = $"{FormatHours(member.AssignedRemainingHours)} assigned / {FormatHours(member.AvailableRemainingHours)} available",
+                    ActionLabel = "Reassign tasks",
+                    EmployeeId = member.EmployeeId
+                });
+            }
+
+            foreach (var task in unfinishedTasks
+                .Where(t => IsTaskStuck(t, now, workingDaysMask, workingHoursPerDay))
+                .OrderByDescending(t => GetTaskInProgressWorkingDays(t, now, workingDaysMask) - GetTaskStuckThresholdWorkingDays(t, workingHoursPerDay))
+                .Take(3))
+            {
+                var elapsedWorkingDays = GetTaskInProgressWorkingDays(task, now, workingDaysMask);
+                var thresholdWorkingDays = GetTaskStuckThresholdWorkingDays(task, workingHoursPerDay);
+
+                items.Add(new NeedsAttentionItemDto
+                {
+                    Type = "Execution",
+                    Severity = "Medium",
+                    Title = $"{task.TitleEn} may be stuck",
+                    Description = $"In progress for {elapsedWorkingDays} working day(s); expected threshold is {thresholdWorkingDays}",
+                    ActionLabel = "Review task",
+                    TaskId = task.Id,
+                    EmployeeId = task.EmployeeId
+                });
+            }
+
+            foreach (var task in unfinishedTasks
+                .Where(t => t.EstimatedHours > 0 && getEffectiveActualHours(t) > t.EstimatedHours)
+                .OrderByDescending(t => getEffectiveActualHours(t) - t.EstimatedHours)
+                .Take(3))
+            {
+                items.Add(new NeedsAttentionItemDto
+                {
+                    Type = "Execution",
+                    Severity = "Medium",
+                    Title = $"{task.TitleEn} exceeded estimate",
+                    Description = $"{FormatHours(getEffectiveActualHours(task))} actual / {FormatHours(task.EstimatedHours)} estimated",
+                    ActionLabel = "Review estimate",
+                    TaskId = task.Id,
+                    EmployeeId = task.EmployeeId
+                });
+            }
+
+            if (scheduleGap >= 15)
+            {
+                items.Add(new NeedsAttentionItemDto
+                {
+                    Type = "Schedule",
+                    Severity = scheduleGap >= 30 ? "Critical" : "High",
+                    Title = "Sprint is behind schedule",
+                    Description = $"Time used is {scheduleGap}% ahead of completed work",
+                    ActionLabel = "Review scope"
+                });
+            }
+
+            if (reviewTasksCount >= 3 || (remainingHours > 0 && reviewEstimatedHours / remainingHours >= 0.25m))
+            {
+                items.Add(new NeedsAttentionItemDto
+                {
+                    Type = "Flow",
+                    Severity = reviewTasksCount >= 5 ? "High" : "Medium",
+                    Title = "Review may become a bottleneck",
+                    Description = $"{reviewTasksCount} task(s) in review, carrying {FormatHours(reviewEstimatedHours)} estimated work",
+                    ActionLabel = "Clear review"
+                });
+            }
+
+            if (capacityUsagePercent > 100)
+            {
+                items.Add(new NeedsAttentionItemDto
+                {
+                    Type = "Capacity",
+                    Severity = capacityUsagePercent > 120 ? "Critical" : "High",
+                    Title = "Remaining work exceeds team capacity",
+                    Description = $"{FormatHours(remainingHours)} remaining across {workingDaysLeft} working days",
+                    ActionLabel = "Rebalance workload"
+                });
+            }
+
+            var helper = members
+                .Where(m => m.UsagePercent < 50 && m.RemainingCapacityDeltaHours > 0)
+                .OrderByDescending(m => m.RemainingCapacityDeltaHours)
+                .FirstOrDefault();
+
+            if (helper != null && members.Any(m => m.UsagePercent >= 90))
+            {
+                items.Add(new NeedsAttentionItemDto
+                {
+                    Type = "Capacity",
+                    Severity = "Low",
+                    Title = $"{helper.Name} can help",
+                    Description = $"{FormatHours(helper.RemainingCapacityDeltaHours)} free capacity remaining",
+                    ActionLabel = "Consider rebalance",
+                    EmployeeId = helper.EmployeeId
+                });
+            }
+
+            return items
+                .OrderBy(i => i.Severity == "Critical" ? 0 : i.Severity == "High" ? 1 : 2)
+                .ThenBy(i => i.Type)
+                .ToList();
+        }
+
+        private static List<SprintHealthRiskDto> BuildRiskSummary(
+            int overloadedCount,
+            int scheduleGap,
+            int capacityUsagePercent,
+            int stuckTasksCount,
+            int estimateExceededCount,
+            int reviewTasksCount,
+            decimal reviewEstimatedHours,
+            decimal remainingHours)
+        {
+            var risks = new List<SprintHealthRiskDto>();
+
+            risks.Add(new SprintHealthRiskDto
+            {
+                Type = "Capacity",
+                Severity = capacityUsagePercent > 120 || overloadedCount > 0 ? "High" : "Low",
+                Label = "Capacity risk",
+                Description = overloadedCount > 0
+                    ? $"{overloadedCount} member(s) are overloaded"
+                    : $"{capacityUsagePercent}% of remaining team capacity is used",
+                Count = overloadedCount
+            });
+
+            risks.Add(new SprintHealthRiskDto
+            {
+                Type = "Schedule",
+                Severity = scheduleGap >= 30 ? "Critical" : scheduleGap >= 15 ? "High" : scheduleGap > 0 ? "Medium" : "Low",
+                Label = "Schedule risk",
+                Description = scheduleGap > 0
+                    ? $"Time used is {scheduleGap}% ahead of completed work"
+                    : "Progress is aligned with elapsed sprint time",
+                Count = Math.Max(0, scheduleGap)
+            });
+
+            risks.Add(new SprintHealthRiskDto
+            {
+                Type = "Execution",
+                Severity = stuckTasksCount >= 3 ? "High" : stuckTasksCount > 0 || estimateExceededCount > 0 ? "Medium" : "Low",
+                Label = "Execution risk",
+                Description = $"{stuckTasksCount} stuck task(s), {estimateExceededCount} estimate exceeded",
+                Count = stuckTasksCount + estimateExceededCount
+            });
+
+            var reviewShare = remainingHours <= 0 ? 0 : (int)Math.Round((reviewEstimatedHours * 100m) / remainingHours);
+            risks.Add(new SprintHealthRiskDto
+            {
+                Type = "Flow",
+                Severity = reviewTasksCount >= 5 || reviewShare >= 35 ? "High" : reviewTasksCount >= 3 || reviewShare >= 25 ? "Medium" : "Low",
+                Label = "Flow risk",
+                Description = reviewTasksCount > 0
+                    ? $"{reviewTasksCount} task(s) in review, {reviewShare}% of remaining work"
+                    : "No review bottleneck detected",
+                Count = reviewTasksCount
+            });
+
+            return risks;
+        }
+
+        private static string FormatHours(decimal hours)
+        {
+            return $"{Math.Round(hours, 1):0.#}h";
+        }
+
+        private static string GetTaskActivityType(TaskItemStatus status)
+        {
+            return status switch
+            {
+                TaskItemStatus.Done => "SUCCESS",
+                TaskItemStatus.Review => "WARNING",
+                TaskItemStatus.InProgress => "INFO",
+                _ => "INFO"
+            };
+        }
+
+        private static string GetTaskActivityDescription(TaskItemStatus status, string title)
+        {
+            return status switch
+            {
+                TaskItemStatus.Review => $"Moved to review: {title}",
+                TaskItemStatus.InProgress => $"Started progress: {title}",
+                _ => $"Updated task: {title}"
+            };
+        }
+
+        private static string GetInitials(string? firstName, string? lastName)
+        {
+            var first = string.IsNullOrWhiteSpace(firstName) ? 'U' : firstName.Trim()[0];
+            var last = string.IsNullOrWhiteSpace(lastName) ? 'K' : lastName.Trim()[0];
+            return $"{first}{last}".ToUpperInvariant();
         }
 
         private string GetTimeAgo(DateTime timestamp)

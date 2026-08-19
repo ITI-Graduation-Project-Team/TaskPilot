@@ -92,6 +92,18 @@ namespace TaskPilot.Presentation.Controllers
             return Ok(result);
         }
 
+        [HttpGet("{sprintId}/recent-activity")]
+        [ProducesResponseType(typeof(Result<List<ActivityFeedItemDto>>), 200)]
+        [ProducesResponseType(typeof(Result<List<ActivityFeedItemDto>>), 400)]
+        public async Task<IActionResult> GetRecentActivity(Guid sprintId, CancellationToken ct)
+        {
+            var result = await _riskService.GetRecentActivityAsync(sprintId, ct);
+            if (!result.IsSuccess)
+                return BadRequest(result);
+
+            return Ok(result);
+        }
+
         [HttpGet("seed-mock-data")]
         [AllowAnonymous]
         public async Task<IActionResult> SeedMockData([FromServices] ApplicationDbContext db, [FromServices] Microsoft.AspNetCore.Identity.UserManager<User> userManager, [FromServices] Microsoft.AspNetCore.Identity.RoleManager<Microsoft.AspNetCore.Identity.IdentityRole<Guid>> roleManager)
