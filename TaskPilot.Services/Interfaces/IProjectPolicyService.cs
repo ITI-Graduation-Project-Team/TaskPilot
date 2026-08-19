@@ -16,6 +16,7 @@ namespace TaskPilot.Services.Interfaces
 
         Task<Result<ProjectPolicyAnswerResponse>> AskAsync(
             ProjectPolicyQuestionRequest request,
+            bool canUploadPolicies,
             CancellationToken cancellationToken = default);
 
         Task<Result> PromoteAsync(

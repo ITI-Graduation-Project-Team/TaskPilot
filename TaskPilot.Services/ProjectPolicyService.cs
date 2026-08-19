@@ -232,6 +232,7 @@ namespace TaskPilot.Services
 
         public async Task<Result<ProjectPolicyAnswerResponse>> AskAsync(
             ProjectPolicyQuestionRequest request,
+            bool canUploadPolicies,
             CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(request.Question))
@@ -271,7 +272,11 @@ namespace TaskPilot.Services
 
             if (!hasDocuments)
             {
-                var msg = _localizationService.GetString("NO_POLICIES_UPLOADED");
+                var msg = canUploadPolicies
+                    ? _localizationService.GetString("NO_POLICIES_UPLOADED")
+                    : _localizationService.CurrentLanguage == "ar"
+                        ? "لا توجد مستندات سياسات متاحة لهذا المشروع حالياً. يرجى التواصل مع مدير المشروع."
+                        : "No project policy documents are currently available. Please contact your project manager.";
                 return Result.Success(new ProjectPolicyAnswerResponse
                 {
                     Answer = msg,

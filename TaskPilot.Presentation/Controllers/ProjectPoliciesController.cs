@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TaskPilot.Data.Repositories;
 using TaskPilot.DTOs.AI.ProjectPolicies;
@@ -9,6 +10,7 @@ using TaskPilot.Services.Interfaces;
 namespace TaskPilot.Presentation.Controllers
 {
     [ApiController]
+    [Authorize(Roles = "ProjectManager,Employee")]
     [Route("api/project-policies")]
     public class ProjectPoliciesController : ApiControllerBase
     {
@@ -22,6 +24,7 @@ namespace TaskPilot.Presentation.Controllers
         }
 
         [HttpPost("upload")]
+        [Authorize(Roles = "ProjectManager")]
         public async Task<ActionResult> Upload(
             [FromForm] UploadProjectPolicyRequest request,
             CancellationToken cancellationToken)
@@ -47,11 +50,15 @@ namespace TaskPilot.Presentation.Controllers
             [FromBody] ProjectPolicyQuestionRequest request,
             CancellationToken cancellationToken)
         {
-            var result = await _projectPolicyService.AskAsync(request, cancellationToken);
+            var result = await _projectPolicyService.AskAsync(
+                request,
+                canUploadPolicies: User.IsInRole("ProjectManager"),
+                cancellationToken);
             return HandleResult(result);
         }
 
         [HttpPost("promote")]
+        [Authorize(Roles = "ProjectManager")]
         public async Task<ActionResult> Promote(
             [FromBody] PromoteProjectPolicyRequest request,
             CancellationToken cancellationToken)
@@ -74,6 +81,7 @@ namespace TaskPilot.Presentation.Controllers
         }
 
         [HttpDelete("{documentId:guid}")]
+        [Authorize(Roles = "ProjectManager")]
         public async Task<ActionResult> DeletePolicy(
             Guid documentId,
             [FromQuery] Guid projectId,
