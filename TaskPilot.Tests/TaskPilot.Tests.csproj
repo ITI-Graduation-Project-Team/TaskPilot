@@ -10,6 +10,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="Moq" Version="4.20.72" />
+    <PackageReference Include="StackExchange.Redis" Version="2.7.27" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4">
       <PrivateAssets>all</PrivateAssets>
@@ -21,6 +22,7 @@
     <ProjectReference Include="..\TaskPilot.AI\TaskPilot.AI.csproj" />
     <ProjectReference Include="..\TaskPilot.Data\TaskPilot.Data.csproj" />
     <ProjectReference Include="..\TaskPilot.Models\TaskPilot.Models.csproj" />
+    <ProjectReference Include="..\TaskPilot.Presentation\TaskPilot.Presentation.csproj" />
     <ProjectReference Include="..\TaskPilot.Services\TaskPilot.Services.csproj" />
   </ItemGroup>
 </Project>

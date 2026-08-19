@@ -16,6 +16,7 @@ using TaskPilot.Models.Common.Results;
 using TaskPilot.Models.Enums;
 using TaskPilot.Presentation.Middlewares;
 using TaskPilot.Presentation.Models;
+using TaskPilot.Presentation.Extensions;
 using TaskPilot.Services;
 using TaskPilot.Services.BackgroundJobs;
 using TaskPilot.Services.Interfaces;
@@ -60,7 +61,7 @@ namespace TaskPilot.Presentation
                         .AllowCredentials();  // now valid because origin is explicit
                 });
             });
-            builder.Services.AddSignalR();
+            builder.Services.AddTaskPilotSignalR(builder.Configuration);
             builder.Services.AddScoped<TaskPilot.Services.Interfaces.INotificationNotifier, TaskPilot.Presentation.Services.NotificationNotifier>();
             builder.Services.AddScoped<TaskPilot.Services.Interfaces.IProjectSetupStatusNotifier, TaskPilot.Presentation.Services.ProjectSetupStatusNotifier>();
 
@@ -167,6 +168,14 @@ namespace TaskPilot.Presentation
                     ));
             });
             var app = builder.Build();
+
+            if (builder.Configuration.GetValue<bool>("SignalR:RedisEnabled"))
+            {
+                app.Logger.LogInformation(
+                    "SignalR Redis backplane enabled on backend {BackendInstance} with channel prefix {ChannelPrefix}",
+                    Environment.MachineName,
+                    builder.Configuration["SignalR:ChannelPrefix"]);
+            }
 
 
             app.UseSwagger();
