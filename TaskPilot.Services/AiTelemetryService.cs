@@ -123,6 +123,36 @@ namespace TaskPilot.Services
             return Result<ProjectAiSummaryDto>.Success(summary);
         }
 
+        public async Task<Result<ManagedProjectsAiSummaryDto>> GetManagedProjectsSummaryAsync(
+            Guid managerId,
+            CancellationToken cancellationToken = default)
+        {
+            var logs = _context.AiTelemetryLogs
+                .Where(log =>
+                    log.CalculationStatus == "Calculated" &&
+                    log.ProjectId.HasValue &&
+                    _context.Projects.Any(project =>
+                        project.Id == log.ProjectId.Value &&
+                        project.ManagerId == managerId &&
+                        !project.IsDeleted));
+
+            var totalOperations = await logs.CountAsync(cancellationToken);
+            if (totalOperations == 0)
+            {
+                return Result<ManagedProjectsAiSummaryDto>.Success(new ManagedProjectsAiSummaryDto());
+            }
+
+            var summary = new ManagedProjectsAiSummaryDto
+            {
+                TotalOperations = totalOperations,
+                TotalTokens = await logs.SumAsync(log => log.TotalTokens, cancellationToken),
+                TotalCostUsd = await logs.SumAsync(log => log.EstimatedCostUsd, cancellationToken),
+                AverageResponseTimeMs = (long)await logs.AverageAsync(log => log.ResponseTimeMs, cancellationToken)
+            };
+
+            return Result<ManagedProjectsAiSummaryDto>.Success(summary);
+        }
+
         public async Task<Result<List<ProjectMemberAiUsageDto>>> GetProjectMemberBreakdownAsync(Guid projectId, CancellationToken cancellationToken = default)
         {
             var logs = await _context.AiTelemetryLogs

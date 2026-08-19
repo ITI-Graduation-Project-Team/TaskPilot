@@ -56,6 +56,20 @@ namespace TaskPilot.Presentation.Controllers
 
         // ──────────────────────── Project Manager Endpoints ────────────────────────
 
+        [HttpGet("projects/summary")]
+        [Authorize(Roles = "ProjectManager")]
+        public async Task<ActionResult> GetManagedProjectsSummary(CancellationToken cancellationToken)
+        {
+            var userId = _currentUserService.UserId;
+            if (userId == null || userId == Guid.Empty)
+            {
+                return Unauthorized();
+            }
+
+            var result = await _telemetryService.GetManagedProjectsSummaryAsync(userId.Value, cancellationToken);
+            return HandleResult(result, SuccessCodes.Telemetry.Retrieved);
+        }
+
         [HttpGet("projects/{projectId:guid}/summary")]
         [Authorize(Roles = "ProjectManager,Admin")]
         public async Task<ActionResult> GetProjectSummary(Guid projectId, CancellationToken cancellationToken)
