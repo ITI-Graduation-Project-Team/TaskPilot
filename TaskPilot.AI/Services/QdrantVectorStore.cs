@@ -341,7 +341,7 @@ namespace TaskPilot.AI.Services
                 queryEmbedding,
                 filter: filter,
                 limit: (ulong)topK,
-                scoreThreshold: null,
+                scoreThreshold: scoreThreshold,
                 cancellationToken: cancellationToken);
             stopwatch.Stop();
 

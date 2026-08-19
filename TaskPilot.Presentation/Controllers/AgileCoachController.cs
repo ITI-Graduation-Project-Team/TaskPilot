@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -36,17 +37,17 @@ namespace TaskPilot.Presentation.Controllers
         }
 
         [HttpGet("summary/{taskId:guid}")]
-        public async Task<IActionResult> GetSummary(Guid taskId)
+        public async Task<IActionResult> GetSummary(Guid taskId, CancellationToken cancellationToken)
         {
             var lang = GetLang();
 
-            var result = await _agileCoachService.GetOrGenerateSummaryAsync(taskId, lang);
+            var result = await _agileCoachService.GetOrGenerateSummaryAsync(taskId, lang, cancellationToken);
 
             if (!result.IsSuccess)
                 return HandleResult(result, null);
 
             if (result.Value!.Summary.IsNewlyGenerated)
-                await _unitOfWork.SaveChangesAsync();
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             var successCode = result.Value.Summary.IsNewlyGenerated
                 ? SuccessCodes.AgileCoach.SummaryGenerated
@@ -56,16 +57,16 @@ namespace TaskPilot.Presentation.Controllers
         }
 
         [HttpPost("summary/{taskId:guid}/regenerate")]
-        public async Task<IActionResult> RegenerateSummary(Guid taskId)
+        public async Task<IActionResult> RegenerateSummary(Guid taskId, CancellationToken cancellationToken)
         {
             var lang = GetLang();
 
-            var result = await _agileCoachService.RegenerateSummaryAsync(taskId, lang);
+            var result = await _agileCoachService.RegenerateSummaryAsync(taskId, lang, cancellationToken);
 
             if (!result.IsSuccess)
                 return HandleResult(result, null);
 
-            await _unitOfWork.SaveChangesAsync();
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             return HandleResult(
                 Result.Success(result.Value!.Summary),
