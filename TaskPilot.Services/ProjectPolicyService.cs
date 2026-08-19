@@ -257,18 +257,24 @@ namespace TaskPilot.Services
             if (request.RequirementSessionId.HasValue && request.RequirementSessionId.Value == Guid.Empty)
                 return Result.Failure<ProjectPolicyAnswerResponse>(CommonErrors.InvalidInput("RequirementSessionId cannot be empty Guid."));
 
+            Project? project = null;
             if (request.ProjectId.HasValue)
             {
-                var project = await _projectRepository.GetByIdAsync(request.ProjectId.Value);
+                project = await _projectRepository.GetByIdAsync(request.ProjectId.Value);
                 if (project == null)
                 {
                     return Result.Failure<ProjectPolicyAnswerResponse>(ProjectErrors.NotFound);
                 }
             }
 
-            bool hasDocuments = request.ProjectId.HasValue 
+            bool hasDocuments = request.ProjectId.HasValue
                 ? await _policyRepository.AnyAsync(p => p.ProjectId == request.ProjectId.Value && p.Scope == PolicyScope.Project)
                 : await _policyRepository.AnyAsync(p => p.RequirementSessionId == request.RequirementSessionId!.Value && p.Scope == PolicyScope.Project);
+
+            // Documents uploaded during requirements discovery are stored on the
+            // project and promoted to Qdrant, but they do not have Policy rows.
+            // Treat them as project-policy knowledge so employees can query them.
+            hasDocuments = HasProjectPolicyDocuments(hasDocuments, project);
 
             if (!hasDocuments)
             {
@@ -310,6 +316,11 @@ namespace TaskPilot.Services
             };
 
             return Result.Success(response);
+        }
+
+        internal static bool HasProjectPolicyDocuments(bool hasPolicyRecord, Project? project)
+        {
+            return hasPolicyRecord || project?.DocumentIds.Count > 0;
         }
 
         public async Task<Result> PromoteAsync(

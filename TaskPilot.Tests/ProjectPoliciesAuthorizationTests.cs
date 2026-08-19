@@ -7,12 +7,34 @@ using TaskPilot.Data.Repositories;
 using TaskPilot.DTOs.AI.ProjectPolicies;
 using TaskPilot.Models.Common.Results;
 using TaskPilot.Presentation.Controllers;
+using TaskPilot.Services;
 using TaskPilot.Services.Interfaces;
 
 namespace TaskPilot.Tests;
 
 public sealed class ProjectPoliciesAuthorizationTests
 {
+    [Fact]
+    public void HasProjectPolicyDocuments_IncludesRequirementsDiscoveryDocuments()
+    {
+        var project = new TaskPilot.Models.Entities.Project
+        {
+            DocumentIds = [Guid.NewGuid()]
+        };
+
+        Assert.True(ProjectPolicyService.HasProjectPolicyDocuments(
+            hasPolicyRecord: false,
+            project));
+    }
+
+    [Fact]
+    public void HasProjectPolicyDocuments_IsFalseWhenBothSourcesAreEmpty()
+    {
+        Assert.False(ProjectPolicyService.HasProjectPolicyDocuments(
+            hasPolicyRecord: false,
+            new TaskPilot.Models.Entities.Project()));
+    }
+
     [Theory]
     [InlineData("ProjectManager", true)]
     [InlineData("Employee", false)]

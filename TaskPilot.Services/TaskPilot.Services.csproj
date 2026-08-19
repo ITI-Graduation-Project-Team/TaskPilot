@@ -20,4 +20,8 @@
     <ProjectReference Include="..\TaskPilot.Models\TaskPilot.Models.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="TaskPilot.Tests" />
+  </ItemGroup>
+
 </Project>
