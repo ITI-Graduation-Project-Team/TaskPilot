@@ -6,10 +6,35 @@ namespace TaskPilot.DTOs.Sprint
     public class TeamPulseDto
     {
         public int TeamBurnoutRisk { get; set; }
+        public SprintHealthSummaryDto Summary { get; set; } = new SprintHealthSummaryDto();
         public DashboardKpisDto Kpis { get; set; } = new DashboardKpisDto();
         public List<ActivityFeedItemDto> LiveActivity { get; set; } = new List<ActivityFeedItemDto>();
         public List<TeamPulseMemberDto> Members { get; set; } = new List<TeamPulseMemberDto>();
+        public List<NeedsAttentionItemDto> NeedsAttention { get; set; } = new List<NeedsAttentionItemDto>();
+        public List<SprintHealthRiskDto> Risks { get; set; } = new List<SprintHealthRiskDto>();
         public TeamPulseChartsDto Charts { get; set; } = new TeamPulseChartsDto();
+    }
+
+    public class SprintHealthSummaryDto
+    {
+        public string DeliveryStatus { get; set; } = "On Track";
+        public int ProgressPercent { get; set; }
+        public int EffortProgressPercent { get; set; }
+        public int DoneTasks { get; set; }
+        public int TotalTasks { get; set; }
+        public int CompletedEstimatedHours { get; set; }
+        public int TotalEstimatedHours { get; set; }
+        public int RemainingHours { get; set; }
+        public int WorkingDaysLeft { get; set; }
+        public int TeamRemainingCapacity { get; set; }
+        public int CapacityUsagePercent { get; set; }
+        public decimal EstimatedWorkingDaysNeeded { get; set; }
+        public int SpareCapacityHours { get; set; }
+        public int OverloadedCount { get; set; }
+        public int UnassignedHighPriorityCount { get; set; }
+        public int StuckTasksCount { get; set; }
+        public int EstimateExceededCount { get; set; }
+        public int ReviewTasksCount { get; set; }
     }
 
     public class TeamPulseMemberDto
@@ -21,6 +46,18 @@ namespace TaskPilot.DTOs.Sprint
         
         public string RiskLevel { get; set; } = string.Empty;
         public int BurnoutScore { get; set; }
+        public decimal AssignedRemainingHours { get; set; }
+        public decimal AvailableRemainingHours { get; set; }
+        public decimal RemainingCapacityDeltaHours { get; set; }
+        public decimal CompletedEstimatedHours { get; set; }
+        public int UsagePercent { get; set; }
+        public int WorkloadPressurePercent { get; set; }
+        public int ActiveTasksCount { get; set; }
+        public int HighPriorityTasksCount { get; set; }
+        public int StuckTasksCount { get; set; }
+        public int EstimateExceededTasksCount { get; set; }
+        public int ReviewTasksCount { get; set; }
+        public string LoadStatus { get; set; } = string.Empty;
         
         public RiskFactorsDto RiskFactors { get; set; } = new RiskFactorsDto();
         public string TrendDirection { get; set; } = string.Empty;
@@ -47,6 +84,26 @@ namespace TaskPilot.DTOs.Sprint
         
         public int TeamBurnoutRiskValue { get; set; }
         public string TeamBurnoutRiskSubtext { get; set; } = string.Empty;
+    }
+
+    public class NeedsAttentionItemDto
+    {
+        public string Type { get; set; } = string.Empty;
+        public string Severity { get; set; } = string.Empty;
+        public string Title { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public string ActionLabel { get; set; } = string.Empty;
+        public Guid? TaskId { get; set; }
+        public Guid? EmployeeId { get; set; }
+    }
+
+    public class SprintHealthRiskDto
+    {
+        public string Type { get; set; } = string.Empty;
+        public string Severity { get; set; } = string.Empty;
+        public string Label { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public int Count { get; set; }
     }
 
     public class ActivityFeedItemDto
